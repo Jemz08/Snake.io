@@ -1,16 +1,25 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Snake, LootItem } from '../types';
+import { Snake, LootItem, MapObstacle, ShieldPowerup } from '../types';
 import { WEAPONS } from '../utils/weapons';
-import { Maximize2, Minimize2, Radio } from 'lucide-react';
+import { Maximize2, Minimize2, Radio, Shield } from 'lucide-react';
 
 interface MinimapProps {
   worldSize: number;
   player: Snake | null;
   snakes: Snake[];
   loots: LootItem[];
+  obstacles?: MapObstacle[];
+  shields?: ShieldPowerup[];
 }
 
-export const Minimap: React.FC<MinimapProps> = ({ worldSize, player, snakes, loots }) => {
+export const Minimap: React.FC<MinimapProps> = ({
+  worldSize,
+  player,
+  snakes,
+  loots,
+  obstacles = [],
+  shields = [],
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const sweepAngleRef = useRef(0);
@@ -64,6 +73,47 @@ export const Minimap: React.FC<MinimapProps> = ({ worldSize, player, snakes, loo
       ctx.beginPath();
       ctx.arc(center, center, (size / 2) * 0.95, 0, Math.PI * 2);
       ctx.fill();
+
+      // Draw Defensive Map Obstacles (Bunkers & Barricades)
+      for (const obs of obstacles) {
+        const ox = obs.x * scale;
+        const oy = obs.y * scale;
+
+        ctx.fillStyle = 'rgba(30, 41, 59, 0.85)';
+        ctx.strokeStyle = obs.borderColor || '#0ea5e9';
+        ctx.lineWidth = 1;
+
+        if (obs.shape === 'circle' && obs.radius) {
+          const r = Math.max(2, obs.radius * scale);
+          ctx.beginPath();
+          ctx.arc(ox, oy, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        } else if (obs.shape === 'rect' && obs.width && obs.height) {
+          const w = Math.max(3, obs.width * scale);
+          const h = Math.max(3, obs.height * scale);
+          ctx.save();
+          ctx.translate(ox, oy);
+          if (obs.rotation) ctx.rotate(obs.rotation);
+          ctx.fillRect(-w / 2, -h / 2, w, h);
+          ctx.strokeRect(-w / 2, -h / 2, w, h);
+          ctx.restore();
+        }
+      }
+
+      // Draw Shield Powerups
+      for (const s of shields) {
+        const sx = s.x * scale;
+        const sy = s.y * scale;
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.shadowColor = '#0ea5e9';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
 
       // Draw Loot Weapon Crates
       for (const loot of loots) {
@@ -176,7 +226,7 @@ export const Minimap: React.FC<MinimapProps> = ({ worldSize, player, snakes, loo
 
     animId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animId);
-  }, [worldSize, player, snakes, loots, mapSize, isExpanded]);
+  }, [worldSize, player, snakes, loots, obstacles, shields, mapSize, isExpanded]);
 
   const activeEnemies = snakes.filter((s) => !s.isDead && !s.isPlayer).length;
 
@@ -220,6 +270,9 @@ export const Minimap: React.FC<MinimapProps> = ({ worldSize, player, snakes, loo
           </span>
           <span className="flex items-center gap-0.5">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" /> Armed
+          </span>
+          <span className="flex items-center gap-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 inline-block" /> Shield
           </span>
         </div>
       )}

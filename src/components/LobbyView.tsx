@@ -20,6 +20,8 @@ import {
   Minimize,
   Flame,
   Download,
+  Shield,
+  ShieldAlert,
 } from 'lucide-react';
 import { getSoundMuted, setSoundMuted } from '../utils/audio';
 
@@ -415,19 +417,41 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 </p>
               </div>
             </div>
+
+            {/* Tactical Defense: Shields & Obstacles */}
+            <div className="bg-slate-950/70 border border-sky-500/40 rounded-xl p-2.5 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-sky-500/20 border border-sky-400 flex items-center justify-center text-sky-400 shrink-0">
+                <Shield className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="font-cyber text-xs font-black text-sky-300 uppercase">
+                    SHIELDS & DEFENSE COVER
+                  </span>
+                  <span className="bg-sky-500/20 text-sky-300 font-cyber text-[9px] font-black px-1.5 py-0.5 rounded border border-sky-500/40">
+                    +100 HP BUFF
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 line-clamp-1">
+                  Collect shield bubbles for +100 HP. Hide behind bunkers to deflect bullets!
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Footer Controls Tip */}
-      <div className="w-full max-w-7xl mx-auto flex flex-wrap items-center justify-between text-[11px] font-cyber text-slate-400 border-t border-slate-800/80 pt-3 z-10">
-        <div className="flex items-center gap-4">
+      <div className="w-full max-w-7xl mx-auto flex flex-wrap items-center justify-between text-[11px] font-cyber text-slate-400 border-t border-slate-800/80 pt-3 z-10 gap-2">
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
           <span>🕹️ JOYSTICK: Move & Aim</span>
-          <span>🔴 FIRE: Shoot equipped weapon</span>
+          <span>🔴 FIRE: Shoot weapon</span>
           <span>⚡ BOOST: Speed Dash</span>
+          <span>🛡️ SHIELD: Absorbs damage</span>
+          <span>🧱 BUNKERS: Deflect projectiles</span>
         </div>
         <div className="text-cyan-400 font-bold">
-          TIP: Grenade explosion eliminates any snake in 1-HIT!
+          TIP: 5600px Arena • 24 Bots • Bunkers block incoming bullets & grenades!
         </div>
       </div>
     </div>

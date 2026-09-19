@@ -49,6 +49,10 @@ export interface Snake {
   color: string;
   accentColor: string;
   deathEffectId?: DeathEffectType;
+  // Shield Defense System
+  shieldHp?: number;
+  maxShieldHp?: number;
+  shieldTimer?: number;
   // Weapon Aiming & Laser Targeting fields (mounted at back of head)
   aimAngle?: number;
   isAiming?: boolean;
@@ -84,6 +88,35 @@ export interface LootItem {
   radius: number;
   pulsePhase: number;
   bobOffset: number;
+}
+
+export interface ShieldPowerup {
+  id: number;
+  x: number;
+  y: number;
+  radius: number;
+  pulsePhase: number;
+  bobOffset: number;
+  shieldAmount: number;
+}
+
+export type ObstacleShape = 'circle' | 'rect';
+
+export interface MapObstacle {
+  id: number;
+  x: number;
+  y: number;
+  shape: ObstacleShape;
+  radius?: number; // for circular bunkers / pillars
+  width?: number;  // for rectangular blast barriers
+  height?: number;
+  rotation?: number; // optional orientation angle
+  label?: string;    // optional tactical readout label
+  type: 'titanium_bunker' | 'forcefield_pillar' | 'blast_barrier';
+  color: string;
+  borderColor: string;
+  glowColor: string;
+  hitPulse?: number; // visual deflection ripple when blocking bullets
 }
 
 export interface Projectile {

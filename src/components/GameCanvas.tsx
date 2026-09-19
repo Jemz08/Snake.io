@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import { GameEngine } from '../game/GameEngine';
 import { GameRenderer } from '../game/GameRenderer';
 import { GameHud } from './GameHud';
-import { Snake, LootItem, KillNotification, WeaponType } from '../types';
+import { Snake, LootItem, KillNotification, WeaponType, MapObstacle, ShieldPowerup } from '../types';
 
 interface GameCanvasProps {
   engine: GameEngine;
@@ -24,6 +24,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [playerSnake, setPlayerSnake] = React.useState<Snake | null>(engine.playerSnake);
   const [allSnakes, setAllSnakes] = React.useState<Snake[]>(engine.snakes);
   const [loots, setLoots] = React.useState<LootItem[]>(engine.loots);
+  const [shields, setShields] = React.useState<ShieldPowerup[]>(engine.shields);
   const [leaderboard, setLeaderboard] = React.useState(engine.getLeaderboard());
   const [killFeed, setKillFeed] = React.useState<KillNotification[]>([]);
 
@@ -83,6 +84,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       // Draw Foods & Dead Snake Drops
       renderer.drawFood(engine.foods);
 
+      // Draw Tactical Defensive Obstacles (Bulletproof Bunkers & Barricades)
+      renderer.drawObstacles(engine.obstacles);
+
+      // Draw Shield Defense Powerups
+      renderer.drawShields(engine.shields);
+
       // Draw Weapon Loot Pods
       renderer.drawLoot(engine.loots);
 
@@ -111,6 +118,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         setPlayerSnake(engine.playerSnake ? { ...engine.playerSnake } : null);
         setAllSnakes([...engine.snakes]);
         setLoots([...engine.loots]);
+        setShields([...engine.shields]);
         setLeaderboard(engine.getLeaderboard());
         setKillFeed([...engine.killFeed]);
       }
@@ -184,6 +192,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         player={playerSnake}
         snakes={allSnakes}
         loots={loots}
+        obstacles={engine.obstacles}
+        shields={shields}
         worldSize={engine.worldSize}
         leaderboard={leaderboard}
         killFeed={killFeed}

@@ -2,6 +2,8 @@ import {
   Snake,
   FoodItem,
   LootItem,
+  ShieldPowerup,
+  MapObstacle,
   Projectile,
   ExplosionEffect,
   Particle,
@@ -19,16 +21,20 @@ import {
   playKillSound,
   playCashSound,
   playDeathEffectSound,
+  playShieldPickupSound,
+  playShieldDeflectSound,
+  playObstacleHitSound,
 } from '../utils/audio';
 import { SKINS } from '../utils/skins';
 import { DEATH_EFFECTS } from '../utils/deathEffects';
 import { updateMissionProgress } from '../utils/missions';
 import { recordPlayerScore } from '../utils/leaderboard';
 
-const WORLD_SIZE = 3600;
-const MAX_FOOD = 380;
-const MAX_LOOT = 16;
-const BOT_COUNT = 9;
+const WORLD_SIZE = 5600;
+const MAX_FOOD = 700;
+const MAX_LOOT = 26;
+const MAX_SHIELDS = 14;
+const BOT_COUNT = 24;
 
 const BOT_NAMES = [
   'Viper²',
@@ -43,6 +49,22 @@ const BOT_NAMES = [
   'CyberWorm',
   'TitanMech',
   'ShadowCobra',
+  'NullPointer',
+  'CryoStalker',
+  'RazorBack',
+  'QuantumFang',
+  'DarkByte',
+  'Vortex-7',
+  'PulseReaper',
+  'OmegaSerpent',
+  'ByteVenom',
+  'Warhound-X',
+  'ZeroCool',
+  'Hyperion-0',
+  'VectorStriker',
+  'SolarRaptor',
+  'ExoGoliath',
+  'Spectre-X',
 ];
 
 export class GameEngine {
@@ -50,6 +72,8 @@ export class GameEngine {
   public snakes: Snake[] = [];
   public foods: FoodItem[] = [];
   public loots: LootItem[] = [];
+  public shields: ShieldPowerup[] = [];
+  public obstacles: MapObstacle[] = [];
   public projectiles: Projectile[] = [];
   public explosions: ExplosionEffect[] = [];
   public particles: Particle[] = [];
@@ -73,13 +97,17 @@ export class GameEngine {
   public initWorld() {
     this.foods = [];
     this.loots = [];
+    this.shields = [];
     this.projectiles = [];
     this.explosions = [];
     this.particles = [];
     this.damagePopups = [];
     this.killFeed = [];
 
-    // Spawn initial food
+    // Initialize battlefield defensive obstacles
+    this.initObstacles();
+
+    // Spawn initial food across the expanded map
     for (let i = 0; i < MAX_FOOD; i++) {
       this.spawnFood();
     }
@@ -87,6 +115,264 @@ export class GameEngine {
     // Spawn initial loot crates
     for (let i = 0; i < MAX_LOOT; i++) {
       this.spawnLoot();
+    }
+
+    // Spawn initial shield powerups
+    for (let i = 0; i < MAX_SHIELDS; i++) {
+      this.spawnShield();
+    }
+  }
+
+  public initObstacles() {
+    this.obstacles = [];
+    const C = WORLD_SIZE / 2; // Central coords (2800)
+
+    // 1. Central Citadel:
+    // Core titanium bunker
+    this.obstacles.push({
+      id: this.nextEntityId++,
+      x: C,
+      y: C,
+      shape: 'circle',
+      radius: 80,
+      type: 'titanium_bunker',
+      color: '#1e293b',
+      borderColor: '#38bdf8',
+      glowColor: '#0284c7',
+      hitPulse: 0,
+    });
+
+    // 4 Corner blast barricades around central citadel
+    this.obstacles.push(
+      {
+        id: this.nextEntityId++,
+        x: C - 220,
+        y: C,
+        shape: 'rect',
+        width: 42,
+        height: 180,
+        type: 'blast_barrier',
+        color: '#0f172a',
+        borderColor: '#06b6d4',
+        glowColor: '#0891b2',
+        hitPulse: 0,
+      },
+      {
+        id: this.nextEntityId++,
+        x: C + 220,
+        y: C,
+        shape: 'rect',
+        width: 42,
+        height: 180,
+        type: 'blast_barrier',
+        color: '#0f172a',
+        borderColor: '#06b6d4',
+        glowColor: '#0891b2',
+        hitPulse: 0,
+      },
+      {
+        id: this.nextEntityId++,
+        x: C,
+        y: C - 220,
+        shape: 'rect',
+        width: 180,
+        height: 42,
+        type: 'blast_barrier',
+        color: '#0f172a',
+        borderColor: '#06b6d4',
+        glowColor: '#0891b2',
+        hitPulse: 0,
+      },
+      {
+        id: this.nextEntityId++,
+        x: C,
+        y: C + 220,
+        shape: 'rect',
+        width: 180,
+        height: 42,
+        type: 'blast_barrier',
+        color: '#0f172a',
+        borderColor: '#06b6d4',
+        glowColor: '#0891b2',
+        hitPulse: 0,
+      }
+    );
+
+    // 4 Diagonal Forcefield Pillars around Citadel
+    const diagOffsets = [-360, 360];
+    for (const dx of diagOffsets) {
+      for (const dy of diagOffsets) {
+        this.obstacles.push({
+          id: this.nextEntityId++,
+          x: C + dx,
+          y: C + dy,
+          shape: 'circle',
+          radius: 50,
+          type: 'forcefield_pillar',
+          color: '#1e1b4b',
+          borderColor: '#818cf8',
+          glowColor: '#6366f1',
+          hitPulse: 0,
+        });
+      }
+    }
+
+    // 2. Cardinal Outpost Garrisons (North, South, West, East)
+    const cardinalOutposts = [
+      { x: C, y: C - 1400 },
+      { x: C, y: C + 1400 },
+      { x: C - 1400, y: C },
+      { x: C + 1400, y: C },
+    ];
+
+    for (const outpost of cardinalOutposts) {
+      this.obstacles.push({
+        id: this.nextEntityId++,
+        x: outpost.x,
+        y: outpost.y,
+        shape: 'circle',
+        radius: 65,
+        type: 'titanium_bunker',
+        color: '#1e293b',
+        borderColor: '#f59e0b',
+        glowColor: '#d97706',
+        hitPulse: 0,
+      });
+      // Flanking barricades
+      this.obstacles.push(
+        {
+          id: this.nextEntityId++,
+          x: outpost.x - 140,
+          y: outpost.y,
+          shape: 'rect',
+          width: 36,
+          height: 140,
+          type: 'blast_barrier',
+          color: '#0f172a',
+          borderColor: '#f59e0b',
+          glowColor: '#d97706',
+          hitPulse: 0,
+        },
+        {
+          id: this.nextEntityId++,
+          x: outpost.x + 140,
+          y: outpost.y,
+          shape: 'rect',
+          width: 36,
+          height: 140,
+          type: 'blast_barrier',
+          color: '#0f172a',
+          borderColor: '#f59e0b',
+          glowColor: '#d97706',
+          hitPulse: 0,
+        }
+      );
+    }
+
+    // 3. Quadrant Fortresses (Top-Left, Top-Right, Bottom-Left, Bottom-Right)
+    const quadrantForts = [
+      { x: C - 1500, y: C - 1500 },
+      { x: C + 1500, y: C - 1500 },
+      { x: C - 1500, y: C + 1500 },
+      { x: C + 1500, y: C + 1500 },
+    ];
+
+    for (const qf of quadrantForts) {
+      this.obstacles.push({
+        id: this.nextEntityId++,
+        x: qf.x,
+        y: qf.y,
+        shape: 'circle',
+        radius: 68,
+        type: 'titanium_bunker',
+        color: '#1e293b',
+        borderColor: '#10b981',
+        glowColor: '#059669',
+        hitPulse: 0,
+      });
+      // L-shape cover walls
+      this.obstacles.push(
+        {
+          id: this.nextEntityId++,
+          x: qf.x,
+          y: qf.y - 130,
+          shape: 'rect',
+          width: 150,
+          height: 34,
+          type: 'blast_barrier',
+          color: '#0f172a',
+          borderColor: '#10b981',
+          glowColor: '#059669',
+          hitPulse: 0,
+        },
+        {
+          id: this.nextEntityId++,
+          x: qf.x - 130,
+          y: qf.y,
+          shape: 'rect',
+          width: 34,
+          height: 150,
+          type: 'blast_barrier',
+          color: '#0f172a',
+          borderColor: '#10b981',
+          glowColor: '#059669',
+          hitPulse: 0,
+        }
+      );
+    }
+
+    // 4. Sector Defense Pillars scattered across mid-range lanes
+    const scatteredPillars = [
+      { x: C - 750, y: C - 750 },
+      { x: C + 750, y: C - 750 },
+      { x: C - 750, y: C + 750 },
+      { x: C + 750, y: C + 750 },
+      { x: C - 2100, y: C - 750 },
+      { x: C + 2100, y: C - 750 },
+      { x: C - 2100, y: C + 750 },
+      { x: C + 2100, y: C + 750 },
+      { x: C - 750, y: C - 2100 },
+      { x: C + 750, y: C - 2100 },
+      { x: C - 750, y: C + 2100 },
+      { x: C + 750, y: C + 2100 },
+    ];
+
+    for (const p of scatteredPillars) {
+      this.obstacles.push({
+        id: this.nextEntityId++,
+        x: p.x,
+        y: p.y,
+        shape: 'circle',
+        radius: 46,
+        type: 'forcefield_pillar',
+        color: '#1e1b4b',
+        borderColor: '#a855f7',
+        glowColor: '#9333ea',
+        hitPulse: 0,
+      });
+    }
+
+    // 5. Perimeter Blast Defense walls (for snipers to take cover near the edge)
+    const edgeWalls = [
+      { x: C, y: 350, w: 220, h: 36 },
+      { x: C, y: WORLD_SIZE - 350, w: 220, h: 36 },
+      { x: 350, y: C, w: 36, h: 220 },
+      { x: WORLD_SIZE - 350, y: C, w: 36, h: 220 },
+    ];
+    for (const ew of edgeWalls) {
+      this.obstacles.push({
+        id: this.nextEntityId++,
+        x: ew.x,
+        y: ew.y,
+        shape: 'rect',
+        width: ew.w,
+        height: ew.h,
+        type: 'blast_barrier',
+        color: '#0f172a',
+        borderColor: '#f43f5e',
+        glowColor: '#e11d48',
+        hitPulse: 0,
+      });
     }
   }
 
@@ -184,6 +470,9 @@ export class GameEngine {
       isBoosting: false,
       color: '#06b6d4',
       accentColor: '#22d3ee',
+      shieldHp: 0,
+      maxShieldHp: 100,
+      shieldTimer: 0,
       invincibleTimer: 60, // Brief immunity on spawn
       botTurnTimer: 0,
       botFireTimer: 0,
@@ -283,6 +572,21 @@ export class GameEngine {
       radius: 18,
       pulsePhase: Math.random() * Math.PI * 2,
       bobOffset: Math.random() * 10,
+    });
+  }
+
+  private spawnShield(atX?: number, atY?: number) {
+    const x = atX !== undefined ? atX : 250 + Math.random() * (WORLD_SIZE - 500);
+    const y = atY !== undefined ? atY : 250 + Math.random() * (WORLD_SIZE - 500);
+
+    this.shields.push({
+      id: this.nextEntityId++,
+      x,
+      y,
+      radius: 18,
+      pulsePhase: Math.random() * Math.PI * 2,
+      bobOffset: Math.random() * 10,
+      shieldAmount: 100,
     });
   }
 
@@ -391,6 +695,45 @@ export class GameEngine {
     }
   }
 
+  // Check line of sight through map obstacles (defensive bulletproof cover)
+  public isLineBlockedByObstacle(x1: number, y1: number, x2: number, y2: number): boolean {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return false;
+    const len = Math.sqrt(lenSq);
+
+    for (const obs of this.obstacles) {
+      if (obs.shape === 'circle' && obs.radius) {
+        // Distance from circle center to line segment
+        const t = Math.max(0, Math.min(1, ((obs.x - x1) * dx + (obs.y - y1) * dy) / lenSq));
+        const projX = x1 + t * dx;
+        const projY = y1 + t * dy;
+        const dist = Math.hypot(obs.x - projX, obs.y - projY);
+        if (dist <= obs.radius) {
+          return true;
+        }
+      } else if (obs.shape === 'rect' && obs.width && obs.height) {
+        const halfW = obs.width / 2;
+        const halfH = obs.height / 2;
+        const left = obs.x - halfW;
+        const right = obs.x + halfW;
+        const top = obs.y - halfH;
+        const bottom = obs.y + halfH;
+
+        const steps = Math.max(4, Math.ceil(len / 20));
+        for (let s = 0; s <= steps; s++) {
+          const px = x1 + (dx * s) / steps;
+          const py = y1 + (dy * s) / steps;
+          if (px >= left && px <= right && py >= top && py <= bottom) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
   // Laser detection indicator & Auto-Shoot mechanic
   private updateLaserTargetingAndAutoFire(snake: Snake) {
     if (!snake.weapon || snake.ammo <= 0 || snake.isDead) {
@@ -438,9 +781,12 @@ export class GameEngine {
 
           // Generous targeting corridor (~32px beam width) for smooth lock-on
           if (alongDist > 0 && perpDist < 32) {
-            closestHitDist = dist;
-            targetSnake = other;
-            lockPoint = { x: seg.x, y: seg.y };
+            // Defensive Cover Rule: If an obstacle blocks line of sight, cannot target through wall!
+            if (!this.isLineBlockedByObstacle(mountX, mountY, seg.x, seg.y)) {
+              closestHitDist = dist;
+              targetSnake = other;
+              lockPoint = { x: seg.x, y: seg.y };
+            }
           }
         }
       }
@@ -455,6 +801,25 @@ export class GameEngine {
     } else {
       snake.targetLockedSnakeId = null;
       snake.laserLockPoint = null;
+
+      // Check if laser beam stops on a defensive obstacle in front
+      const steps = Math.floor(maxRange / 25);
+      for (let s = 1; s <= steps; s++) {
+        const rx = mountX + Math.cos(aimAngle) * (s * 25);
+        const ry = mountY + Math.sin(aimAngle) * (s * 25);
+        for (const obs of this.obstacles) {
+          let hit = false;
+          if (obs.shape === 'circle' && obs.radius) {
+            if (Math.hypot(rx - obs.x, ry - obs.y) <= obs.radius) hit = true;
+          } else if (obs.shape === 'rect' && obs.width && obs.height) {
+            if (Math.abs(rx - obs.x) <= obs.width / 2 && Math.abs(ry - obs.y) <= obs.height / 2) hit = true;
+          }
+          if (hit) {
+            snake.laserLockPoint = { x: rx, y: ry };
+            return;
+          }
+        }
+      }
     }
   }
 
@@ -477,18 +842,28 @@ export class GameEngine {
     // 5. Update Particles & Popups
     this.updateEffects();
 
-    // 6. Respawn depleted food and loots
+    // 6. Respawn depleted food, loots, and shields
     if (this.foods.length < MAX_FOOD) {
       if (Math.random() < 0.6) this.spawnFood();
     }
     if (this.loots.length < MAX_LOOT) {
       if (Math.random() < 0.08) this.spawnLoot();
     }
+    if (this.shields.length < MAX_SHIELDS) {
+      if (Math.random() < 0.05) this.spawnShield();
+    }
+
+    // Decay obstacle hit pulses
+    for (const obs of this.obstacles) {
+      if (obs.hitPulse && obs.hitPulse > 0) {
+        obs.hitPulse = Math.max(0, obs.hitPulse - 0.04);
+      }
+    }
 
     // Respawn dead bots
     const livingBots = this.snakes.filter((s) => !s.isPlayer && !s.isDead);
     if (livingBots.length < BOT_COUNT) {
-      if (Math.random() < 0.05) {
+      if (Math.random() < 0.08) {
         this.spawnBot(Math.floor(Math.random() * BOT_NAMES.length));
       }
     }
@@ -509,6 +884,54 @@ export class GameEngine {
         this.projectiles.splice(i, 1);
         continue;
       }
+
+      // Check collision with defensive map obstacles (Bulletproof Cover!)
+      let hitObstacle = false;
+      for (const obs of this.obstacles) {
+        let coll = false;
+        if (obs.shape === 'circle' && obs.radius) {
+          const d = Math.hypot(p.x - obs.x, p.y - obs.y);
+          if (d <= obs.radius + p.radius) {
+            coll = true;
+          }
+        } else if (obs.shape === 'rect' && obs.width && obs.height) {
+          if (
+            Math.abs(p.x - obs.x) <= obs.width / 2 + p.radius &&
+            Math.abs(p.y - obs.y) <= obs.height / 2 + p.radius
+          ) {
+            coll = true;
+          }
+        }
+
+        if (coll) {
+          hitObstacle = true;
+          obs.hitPulse = 1.0;
+          playObstacleHitSound();
+          if (p.isExplosive) {
+            this.detonateGrenade(p);
+          } else {
+            // Deflection sparks
+            for (let k = 0; k < 8; k++) {
+              const sparkAngle = Math.atan2(p.y - obs.y, p.x - obs.x) + (Math.random() - 0.5) * 1.5;
+              const spd = 3 + Math.random() * 4;
+              this.particles.push({
+                x: p.x,
+                y: p.y,
+                vx: Math.cos(sparkAngle) * spd,
+                vy: Math.sin(sparkAngle) * spd,
+                color: obs.borderColor,
+                size: 3,
+                life: 16,
+                maxLife: 16,
+                shape: 'square',
+              });
+            }
+          }
+          this.projectiles.splice(i, 1);
+          break;
+        }
+      }
+      if (hitObstacle) continue;
 
       // Check collision with snakes
       let hit = false;
@@ -614,22 +1037,26 @@ export class GameEngine {
       if (snake.invincibleTimer && snake.invincibleTimer > 0) continue;
 
       let inBlast = false;
-      // Check distance to head
+      // Check distance to head and line of sight behind cover
       const head = snake.segments[0];
       if (Math.hypot(p.x - head.x, p.y - head.y) < p.blastRadius) {
-        inBlast = true;
+        if (!this.isLineBlockedByObstacle(p.x, p.y, head.x, head.y)) {
+          inBlast = true;
+        }
       } else {
-        // Check body segments
+        // Check body segments and cover
         for (const seg of snake.segments) {
           if (Math.hypot(p.x - seg.x, p.y - seg.y) < p.blastRadius) {
-            inBlast = true;
-            break;
+            if (!this.isLineBlockedByObstacle(p.x, p.y, seg.x, seg.y)) {
+              inBlast = true;
+              break;
+            }
           }
         }
       }
 
       if (inBlast) {
-        // 1-HIT KILL LETHAL DAMAGE (999)
+        // 1-HIT KILL LETHAL DAMAGE (999) - Unless defended by active Energy Shield!
         this.applyDamageToSnake(snake, 999, p.ownerId, 'grenade', true);
       }
     }
@@ -642,10 +1069,62 @@ export class GameEngine {
     weaponType: WeaponType,
     isExplosive = false
   ) {
+    const head = snake.segments[0];
+
+    // SHIELD DEFENSE SYSTEM ABSORPTION
+    if (snake.shieldHp && snake.shieldHp > 0) {
+      if (snake.shieldHp >= damage) {
+        snake.shieldHp -= damage;
+        if (snake.isPlayer) {
+          playShieldDeflectSound();
+        }
+        this.damagePopups.push({
+          id: this.nextEntityId++,
+          x: head.x + (Math.random() * 20 - 10),
+          y: head.y - 25,
+          text: `🛡️ BLOCKED (-${Math.round(damage)})`,
+          color: '#38bdf8',
+          life: 30,
+          maxLife: 30,
+        });
+
+        // Shield energy deflection sparks
+        for (let k = 0; k < 7; k++) {
+          this.particles.push({
+            x: head.x,
+            y: head.y,
+            vx: (Math.random() - 0.5) * 7,
+            vy: (Math.random() - 0.5) * 7,
+            color: '#38bdf8',
+            size: 3,
+            life: 16,
+            maxLife: 16,
+            shape: 'square',
+          });
+        }
+        return; // Full damage absorbed by energy shield!
+      } else {
+        // Partial absorption then shield breaks
+        damage -= snake.shieldHp;
+        snake.shieldHp = 0;
+        if (snake.isPlayer) {
+          playShieldDeflectSound();
+        }
+        this.damagePopups.push({
+          id: this.nextEntityId++,
+          x: head.x,
+          y: head.y - 30,
+          text: `🛡️ SHIELD BROKEN!`,
+          color: '#f43f5e',
+          life: 40,
+          maxLife: 40,
+        });
+      }
+    }
+
     snake.hp -= damage;
 
     // Damage popup text
-    const head = snake.segments[0];
     const isOneHit = isExplosive && damage >= 900;
     this.damagePopups.push({
       id: this.nextEntityId++,
@@ -1032,6 +1511,41 @@ export class GameEngine {
         snake.targetAngle = -Math.PI / 2;
       }
 
+      // Decay Shield Timer
+      if (snake.shieldTimer && snake.shieldTimer > 0) {
+        snake.shieldTimer -= 1 / 60;
+        if (snake.shieldTimer <= 0) {
+          snake.shieldHp = 0;
+        }
+      }
+
+      // Deflect snake head smoothly around defensive map obstacles (sliding cover)
+      for (const obs of this.obstacles) {
+        if (obs.shape === 'circle' && obs.radius) {
+          const d = Math.hypot(snake.x - obs.x, snake.y - obs.y);
+          const minDist = obs.radius + 18;
+          if (d < minDist && d > 0.001) {
+            const pushAngle = Math.atan2(snake.y - obs.y, snake.x - obs.x);
+            snake.x = obs.x + Math.cos(pushAngle) * minDist;
+            snake.y = obs.y + Math.sin(pushAngle) * minDist;
+          }
+        } else if (obs.shape === 'rect' && obs.width && obs.height) {
+          const halfW = obs.width / 2 + 18;
+          const halfH = obs.height / 2 + 18;
+          const dx = snake.x - obs.x;
+          const dy = snake.y - obs.y;
+          if (Math.abs(dx) < halfW && Math.abs(dy) < halfH) {
+            const overlapX = halfW - Math.abs(dx);
+            const overlapY = halfH - Math.abs(dy);
+            if (overlapX < overlapY) {
+              snake.x = obs.x + (dx > 0 ? halfW : -halfW);
+            } else {
+              snake.y = obs.y + (dy > 0 ? halfH : -halfH);
+            }
+          }
+        }
+      }
+
       // Update Segments
       const head = snake.segments[0];
       head.x = snake.x;
@@ -1129,6 +1643,33 @@ export class GameEngine {
       } else if (bot.y > WORLD_SIZE - wallDist) {
         bot.targetAngle = -Math.PI / 2 + (Math.random() - 0.5) * 0.5;
         return;
+      }
+
+      // Avoid getting trapped directly inside/facing map obstacles
+      for (const obs of this.obstacles) {
+        const d = Math.hypot(bot.x - obs.x, bot.y - obs.y);
+        const obsR = obs.radius || Math.max(obs.width || 60, obs.height || 60) / 2;
+        if (d < obsR + 80) {
+          bot.targetAngle = Math.atan2(bot.y - obs.y, bot.x - obs.x) + (Math.random() - 0.5) * 0.6;
+          return;
+        }
+      }
+
+      // If low shield/hp, consider seeking nearest shield powerup
+      if ((!bot.shieldHp || bot.shieldHp <= 0) && this.shields.length > 0) {
+        let closestShield: ShieldPowerup | null = null;
+        let minShieldDist = 600;
+        for (const s of this.shields) {
+          const d = Math.hypot(s.x - bot.x, s.y - bot.y);
+          if (d < minShieldDist) {
+            minShieldDist = d;
+            closestShield = s;
+          }
+        }
+        if (closestShield && Math.random() < 0.65) {
+          bot.targetAngle = Math.atan2(closestShield.y - bot.y, closestShield.x - bot.x);
+          return;
+        }
       }
 
       // If no weapon, seek nearest loot crate
@@ -1267,6 +1808,47 @@ export class GameEngine {
           }
 
           this.loots.splice(i, 1);
+        }
+      }
+
+      // Check Shield Powerup Pickups
+      for (let i = this.shields.length - 1; i >= 0; i--) {
+        const shield = this.shields[i];
+        const dist = Math.hypot(head.x - shield.x, head.y - shield.y);
+
+        if (dist < eatRadius + shield.radius) {
+          snake.shieldHp = Math.min(100, (snake.shieldHp || 0) + shield.shieldAmount);
+          snake.maxShieldHp = 100;
+          snake.shieldTimer = 30; // 30 seconds active defense
+
+          if (snake.isPlayer) {
+            playShieldPickupSound();
+            this.damagePopups.push({
+              id: this.nextEntityId++,
+              x: head.x,
+              y: head.y - 30,
+              text: `🛡️ DEFENSE SHIELD ACTIVATED (+100 HP)`,
+              color: '#38bdf8',
+              life: 50,
+              maxLife: 50,
+            });
+            for (let k = 0; k < 12; k++) {
+              const a = (k / 12) * Math.PI * 2;
+              this.particles.push({
+                x: head.x,
+                y: head.y,
+                vx: Math.cos(a) * 4,
+                vy: Math.sin(a) * 4,
+                color: '#38bdf8',
+                size: 3.5,
+                life: 20,
+                maxLife: 20,
+                shape: 'circle',
+              });
+            }
+          }
+
+          this.shields.splice(i, 1);
         }
       }
     }

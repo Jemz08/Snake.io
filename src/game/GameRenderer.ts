@@ -6,6 +6,8 @@ import {
   ExplosionEffect,
   Particle,
   DamagePopup,
+  MapObstacle,
+  ShieldPowerup,
 } from '../types';
 import { getSkinById } from '../utils/skins';
 import { WEAPONS } from '../utils/weapons';
@@ -231,6 +233,276 @@ export class GameRenderer {
       ctx.fillStyle = config.color;
       ctx.font = 'bold 10px Chakra Petch, sans-serif';
       ctx.fillText(`×${config.ammo} AMMO`, 0, loot.radius + 18);
+
+      ctx.restore();
+    }
+  }
+
+  // Draw tactical defensive map obstacles (Bulletproof Bunkers, Forcefield Pillars, Blast Barricades)
+  public drawObstacles(obstacles: MapObstacle[]) {
+    const ctx = this.ctx;
+
+    for (const obs of obstacles) {
+      ctx.save();
+      ctx.translate(obs.x, obs.y);
+      if (obs.rotation) {
+        ctx.rotate(obs.rotation);
+      }
+
+      const pulse = obs.hitPulse || 0;
+
+      if (obs.shape === 'circle' && obs.radius) {
+        const r = obs.radius;
+
+        // Shockwave absorption aura on bullet hit
+        if (pulse > 0.05) {
+          ctx.save();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 4 + pulse * 6;
+          ctx.shadowColor = obs.borderColor;
+          ctx.shadowBlur = 24 * pulse;
+          ctx.globalAlpha = pulse * 0.8;
+          ctx.beginPath();
+          ctx.arc(0, 0, r + 8 * pulse, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Drop shadow for tactical depth
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.beginPath();
+        ctx.arc(4, 6, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Outer fortress ring
+        ctx.fillStyle = obs.color;
+        ctx.strokeStyle = pulse > 0.1 ? '#ffffff' : obs.borderColor;
+        ctx.lineWidth = 3.5;
+        ctx.shadowColor = obs.borderColor;
+        ctx.shadowBlur = pulse > 0.1 ? 20 : 8;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Inner reinforced plating
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Cybernetic Forcefield Pillar core or Bunker Turret Hub
+        if (obs.type === 'forcefield_pillar') {
+          // Rotating energy ring
+          ctx.save();
+          ctx.rotate((Date.now() * 0.003) % (Math.PI * 2));
+          ctx.setLineDash([8, 6]);
+          ctx.strokeStyle = obs.borderColor;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+
+          // Glowing glowing plasma core
+          ctx.fillStyle = pulse > 0.1 ? '#ffffff' : obs.borderColor;
+          ctx.shadowColor = obs.borderColor;
+          ctx.shadowBlur = 15;
+          ctx.beginPath();
+          ctx.arc(0, 0, r * 0.32, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Core node symbol
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(0, 0, r * 0.12, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Heavy Bunker Blast Vault
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          // Cross crosshair spokes
+          ctx.moveTo(-r * 0.65, 0);
+          ctx.lineTo(r * 0.65, 0);
+          ctx.moveTo(0, -r * 0.65);
+          ctx.lineTo(0, r * 0.65);
+          ctx.stroke();
+
+          // Center reinforced dome
+          ctx.fillStyle = '#334155';
+          ctx.strokeStyle = obs.borderColor;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, r * 0.38, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = obs.borderColor;
+          ctx.beginPath();
+          ctx.arc(0, 0, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Perimeter Armor Rivets (8 rivets)
+        ctx.fillStyle = '#e2e8f0';
+        ctx.shadowBlur = 0;
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          const rx = Math.cos(a) * (r - 7);
+          const ry = Math.sin(a) * (r - 7);
+          ctx.beginPath();
+          ctx.arc(rx, ry, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Floating label
+        if (obs.label) {
+          ctx.font = 'bold 9px Chakra Petch, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = obs.borderColor;
+          ctx.fillText(obs.label, 0, -r - 7);
+        }
+      } else if (obs.shape === 'rect' && obs.width && obs.height) {
+        const w = obs.width;
+        const h = obs.height;
+        const halfW = w / 2;
+        const halfH = h / 2;
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(-halfW + 4, -halfH + 6, w, h);
+
+        // Flash aura on bullet impact
+        if (pulse > 0.05) {
+          ctx.save();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 4 + pulse * 6;
+          ctx.shadowColor = obs.borderColor;
+          ctx.shadowBlur = 20 * pulse;
+          ctx.globalAlpha = pulse * 0.8;
+          ctx.strokeRect(-halfW - 3 * pulse, -halfH - 3 * pulse, w + 6 * pulse, h + 6 * pulse);
+          ctx.restore();
+        }
+
+        // Barricade Base Plate
+        ctx.fillStyle = obs.color;
+        ctx.strokeStyle = pulse > 0.1 ? '#ffffff' : obs.borderColor;
+        ctx.lineWidth = 3;
+        ctx.shadowColor = obs.borderColor;
+        ctx.shadowBlur = pulse > 0.1 ? 18 : 6;
+        ctx.beginPath();
+        ctx.roundRect(-halfW, -halfH, w, h, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        // High-contrast Hazard Caution Stripes
+        ctx.save();
+        ctx.clip();
+        ctx.fillStyle = 'rgba(250, 204, 21, 0.18)';
+        const stripeW = 16;
+        for (let sx = -halfW - h; sx < halfW + h; sx += stripeW * 2) {
+          ctx.beginPath();
+          ctx.moveTo(sx, -halfH);
+          ctx.lineTo(sx + stripeW, -halfH);
+          ctx.lineTo(sx + stripeW - h, halfH);
+          ctx.lineTo(sx - h, halfH);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // Inner armor groove
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-halfW + 5, -halfH + 5, w - 10, h - 10);
+
+        // Defensive cover rivets
+        ctx.fillStyle = '#f8fafc';
+        ctx.shadowBlur = 0;
+        ctx.fillRect(-halfW + 4, -halfH + 4, 3, 3);
+        ctx.fillRect(halfW - 7, -halfH + 4, 3, 3);
+        ctx.fillRect(-halfW + 4, halfH - 7, 3, 3);
+        ctx.fillRect(halfW - 7, halfH - 7, 3, 3);
+
+        // Center protective shield icon or label
+        if (obs.label) {
+          ctx.font = 'bold 9px Chakra Petch, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(obs.label, 0, -halfH - 6);
+        }
+      }
+
+      ctx.restore();
+    }
+  }
+
+  // Draw Shield Defense Powerups
+  public drawShields(shields: ShieldPowerup[]) {
+    const ctx = this.ctx;
+
+    for (const s of shields) {
+      ctx.save();
+      const hoverY = s.y + Math.sin(s.pulsePhase) * 5;
+      ctx.translate(s.x, hoverY);
+
+      // Rotating energetic cyan ring
+      ctx.save();
+      ctx.rotate(s.pulsePhase * 0.9);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#0ea5e9';
+      ctx.shadowBlur = 14;
+      ctx.setLineDash([7, 5]);
+      ctx.beginPath();
+      ctx.arc(0, 0, s.radius + 7, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Translucent forcefield sphere
+      ctx.fillStyle = 'rgba(14, 165, 233, 0.22)';
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(0, 0, s.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Shield Hexagon / Emblem
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.moveTo(0, -11);
+      ctx.lineTo(9, -6);
+      ctx.lineTo(9, 3);
+      ctx.lineTo(0, 10);
+      ctx.lineTo(-9, 3);
+      ctx.lineTo(-9, -6);
+      ctx.closePath();
+      ctx.fill();
+
+      // Bright inner crest
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(0, -8);
+      ctx.lineTo(6, -4);
+      ctx.lineTo(6, 2);
+      ctx.lineTo(0, 7);
+      ctx.lineTo(-6, 2);
+      ctx.lineTo(-6, -4);
+      ctx.closePath();
+      ctx.fill();
+
+      // Shield label
+      ctx.shadowBlur = 4;
+      ctx.font = 'bold 10px Chakra Petch, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText('SHIELD +100', 0, -s.radius - 10);
 
       ctx.restore();
     }
@@ -692,6 +964,46 @@ export class GameRenderer {
 
     ctx.restore();
 
+    // 3.2. Active Energy Shield Forcefield Bubble
+    if (snake.shieldHp && snake.shieldHp > 0) {
+      ctx.save();
+      ctx.translate(head.x, head.y);
+      const shieldR = headSize * 0.95;
+      const pulse = Math.sin(Date.now() * 0.007) * 3;
+      const r = shieldR + pulse;
+
+      // Outer glowing cyan energy shell
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = '#0ea5e9';
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.14)';
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Rotating dashed energy barrier
+      ctx.save();
+      ctx.rotate((Date.now() * 0.002) % (Math.PI * 2));
+      ctx.setLineDash([12, 8]);
+      ctx.strokeStyle = '#bae6fd';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, r - 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Shield node beacons (6 hexagonal satellites)
+      ctx.fillStyle = '#38bdf8';
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2 + Date.now() * 0.001;
+        ctx.fillRect(Math.cos(a) * r - 2, Math.sin(a) * r - 2, 4, 4);
+      }
+
+      ctx.restore();
+    }
+
     // 3.5. Laser Sight Targeting Beam (rendered in world space for player)
     if (snake.isPlayer && snake.weapon) {
       const weaponCfg = WEAPONS[snake.weapon];
@@ -814,6 +1126,25 @@ export class GameRenderer {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.lineWidth = 1;
     ctx.strokeRect(-barWidth / 2, 0, barWidth, barHeight);
+
+    // Shield Bar (if active)
+    if (snake.shieldHp && snake.shieldHp > 0) {
+      const shieldRatio = Math.max(0, Math.min(1, snake.shieldHp / (snake.maxShieldHp || 100)));
+      const shieldH = 3.5;
+      const shieldY = barHeight + 2;
+
+      ctx.fillStyle = 'rgba(14, 165, 233, 0.3)';
+      ctx.fillRect(-barWidth / 2, shieldY, barWidth, shieldH);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.shadowColor = '#0284c7';
+      ctx.shadowBlur = 6;
+      ctx.fillRect(-barWidth / 2, shieldY, barWidth * shieldRatio, shieldH);
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.lineWidth = 0.8;
+      ctx.strokeRect(-barWidth / 2, shieldY, barWidth, shieldH);
+    }
 
     // If snake has weapon, show mini weapon badge above name
     if (snake.weapon) {

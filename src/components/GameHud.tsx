@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Snake, LootItem, KillNotification } from '../types';
+import { Snake, LootItem, KillNotification, MapObstacle, ShieldPowerup } from '../types';
 import { VirtualJoystick } from './VirtualJoystick';
 import { FireControl } from './FireControl';
 import { Minimap } from './Minimap';
@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronUp,
   Target,
+  Shield,
 } from 'lucide-react';
 import { getSoundMuted, setSoundMuted } from '../utils/audio';
 
@@ -22,6 +23,8 @@ interface GameHudProps {
   player: Snake | null;
   snakes: Snake[];
   loots: LootItem[];
+  obstacles?: MapObstacle[];
+  shields?: ShieldPowerup[];
   worldSize: number;
   leaderboard: Array<{ rank: number; name: string; score: number; kills: number; isPlayer: boolean }>;
   killFeed: KillNotification[];
@@ -39,6 +42,8 @@ export const GameHud: React.FC<GameHudProps> = ({
   player,
   snakes,
   loots,
+  obstacles = [],
+  shields = [],
   worldSize,
   leaderboard,
   killFeed,
@@ -120,6 +125,17 @@ export const GameHud: React.FC<GameHudProps> = ({
             <div className="hidden md:flex px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400 font-cyber font-black text-emerald-300 text-xs items-center gap-1">
               LENGTH: {player ? Math.floor(player.length) : 0}
             </div>
+
+            {/* Active Shield Defense Status */}
+            {player?.shieldHp && player.shieldHp > 0 ? (
+              <div className="px-2 sm:px-2.5 py-1 rounded-lg bg-sky-500/25 border border-sky-400 font-cyber font-black text-sky-300 text-[10px] sm:text-xs flex items-center gap-1 shadow-lg shadow-sky-500/20 animate-pulse">
+                <Shield className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-sky-300 fill-sky-400/40" />
+                SHIELD: {Math.round(player.shieldHp)}
+                {player.shieldTimer !== undefined && (
+                  <span className="text-[9px] text-sky-200/80 font-mono">({Math.ceil(player.shieldTimer)}s)</span>
+                )}
+              </div>
+            ) : null}
 
             {/* Daily Missions Toggle */}
             {onOpenMissions && (
@@ -242,7 +258,14 @@ export const GameHud: React.FC<GameHudProps> = ({
 
           {/* Minimap radar */}
           <div className="pointer-events-auto">
-            <Minimap worldSize={worldSize} player={player} snakes={snakes} loots={loots} />
+            <Minimap
+              worldSize={worldSize}
+              player={player}
+              snakes={snakes}
+              loots={loots}
+              obstacles={obstacles}
+              shields={shields}
+            />
           </div>
         </div>
       </div>

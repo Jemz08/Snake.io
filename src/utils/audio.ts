@@ -337,3 +337,85 @@ export function playDeathEffectSound(type: DeathEffectType) {
   }
 }
 
+export function playShieldPickupSound() {
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const subOsc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'sine';
+  subOsc.type = 'triangle';
+
+  // Uplifting futuristic energy barrier hum
+  osc.frequency.setValueAtTime(320, now);
+  osc.frequency.exponentialRampToValueAtTime(880, now + 0.25);
+  subOsc.frequency.setValueAtTime(160, now);
+  subOsc.frequency.exponentialRampToValueAtTime(440, now + 0.25);
+
+  gain.gain.setValueAtTime(0.2, now);
+  gain.gain.linearRampToValueAtTime(0.25, now + 0.15);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+  osc.connect(gain);
+  subOsc.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(now);
+  subOsc.start(now);
+  osc.stop(now + 0.4);
+  subOsc.stop(now + 0.4);
+}
+
+export function playShieldDeflectSound() {
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  // Resonant electric barrier deflect
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(1200, now);
+  osc.frequency.exponentialRampToValueAtTime(300, now + 0.18);
+
+  gain.gain.setValueAtTime(0.18, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(now);
+  osc.stop(now + 0.2);
+}
+
+export function playObstacleHitSound() {
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  // Heavy titanium clang / ricochet
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(450, now);
+  osc.frequency.exponentialRampToValueAtTime(90, now + 0.12);
+
+  gain.gain.setValueAtTime(0.2, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(now);
+  osc.stop(now + 0.14);
+}
+
+
