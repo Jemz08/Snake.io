@@ -14,9 +14,20 @@ import { WEAPONS } from '../utils/weapons';
 
 export class GameRenderer {
   private ctx: CanvasRenderingContext2D;
+  private viewport = { minX: 0, maxX: 6000, minY: 0, maxY: 6000 };
 
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx;
+  }
+
+  public setViewport(cameraX: number, cameraY: number, viewWidth: number, viewHeight: number) {
+    const margin = 160;
+    const halfW = viewWidth / 2 + margin;
+    const halfH = viewHeight / 2 + margin;
+    this.viewport.minX = cameraX - halfW;
+    this.viewport.maxX = cameraX + halfW;
+    this.viewport.minY = cameraY - halfH;
+    this.viewport.maxY = cameraY + halfH;
   }
 
   public clear(width: number, height: number) {
@@ -84,81 +95,102 @@ export class GameRenderer {
     ctx.restore();
   }
 
-  // Draw food items & cash coins
+  // Draw food items & cash coins (Ultra High Performance 144Hz Zero-Transform Fast Path)
   public drawFood(foods: FoodItem[]) {
     const ctx = this.ctx;
-    for (const food of foods) {
-      ctx.save();
-      ctx.translate(food.x, food.y);
+    const { minX, maxX, minY, maxY } = this.viewport;
+
+    for (let idx = 0; idx < foods.length; idx++) {
+      const food = foods[idx];
+
+      // Viewport Frustum Culling - completely bypass offscreen foods!
+      if (food.x < minX || food.x > maxX || food.y < minY || food.y > maxY) {
+        continue;
+      }
 
       if (food.isCashCoin) {
         // Shimmering 3D Gold Cash Coin
         const pulse = 1 + Math.sin(food.pulsePhase) * 0.2;
         const r = food.radius * pulse;
 
-        ctx.shadowColor = '#eab308';
-        ctx.shadowBlur = 16;
-
-        // Outer gold coin rim
-        ctx.fillStyle = '#ca8a04';
+        // Outer rim
+        ctx.fillStyle = '#b45309';
         ctx.beginPath();
-        ctx.arc(0, 0, r + 2, 0, Math.PI * 2);
+        ctx.arc(food.x, food.y, r + 2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Inner glowing face
+        // Inner gold face
         ctx.fillStyle = '#facc15';
         ctx.beginPath();
-        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.arc(food.x, food.y, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Top-left shiny highlight
+        ctx.fillStyle = '#fef08a';
+        ctx.beginPath();
+        ctx.arc(food.x - r * 0.3, food.y - r * 0.3, r * 0.35, 0, Math.PI * 2);
         ctx.fill();
 
         // Embossed Dollar sign
         ctx.fillStyle = '#78350f';
-        ctx.font = `bold ${Math.max(10, Math.floor(r * 1.3))}px Chakra Petch, sans-serif`;
+        ctx.font = `bold ${Math.max(9, Math.floor(r * 1.2))}px Chakra Petch, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('$', 0, 1);
+        ctx.fillText('$', food.x, food.y + 1);
 
         // Floating cash label
-        ctx.shadowBlur = 4;
         ctx.font = 'bold 9px Chakra Petch, sans-serif';
         ctx.fillStyle = '#fef08a';
-        ctx.fillText(`+$${food.cashValue || 10}`, 0, -r - 5);
-
-        ctx.restore();
+        ctx.fillText(`+$${food.cashValue || 10}`, food.x, food.y - r - 5);
         continue;
       }
 
-      // Pulse effect for regular food
+      // Standard / Special Food: Glowing 3D Snake.io energy orb (Zero-transform fast path)
       const pulse = 1 + Math.sin(food.pulsePhase) * 0.15;
       const r = food.radius * pulse;
 
-      // Glow aura
-      ctx.shadowColor = food.color;
-      ctx.shadowBlur = food.isSpecial ? 14 : 8;
-
+      // Soft outer energy glow
       ctx.fillStyle = food.color;
-
-      // Square/diamond geometric food for snake² style
-      ctx.rotate(food.pulsePhase * 0.5);
-      const half = r * 0.9;
+      ctx.globalAlpha = food.isSpecial ? 0.38 : 0.2;
       ctx.beginPath();
-      ctx.roundRect(-half, -half, half * 2, half * 2, 3);
+      ctx.arc(food.x, food.y, r + (food.isSpecial ? 3.5 : 2), 0, Math.PI * 2);
       ctx.fill();
 
-      // Inner shiny core
+      // Main vibrant sphere body
+      ctx.globalAlpha = 0.95;
+      ctx.beginPath();
+      ctx.arc(food.x, food.y, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Special Food extra crisp white ring
+      if (food.isSpecial) {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(food.x, food.y, r * 0.9, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // 3D Specular glossy bubble gleam (signature Snake.io sphere look)
       ctx.fillStyle = '#ffffff';
+      ctx.globalAlpha = 0.85;
       ctx.beginPath();
-      ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
+      ctx.arc(food.x - r * 0.32, food.y - r * 0.32, r * 0.32, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.restore();
+      ctx.globalAlpha = 1.0;
     }
   }
 
   // Draw weapon loot crates
   public drawLoot(loots: LootItem[]) {
     const ctx = this.ctx;
+    const { minX, maxX, minY, maxY } = this.viewport;
+
     for (const loot of loots) {
+      if (loot.x < minX - 60 || loot.x > maxX + 60 || loot.y < minY - 60 || loot.y > maxY + 60) {
+        continue;
+      }
       const config = WEAPONS[loot.type];
       if (!config) continue;
 
@@ -241,8 +273,12 @@ export class GameRenderer {
   // Draw tactical defensive map obstacles (Bulletproof Bunkers, Forcefield Pillars, Blast Barricades)
   public drawObstacles(obstacles: MapObstacle[]) {
     const ctx = this.ctx;
+    const { minX, maxX, minY, maxY } = this.viewport;
 
     for (const obs of obstacles) {
+      if (obs.x < minX - 160 || obs.x > maxX + 160 || obs.y < minY - 160 || obs.y > maxY + 160) {
+        continue;
+      }
       ctx.save();
       ctx.translate(obs.x, obs.y);
       if (obs.rotation) {
@@ -443,8 +479,12 @@ export class GameRenderer {
   // Draw Shield Defense Powerups
   public drawShields(shields: ShieldPowerup[]) {
     const ctx = this.ctx;
+    const { minX, maxX, minY, maxY } = this.viewport;
 
     for (const s of shields) {
+      if (s.x < minX - 60 || s.x > maxX + 60 || s.y < minY - 60 || s.y > maxY + 60) {
+        continue;
+      }
       ctx.save();
       const hoverY = s.y + Math.sin(s.pulsePhase) * 5;
       ctx.translate(s.x, hoverY);
@@ -773,116 +813,415 @@ export class GameRenderer {
     }
   }
 
-  // Draw a Snake in full "Snake²" cyber-mech design
+  // Draw a Snake in authentic 3D glossy rounded "Snake.io" Art Style (Zero-Transform Fast Path)
   public drawSnake(snake: Snake) {
     if (snake.isDead || snake.segments.length === 0) return;
 
-    const ctx = this.ctx;
-    const skin = getSkinById(snake.skinId);
-    const segSize = 24 + Math.min(snake.length * 0.18, 20); // expands dynamically with length!
-    const halfSeg = segSize / 2;
-
-    // 1. Draw Body Segments (from tail to neck)
-    for (let i = snake.segments.length - 1; i >= 1; i--) {
-      const seg = snake.segments[i];
-      ctx.save();
-      ctx.translate(seg.x, seg.y);
-      ctx.rotate(seg.angle);
-
-      // Segment size taper towards the tail
-      const taper = Math.max(0.65, 1 - (i / snake.segments.length) * 0.35);
-      const currentHalf = halfSeg * taper;
-      const curSize = currentHalf * 2;
-
-      // Connecting joint to next segment
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(-currentHalf - 4, -currentHalf * 0.4, 8, currentHalf * 0.8);
-
-      // Snake² Outer Square Shell (Chamfered/rounded square plate)
-      ctx.fillStyle = i % 2 === 0 ? skin.primaryColor : skin.secondaryColor;
-      ctx.strokeStyle = skin.accentColor;
-      ctx.lineWidth = 2;
-      ctx.shadowColor = skin.accentColor;
-      ctx.shadowBlur = snake.isBoosting ? 10 : 3;
-
-      ctx.beginPath();
-      ctx.roundRect(-currentHalf, -currentHalf, curSize, curSize, 4 * taper);
-      ctx.fill();
-      ctx.stroke();
-
-      // Snake² Inner Core Micro-Reactor
-      ctx.fillStyle = skin.coreGlow;
-      ctx.globalAlpha = 0.8;
-      const coreSize = curSize * 0.38;
-      ctx.fillRect(-coreSize / 2, -coreSize / 2, coreSize, coreSize);
-
-      // Corner Tech Rivets
-      ctx.fillStyle = '#ffffff';
-      ctx.globalAlpha = 0.6;
-      const rivetOff = currentHalf - 3;
-      ctx.fillRect(-rivetOff, -rivetOff, 2, 2);
-      ctx.fillRect(rivetOff - 2, -rivetOff, 2, 2);
-      ctx.fillRect(-rivetOff, rivetOff - 2, 2, 2);
-      ctx.fillRect(rivetOff - 2, rivetOff - 2, 2, 2);
-
-      ctx.restore();
+    const head = snake.segments[0];
+    const { minX, maxX, minY, maxY } = this.viewport;
+    if (!snake.isPlayer) {
+      const tail = snake.segments[snake.segments.length - 1];
+      const botMinX = Math.min(head.x, tail.x);
+      const botMaxX = Math.max(head.x, tail.x);
+      const botMinY = Math.min(head.y, tail.y);
+      const botMaxY = Math.max(head.y, tail.y);
+      if (botMaxX < minX - 120 || botMinX > maxX + 120 || botMaxY < minY - 120 || botMinY > maxY + 120) {
+        return;
+      }
     }
 
-    // 2. Draw Snake² Command Head
-    const head = snake.segments[0];
+    const ctx = this.ctx;
+    const skin = getSkinById(snake.skinId);
+    const archetype = skin.archetype || snake.archetype || 'cyber';
+    // Base segment radius (scales gracefully with score/length)
+    const baseRadius = 13 + Math.min(snake.length * 0.12, 10);
+
+    // 1. Draw Body Segments (from tail to neck) using High-Speed Zero-Transform Sphere Batching
+    // Circles are rotation-invariant: drawing directly at (seg.x, seg.y) eliminates 3,000+ matrix operations per frame!
+    const totalSegs = snake.segments.length;
+    for (let i = totalSegs - 1; i >= 1; i--) {
+      const seg = snake.segments[i];
+      // Organic smooth taper towards tail
+      const taper = Math.max(0.42, 1 - (i / totalSegs) * 0.58);
+      const r = baseRadius * taper;
+
+      // 1.1 Subtle 3D Underbelly Drop Shadow (gives rounded depth against the arena floor)
+      ctx.fillStyle = 'rgba(11, 15, 25, 0.45)';
+      ctx.beginPath();
+      ctx.arc(seg.x, seg.y + r * 0.18, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 1.2 Main Glossy Spherical Bead (Alternating vibrant skin colors)
+      ctx.fillStyle = i % 2 === 0 ? skin.primaryColor : skin.secondaryColor;
+      ctx.beginPath();
+      ctx.arc(seg.x, seg.y, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 1.3 Archetype / Spine Specialty Pattern
+      if (archetype === 'angel') {
+        // Celestial Holy Core
+        ctx.fillStyle = 'rgba(254, 240, 138, 0.55)';
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (archetype === 'devil') {
+        // Magma Fiery Seam
+        ctx.fillStyle = i % 3 === 0 ? '#ef4444' : '#f97316';
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.38, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (archetype === 'blackhole') {
+        // Singularity Void Core
+        ctx.fillStyle = '#030712';
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.48, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#c084fc';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else if (archetype === 'robot') {
+        // Mecha Tech Power Ring
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.6, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (archetype === 'dragon') {
+        // Reptilian Diamond Spine Plate
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.28, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Cyber Glow Node
+        ctx.fillStyle = skin.coreGlow;
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+      }
+
+      // 1.4 Signature 3D Glossy Specular Bubble Sheen (Upper-Left Reflection droplet)
+      ctx.fillStyle = '#ffffff';
+      ctx.globalAlpha = 0.55;
+      ctx.beginPath();
+      ctx.arc(seg.x - r * 0.3, seg.y - r * 0.3, r * 0.32, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+    }
+
+    // 2. Draw Snake.io Organic Rounded Character Head
     ctx.save();
     ctx.translate(head.x, head.y);
     ctx.rotate(head.angle);
 
-    const headSize = segSize * 1.25;
-    const halfHead = headSize / 2;
+    const headR = baseRadius * 1.35;
 
-    // Boosting thrusters fire from back of head & tail
+    // 2.1 Boosting Thruster Trails
     if (snake.isBoosting) {
       ctx.save();
+      const flameLen = headR * (1.2 + Math.random() * 0.4);
       ctx.fillStyle = '#38bdf8';
-      ctx.shadowColor = '#0284c7';
-      ctx.shadowBlur = 15;
       ctx.beginPath();
-      ctx.moveTo(-halfHead, -halfHead * 0.5);
-      ctx.lineTo(-halfHead - 16, 0);
-      ctx.lineTo(-halfHead, halfHead * 0.5);
+      ctx.moveTo(-headR * 0.6, -headR * 0.5);
+      ctx.lineTo(-headR * 0.6 - flameLen, 0);
+      ctx.lineTo(-headR * 0.6, headR * 0.5);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.6, -headR * 0.25);
+      ctx.lineTo(-headR * 0.6 - flameLen * 0.6, 0);
+      ctx.lineTo(-headR * 0.6, headR * 0.25);
       ctx.closePath();
       ctx.fill();
       ctx.restore();
     }
 
-    // Armored Head Chassis (Beveled cyber-square)
+    // 2.2 Smooth Organic Rounded Head Shape (Curved aerodynamic Snake.io contour)
     ctx.fillStyle = skin.primaryColor;
-    ctx.strokeStyle = skin.accentColor;
-    ctx.lineWidth = 3;
-    ctx.shadowColor = skin.accentColor;
-    ctx.shadowBlur = 12;
-
     ctx.beginPath();
-    // Beveled wedge front
-    ctx.moveTo(-halfHead, -halfHead);
-    ctx.lineTo(halfHead * 0.6, -halfHead);
-    ctx.lineTo(halfHead, -halfHead * 0.35);
-    ctx.lineTo(halfHead, halfHead * 0.35);
-    ctx.lineTo(halfHead * 0.6, halfHead);
-    ctx.lineTo(-halfHead, halfHead);
-    ctx.closePath();
+    ctx.ellipse(headR * 0.15, 0, headR * 1.05, headR * 0.88, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.stroke();
 
-    // Cyber visor / Sensor Eyes
-    ctx.fillStyle = skin.eyeColor;
-    ctx.shadowColor = skin.eyeColor;
-    ctx.shadowBlur = 8;
-    // Left eye optic
-    ctx.fillRect(halfHead * 0.2, -halfHead * 0.65, halfHead * 0.45, 4);
-    // Right eye optic
-    ctx.fillRect(halfHead * 0.2, halfHead * 0.65 - 4, halfHead * 0.45, 4);
-
-    // Center visor scanner
+    // Head 3D Specular Highlight (Soft curved glossy dome sheen)
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(halfHead * 0.45, -halfHead * 0.2, 4, halfHead * 0.4);
+    ctx.globalAlpha = 0.28;
+    ctx.beginPath();
+    ctx.ellipse(headR * 0.05, -headR * 0.25, headR * 0.75, headR * 0.45, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+
+    // 2.3 Big Expressive Snake.io Cartoon Eyes
+    // Calculate pupil gaze tracking (towards aim angle or forward velocity)
+    const aimAngle = snake.aimAngle !== undefined ? snake.aimAngle : head.angle;
+    const relGaze = aimAngle - head.angle;
+    const gazeDist = headR * 0.12;
+    const pupilOffX = Math.cos(relGaze) * gazeDist + headR * 0.05;
+    const pupilOffY = Math.sin(relGaze) * gazeDist;
+
+    const eyeOffsetX = headR * 0.32;
+    const eyeOffsetY = headR * 0.52;
+    const eyeRadius = headR * 0.34;
+    const pupilRadius = eyeRadius * 0.52;
+
+    // Draw Left & Right Eyes
+    [-eyeOffsetY, eyeOffsetY].forEach((eyeY, eyeIdx) => {
+      // White glossy Sclera
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(eyeOffsetX, eyeY, eyeRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Sclera subtle depth rim
+      ctx.strokeStyle = 'rgba(15, 23, 42, 0.25)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // Vibrant Iris
+      ctx.fillStyle = skin.eyeColor || skin.accentColor;
+      ctx.beginPath();
+      ctx.arc(eyeOffsetX + pupilOffX * 0.7, eyeY + pupilOffY * 0.7, eyeRadius * 0.75, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Pupil (looking towards velocity/aim direction)
+      ctx.fillStyle = '#090d16';
+      ctx.beginPath();
+      if (archetype === 'dragon') {
+        // Slitted reptilian dragon pupil
+        ctx.ellipse(eyeOffsetX + pupilOffX, eyeY + pupilOffY, pupilRadius * 0.45, pupilRadius * 1.15, 0, 0, Math.PI * 2);
+      } else {
+        // Classic round Snake.io expressive pupil
+        ctx.arc(eyeOffsetX + pupilOffX, eyeY + pupilOffY, pupilRadius, 0, Math.PI * 2);
+      }
+      ctx.fill();
+
+      // Cute lively white gleam sparkle in pupil
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(eyeOffsetX + pupilOffX - pupilRadius * 0.35, eyeY + pupilOffY - pupilRadius * 0.35, pupilRadius * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Brow Ridge Curve
+      ctx.strokeStyle = skin.accentColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const browDir = eyeIdx === 0 ? -1 : 1;
+      ctx.arc(eyeOffsetX - 2, eyeY - browDir * 2, eyeRadius * 1.1, browDir > 0 ? 0.3 : -1.8, browDir > 0 ? 1.8 : -0.3);
+      ctx.stroke();
+    });
+
+    // 2.4 Archetype Specific Head Adornments (Behance Snake.io character art features)
+    if (archetype === 'angel') {
+      // 1. Divine Levitating Golden Angel Halo
+      ctx.save();
+      const haloFloat = Math.sin(Date.now() * 0.005) * 3;
+      ctx.translate(0, -headR * 1.35 + haloFloat);
+      ctx.scale(1.15, 0.42);
+
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, headR * 0.8, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, headR * 0.8 - 1, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // 2. Celestial Feathered Wings on Head/Neck
+      const wingFlap = Math.sin(Date.now() * 0.009) * 0.22;
+      // Left Wing
+      ctx.save();
+      ctx.translate(-headR * 0.2, -headR * 0.85);
+      ctx.rotate(-0.5 + wingFlap);
+      ctx.fillStyle = '#f8fafc';
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(-14, -20, -6, -32);
+      ctx.quadraticCurveTo(8, -24, 12, -16);
+      ctx.quadraticCurveTo(10, -8, 0, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      // Right Wing
+      ctx.save();
+      ctx.translate(-headR * 0.2, headR * 0.85);
+      ctx.rotate(0.5 - wingFlap);
+      ctx.fillStyle = '#f8fafc';
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(-14, 20, -6, 32);
+      ctx.quadraticCurveTo(8, 24, 12, 16);
+      ctx.quadraticCurveTo(10, 8, 0, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    } else if (archetype === 'devil') {
+      // Demonic Obsidian Horns & Magma Vents
+      ctx.save();
+      // Left Horn
+      ctx.save();
+      ctx.translate(-headR * 0.15, -headR * 0.85);
+      ctx.rotate(-0.55);
+      ctx.fillStyle = '#18181b';
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -3);
+      ctx.quadraticCurveTo(8, -14, 2, -26);
+      ctx.quadraticCurveTo(-6, -16, -4, -3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // Molten magma vein
+      ctx.strokeStyle = '#f97316';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, -5);
+      ctx.lineTo(2, -22);
+      ctx.stroke();
+      ctx.restore();
+
+      // Right Horn
+      ctx.save();
+      ctx.translate(-headR * 0.15, headR * 0.85);
+      ctx.rotate(0.55);
+      ctx.fillStyle = '#18181b';
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 3);
+      ctx.quadraticCurveTo(8, 14, 2, 26);
+      ctx.quadraticCurveTo(-6, 16, -4, 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // Molten magma vein
+      ctx.strokeStyle = '#f97316';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, 5);
+      ctx.lineTo(2, 22);
+      ctx.stroke();
+      ctx.restore();
+
+      // Brimstone forehead crest
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath();
+      ctx.moveTo(headR * 0.3, 0);
+      ctx.lineTo(0, -6);
+      ctx.lineTo(-headR * 0.2, 0);
+      ctx.lineTo(0, 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    } else if (archetype === 'blackhole') {
+      // Swirling Event Horizon Singularity Vortex Core
+      ctx.save();
+      const spin = (Date.now() * 0.004) % (Math.PI * 2);
+
+      // Rotating Accretion Rings
+      ctx.save();
+      ctx.rotate(spin);
+      ctx.strokeStyle = 'rgba(168, 85, 247, 0.85)';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath();
+      ctx.arc(0, 0, headR * 0.82, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.rotate(-spin * 2.3);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 5]);
+      ctx.beginPath();
+      ctx.arc(0, 0, headR * 0.62, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Black Hole Pure Event Horizon Singularity Center
+      ctx.fillStyle = '#030712';
+      ctx.strokeStyle = '#c084fc';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, headR * 0.44, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Photon sphere point
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(Math.cos(spin * 3) * (headR * 0.26), Math.sin(spin * 3) * (headR * 0.26), 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else if (archetype === 'robot') {
+      // Dual Hydraulic Comms Antennas & Mecha Plates
+      ctx.save();
+      // Left antenna
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.3, -headR * 0.7);
+      ctx.lineTo(-headR * 0.7, -headR * 1.35);
+      ctx.stroke();
+      // Blinking beacon LED
+      ctx.fillStyle = (Math.floor(Date.now() / 250) % 2 === 0) ? '#ef4444' : '#7f1d1d';
+      ctx.beginPath();
+      ctx.arc(-headR * 0.7, -headR * 1.35, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Right antenna
+      ctx.strokeStyle = '#94a3b8';
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.3, headR * 0.7);
+      ctx.lineTo(-headR * 0.7, headR * 1.35);
+      ctx.stroke();
+      ctx.fillStyle = (Math.floor(Date.now() / 250) % 2 === 0) ? '#ef4444' : '#7f1d1d';
+      ctx.beginPath();
+      ctx.arc(-headR * 0.7, headR * 1.35, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Center Laser Optic Scanner
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(headR * 0.42, -headR * 0.15, 3, headR * 0.3);
+      ctx.restore();
+    } else if (archetype === 'dragon') {
+      // Draconic Crest Horns & Spines
+      ctx.save();
+      ctx.fillStyle = '#10b981';
+      ctx.strokeStyle = '#022c22';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.4, 0);
+      ctx.lineTo(-headR * 0.95, -10);
+      ctx.lineTo(-headR * 0.7, 0);
+      ctx.lineTo(-headR * 0.95, 10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      // Cyber Aero Canopy Ridge
+      ctx.strokeStyle = skin.accentColor;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.4, 0);
+      ctx.lineTo(headR * 0.3, 0);
+      ctx.stroke();
+    }
 
     // 3. Render Mounted Swivel Weapon Turret at the BACK of the Head!
     if (snake.weapon) {
@@ -890,7 +1229,7 @@ export class GameRenderer {
       if (weaponCfg) {
         ctx.save();
         // Position turret mount at the BACK of the head chassis
-        const mountDist = -halfHead * 0.45;
+        const mountDist = -headR * 0.45;
         ctx.translate(mountDist, 0);
 
         // Calculate relative aim angle so turret swivels towards target
@@ -968,7 +1307,7 @@ export class GameRenderer {
     if (snake.shieldHp && snake.shieldHp > 0) {
       ctx.save();
       ctx.translate(head.x, head.y);
-      const shieldR = headSize * 0.95;
+      const shieldR = headR * 1.5;
       const pulse = Math.sin(Date.now() * 0.007) * 3;
       const r = shieldR + pulse;
 
@@ -1097,7 +1436,7 @@ export class GameRenderer {
 
     // 4. Draw Floating HP Bar and Name over Snake Head
     ctx.save();
-    ctx.translate(head.x, head.y - halfHead - 24);
+    ctx.translate(head.x, head.y - headR - 20);
 
     // Name tag
     ctx.font = 'bold 12px Chakra Petch, sans-serif';

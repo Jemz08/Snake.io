@@ -27,6 +27,7 @@ export const SnakePreviewCanvas: React.FC<SnakePreviewCanvasProps> = ({
     let animId: number;
     let time = 0;
     const renderer = new GameRenderer(ctx);
+    renderer.setViewport(width / 2, height / 2, width + 300, height + 300);
 
     const render = () => {
       time += 0.04;
@@ -72,6 +73,7 @@ export const SnakePreviewCanvas: React.FC<SnakePreviewCanvasProps> = ({
         name: skin.name,
         isPlayer: true,
         skinId: skin.id,
+        archetype: skin.archetype,
         x: segments[0].x,
         y: segments[0].y,
         angle: segments[0].angle,

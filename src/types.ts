@@ -49,6 +49,7 @@ export interface Snake {
   color: string;
   accentColor: string;
   deathEffectId?: DeathEffectType;
+  archetype?: SnakeArchetype;
   // Shield Defense System
   shieldHp?: number;
   maxShieldHp?: number;
@@ -188,17 +189,49 @@ export interface KillNotification {
   rewardCoins?: number;
 }
 
+export type SnakeArchetype =
+  | 'angel'
+  | 'devil'
+  | 'blackhole'
+  | 'robot'
+  | 'dragon'
+  | 'cyber';
+
 export interface SkinDef {
   id: string;
   name: string;
+  archetype?: SnakeArchetype;
+  badge?: string;
   price: number;
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
   coreGlow: string;
   eyeColor: string;
-  pattern: 'cyber' | 'stealth' | 'gold' | 'neon' | 'matrix' | 'plasma' | 'glacial';
-  headDetail: 'dual-cannon' | 'visor' | 'optic-sensor' | 'spikes';
+  pattern:
+    | 'cyber'
+    | 'stealth'
+    | 'gold'
+    | 'neon'
+    | 'matrix'
+    | 'plasma'
+    | 'glacial'
+    | 'celestial'
+    | 'infernal'
+    | 'cosmic_void'
+    | 'mecha'
+    | 'draconic';
+  headDetail:
+    | 'dual-cannon'
+    | 'visor'
+    | 'optic-sensor'
+    | 'spikes'
+    | 'angel-wings-halo'
+    | 'devil-horns'
+    | 'singularity-vortex'
+    | 'mecha-visor-antennas'
+    | 'dragon-crest';
+  specialAura?: string;
   description: string;
 }
 

@@ -25,7 +25,7 @@ import {
   playShieldDeflectSound,
   playObstacleHitSound,
 } from '../utils/audio';
-import { SKINS } from '../utils/skins';
+import { SKINS, getSkinById } from '../utils/skins';
 import { DEATH_EFFECTS } from '../utils/deathEffects';
 import { updateMissionProgress } from '../utils/missions';
 import { recordPlayerScore } from '../utils/leaderboard';
@@ -37,7 +37,7 @@ const MAX_SHIELDS = 14;
 const BOT_COUNT = 24;
 
 const BOT_NAMES = [
-  'Viper²',
+  'AeroViper',
   'Mecha-X',
   'Apex-9',
   'GlitchFang',
@@ -427,6 +427,7 @@ export class GameEngine {
     angle: number,
     deathEffectId: DeathEffectType = 'cyber-matrix'
   ): Snake {
+    const skin = getSkinById(skinId);
     const initialLen = 12;
     const segments = [];
     const segSpacing = 16;
@@ -444,6 +445,7 @@ export class GameEngine {
       name,
       isPlayer,
       skinId,
+      archetype: skin.archetype || 'cyber',
       deathEffectId,
       x,
       y,
@@ -468,8 +470,8 @@ export class GameEngine {
       ammo: 0,
       lastFireTime: 0,
       isBoosting: false,
-      color: '#06b6d4',
-      accentColor: '#22d3ee',
+      color: skin.primaryColor,
+      accentColor: skin.accentColor,
       shieldHp: 0,
       maxShieldHp: 100,
       shieldTimer: 0,
@@ -1603,16 +1605,26 @@ export class GameEngine {
     if (snake.invincibleTimer && snake.invincibleTimer > 0) return;
 
     const head = snake.segments[0];
-    const headRadius = 14;
+    const reach = 14 + 10;
+    const reachSq = reach * reach;
 
-    for (const other of this.snakes) {
+    for (let oIdx = 0; oIdx < this.snakes.length; oIdx++) {
+      const other = this.snakes[oIdx];
       if (other.isDead || other.id === snake.id) continue;
+
+      // Quick snake-to-snake bounding box check
+      const otherHead = other.segments[0];
+      if (Math.abs(head.x - otherHead.x) > 600 || Math.abs(head.y - otherHead.y) > 600) {
+        continue;
+      }
 
       // Check collision with other snake's body segments
       for (let s = 1; s < other.segments.length; s++) {
         const seg = other.segments[s];
-        const dist = Math.hypot(head.x - seg.x, head.y - seg.y);
-        if (dist < headRadius + 10) {
+        const dx = head.x - seg.x;
+        const dy = head.y - seg.y;
+        if (Math.abs(dx) > reach || Math.abs(dy) > reach) continue;
+        if (dx * dx + dy * dy < reachSq) {
           // Crash! snake dies and other snake gets credit!
           this.killSnake(snake, other.id, null);
           return;
@@ -1736,17 +1748,22 @@ export class GameEngine {
   }
 
   private checkPickups() {
-    for (const snake of this.snakes) {
+    for (let sIdx = 0; sIdx < this.snakes.length; sIdx++) {
+      const snake = this.snakes[sIdx];
       if (snake.isDead) continue;
       const head = snake.segments[0];
       const eatRadius = 22 + Math.min(snake.length * 0.15, 15);
 
-      // Check Food & Cash Coin Pickups
+      // Check Food & Cash Coin Pickups (Fast AABB + Squared distance)
       for (let i = this.foods.length - 1; i >= 0; i--) {
         const food = this.foods[i];
-        const dist = Math.hypot(head.x - food.x, head.y - food.y);
+        const reach = eatRadius + food.radius;
+        const dx = head.x - food.x;
+        if (Math.abs(dx) > reach) continue;
+        const dy = head.y - food.y;
+        if (Math.abs(dy) > reach) continue;
 
-        if (dist < eatRadius + food.radius) {
+        if (dx * dx + dy * dy < reach * reach) {
           if (food.isCashCoin) {
             // Cash coin collected!
             const cash = food.cashValue || 10;
@@ -1784,12 +1801,16 @@ export class GameEngine {
         }
       }
 
-      // Check Loot Crates Pickups
+      // Check Loot Crates Pickups (Fast AABB + Squared distance)
       for (let i = this.loots.length - 1; i >= 0; i--) {
         const loot = this.loots[i];
-        const dist = Math.hypot(head.x - loot.x, head.y - loot.y);
+        const reach = eatRadius + loot.radius;
+        const dx = head.x - loot.x;
+        if (Math.abs(dx) > reach) continue;
+        const dy = head.y - loot.y;
+        if (Math.abs(dy) > reach) continue;
 
-        if (dist < eatRadius + loot.radius) {
+        if (dx * dx + dy * dy < reach * reach) {
           const config = WEAPONS[loot.type];
           snake.weapon = loot.type;
           snake.ammo = config.ammo; // Give full ammo for picked weapon
@@ -1811,12 +1832,16 @@ export class GameEngine {
         }
       }
 
-      // Check Shield Powerup Pickups
+      // Check Shield Powerup Pickups (Fast AABB + Squared distance)
       for (let i = this.shields.length - 1; i >= 0; i--) {
         const shield = this.shields[i];
-        const dist = Math.hypot(head.x - shield.x, head.y - shield.y);
+        const reach = eatRadius + shield.radius;
+        const dx = head.x - shield.x;
+        if (Math.abs(dx) > reach) continue;
+        const dy = head.y - shield.y;
+        if (Math.abs(dy) > reach) continue;
 
-        if (dist < eatRadius + shield.radius) {
+        if (dx * dx + dy * dy < reach * reach) {
           snake.shieldHp = Math.min(100, (snake.shieldHp || 0) + shield.shieldAmount);
           snake.maxShieldHp = 100;
           snake.shieldTimer = 30; // 30 seconds active defense
@@ -1855,6 +1880,11 @@ export class GameEngine {
   }
 
   private updateEffects() {
+    // Keep particles pool strictly bounded to prevent frame drops during massive chain explosions
+    if (this.particles.length > 220) {
+      this.particles.splice(0, this.particles.length - 220);
+    }
+
     // Particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
@@ -1869,6 +1899,11 @@ export class GameEngine {
       if (p.life <= 0) {
         this.particles.splice(i, 1);
       }
+    }
+
+    // Damage popups pool cap
+    if (this.damagePopups.length > 35) {
+      this.damagePopups.splice(0, this.damagePopups.length - 35);
     }
 
     // Damage popups
@@ -1896,6 +1931,7 @@ export class GameEngine {
       .sort((a, b) => b.score - a.score)
       .slice(0, 7)
       .map((s, idx) => ({
+        id: s.id,
         rank: idx + 1,
         name: s.name,
         score: s.score,

@@ -37,7 +37,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     let animId: number;
     let lastTime = performance.now();
-    let hudTimer = 0;
+    let lastHudUpdate = 0;
     const renderer = new GameRenderer(ctx);
 
     const handleResize = () => {
@@ -55,11 +55,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     window.addEventListener('resize', handleResize);
 
     const loop = (currentTime: number) => {
-      const dt = (currentTime - lastTime) / 1000;
+      // Delta time calculation with safety clamp to prevent physics jumps or frame skips
+      const dt = lastTime > 0 ? (currentTime - lastTime) / 1000 : 0.016;
       lastTime = currentTime;
+      const safeDt = Math.min(dt, 0.04);
 
       // 1. Update Game Simulation
-      engine.update(dt);
+      engine.update(safeDt);
 
       // 2. Render Frame
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -70,6 +72,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       // Camera coordinates (centered on player or world center if dead)
       const cameraX = player && !player.isDead ? player.x : engine.worldSize / 2;
       const cameraY = player && !player.isDead ? player.y : engine.worldSize / 2;
+
+      // Update renderer viewport for ultra-fast frustum culling (vital for 120Hz/144Hz!)
+      renderer.setViewport(cameraX, cameraY, width, height);
 
       renderer.clear(canvas.width, canvas.height);
 
@@ -112,9 +117,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       ctx.restore();
 
-      // 3. Throttle HUD state sync every 4 frames for maximum 60FPS performance
-      hudTimer++;
-      if (hudTimer % 4 === 0) {
+      // 3. Time-based HUD synchronization (throttled to ~11Hz)
+      // This eliminates React render thrashing & GC pauses on 120Hz/144Hz displays!
+      if (currentTime - lastHudUpdate > 90) {
+        lastHudUpdate = currentTime;
         setPlayerSnake(engine.playerSnake ? { ...engine.playerSnake } : null);
         setAllSnakes([...engine.snakes]);
         setLoots([...engine.loots]);

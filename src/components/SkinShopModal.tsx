@@ -38,6 +38,7 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
   const [activeTab, setActiveTab] = useState<'skins' | 'death-effects'>(initialTab);
   const [inspectingSkinId, setInspectingSkinId] = useState<string>(selectedSkinId);
   const [inspectingEffectId, setInspectingEffectId] = useState<DeathEffectType>(selectedDeathEffectId);
+  const [archetypeFilter, setArchetypeFilter] = useState<string>('all');
 
   if (!isOpen) return null;
 
@@ -50,6 +51,10 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
   const isEffectUnlocked = unlockedDeathEffectIds.includes(inspectingEffect.id);
   const isEffectEquipped = selectedDeathEffectId === inspectingEffect.id;
   const canAffordEffect = coins >= inspectingEffect.price;
+
+  const filteredSkins = archetypeFilter === 'all' 
+    ? SKINS 
+    : SKINS.filter(s => s.archetype === archetypeFilter);
 
   return (
     <div
@@ -122,85 +127,123 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
 
         {/* Content Body: Skins Tab */}
         {activeTab === 'skins' && (
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-6 p-3 sm:p-5 overflow-y-auto">
-            {/* Skins Grid List */}
-            <div className="md:col-span-7 grid grid-cols-2 gap-2.5 max-h-[48vh] md:max-h-none overflow-y-auto pr-1">
-              {SKINS.map((skin) => {
-                const unlocked = unlockedSkinIds.includes(skin.id);
-                const isCurrent = inspectingSkinId === skin.id;
-                const equipped = selectedSkinId === skin.id;
-
-                return (
-                  <button
-                    key={skin.id}
-                    id={`skin-item-${skin.id}`}
-                    type="button"
-                    onClick={() => setInspectingSkinId(skin.id)}
-                    className={`relative p-2.5 sm:p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
-                      isCurrent
-                        ? 'bg-cyan-950/50 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.4)] ring-1 ring-cyan-400'
-                        : 'bg-slate-800/60 border-slate-700/80 hover:border-slate-600 hover:bg-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-cyber text-xs sm:text-sm font-bold text-white truncate">
-                        {skin.name}
-                      </span>
-                      {equipped ? (
-                        <span className="bg-cyan-500 text-slate-950 font-cyber text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded">
-                          EQUIPPED
-                        </span>
-                      ) : unlocked ? (
-                        <span className="text-emerald-400 text-[11px] flex items-center gap-0.5 font-cyber">
-                          <Check className="w-3 h-3" /> OWNED
-                        </span>
-                      ) : (
-                        <span className="text-amber-400 text-[11px] flex items-center gap-0.5 font-cyber font-bold">
-                          <Lock className="w-3 h-3" /> ${skin.price}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Color Swatch Preview */}
-                    <div className="flex items-center gap-1.5 my-1.5">
-                      <div
-                        className="w-4 h-4 rounded border border-white/20 shadow-sm"
-                        style={{ backgroundColor: skin.primaryColor }}
-                      />
-                      <div
-                        className="w-4 h-4 rounded border border-white/20 shadow-sm"
-                        style={{ backgroundColor: skin.secondaryColor }}
-                      />
-                      <div
-                        className="w-4 h-4 rounded border border-white/20 shadow-sm"
-                        style={{ backgroundColor: skin.accentColor }}
-                      />
-                    </div>
-
-                    <p className="text-[10px] text-slate-400 line-clamp-1">{skin.description}</p>
-                  </button>
-                );
-              })}
+          <div className="flex-1 flex flex-col p-3 sm:p-5 overflow-hidden">
+            {/* Archetype Quick Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-2.5 mb-1 scrollbar-none">
+              {[
+                { id: 'all', label: 'All Warframes', icon: '⚡' },
+                { id: 'angel', label: 'Angel', icon: '🪽' },
+                { id: 'devil', label: 'Devil', icon: '😈' },
+                { id: 'blackhole', label: 'Blackhole', icon: '🌌' },
+                { id: 'robot', label: 'Robot', icon: '🤖' },
+                { id: 'dragon', label: 'Dragon', icon: '🐉' },
+                { id: 'cyber', label: 'Cyber', icon: '🛡️' },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setArchetypeFilter(f.id)}
+                  className={`px-2.5 py-1 rounded-lg font-cyber text-xs font-bold whitespace-nowrap flex items-center gap-1 transition-all ${
+                    archetypeFilter === f.id
+                      ? 'bg-cyan-500 text-slate-950 shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                      : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700'
+                  }`}
+                >
+                  <span>{f.icon}</span>
+                  <span>{f.label}</span>
+                </button>
+              ))}
             </div>
 
-            {/* Skin Inspection & Preview Panel */}
-            <div className="md:col-span-5 flex flex-col justify-between bg-slate-950/70 border border-slate-800 rounded-xl p-4">
-              <div>
-                <div className="mb-2.5">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-cyber text-base sm:text-lg font-black text-white">{inspectingSkin.name}</h3>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 uppercase">
-                      {inspectingSkin.pattern}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1">{inspectingSkin.description}</p>
-                </div>
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-6 overflow-y-auto">
+              {/* Skins Grid List */}
+              <div className="md:col-span-7 grid grid-cols-2 gap-2.5 max-h-[48vh] md:max-h-none overflow-y-auto pr-1">
+                {filteredSkins.map((skin) => {
+                  const unlocked = unlockedSkinIds.includes(skin.id);
+                  const isCurrent = inspectingSkinId === skin.id;
+                  const equipped = selectedSkinId === skin.id;
 
-                {/* Animated 3D/Isometric Snake Preview */}
-                <div className="my-2">
-                  <SnakePreviewCanvas skin={inspectingSkin} />
-                </div>
+                  return (
+                    <button
+                      key={skin.id}
+                      id={`skin-item-${skin.id}`}
+                      type="button"
+                      onClick={() => setInspectingSkinId(skin.id)}
+                      className={`relative p-2.5 sm:p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                        isCurrent
+                          ? 'bg-cyan-950/50 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.4)] ring-1 ring-cyan-400'
+                          : 'bg-slate-800/60 border-slate-700/80 hover:border-slate-600 hover:bg-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-cyber text-xs sm:text-sm font-bold text-white truncate">
+                          {skin.name}
+                        </span>
+                        {equipped ? (
+                          <span className="bg-cyan-500 text-slate-950 font-cyber text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded">
+                            EQUIPPED
+                          </span>
+                        ) : unlocked ? (
+                          <span className="text-emerald-400 text-[11px] flex items-center gap-0.5 font-cyber">
+                            <Check className="w-3 h-3" /> OWNED
+                          </span>
+                        ) : (
+                          <span className="text-amber-400 text-[11px] flex items-center gap-0.5 font-cyber font-bold">
+                            <Lock className="w-3 h-3" /> ${skin.price}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Color Swatch Preview & Archetype Tag */}
+                      <div className="flex items-center justify-between my-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <div
+                            className="w-4 h-4 rounded border border-white/20 shadow-sm"
+                            style={{ backgroundColor: skin.primaryColor }}
+                          />
+                          <div
+                            className="w-4 h-4 rounded border border-white/20 shadow-sm"
+                            style={{ backgroundColor: skin.secondaryColor }}
+                          />
+                          <div
+                            className="w-4 h-4 rounded border border-white/20 shadow-sm"
+                            style={{ backgroundColor: skin.accentColor }}
+                          />
+                        </div>
+                        <span className="text-[9px] font-cyber px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300 uppercase">
+                          {skin.badge || skin.archetype}
+                        </span>
+                      </div>
+
+                      <p className="text-[10px] text-slate-400 line-clamp-1">{skin.description}</p>
+                    </button>
+                  );
+                })}
               </div>
+
+              {/* Skin Inspection & Preview Panel */}
+              <div className="md:col-span-5 flex flex-col justify-between bg-slate-950/70 border border-slate-800 rounded-xl p-4">
+                <div>
+                  <div className="mb-2.5">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-cyber text-base sm:text-lg font-black text-white">{inspectingSkin.name}</h3>
+                      <span className="text-[10px] font-cyber px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 uppercase font-black">
+                        {inspectingSkin.badge || inspectingSkin.archetype}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">{inspectingSkin.description}</p>
+                    {inspectingSkin.specialAura && (
+                      <p className="text-[11px] font-cyber text-amber-300 mt-1">
+                        ✨ Aura: {inspectingSkin.specialAura}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Animated 3D/Isometric Snake Preview */}
+                  <div className="my-2">
+                    <SnakePreviewCanvas skin={inspectingSkin} />
+                  </div>
+                </div>
 
               {/* Action Buttons */}
               <div className="mt-3 pt-3 border-t border-slate-800/80">
@@ -239,7 +282,8 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
         {/* Content Body: Death Effects Tab */}
         {activeTab === 'death-effects' && (

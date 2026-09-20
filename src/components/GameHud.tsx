@@ -26,7 +26,7 @@ interface GameHudProps {
   obstacles?: MapObstacle[];
   shields?: ShieldPowerup[];
   worldSize: number;
-  leaderboard: Array<{ rank: number; name: string; score: number; kills: number; isPlayer: boolean }>;
+  leaderboard: Array<{ id?: string; rank: number; name: string; score: number; kills: number; isPlayer: boolean }>;
   killFeed: KillNotification[];
   onSteer: (angle: number) => void;
   onAim?: (angle: number, isAiming: boolean) => void;
@@ -236,9 +236,9 @@ export const GameHud: React.FC<GameHudProps> = ({
 
             {showLeaderboard && (
               <div className="space-y-1 mt-1.5 animate-in fade-in duration-150">
-                {leaderboard.slice(0, 5).map((entry) => (
+                {leaderboard.slice(0, 5).map((entry, idx) => (
                   <div
-                    key={entry.name}
+                    key={entry.id || `${entry.name}-${entry.rank || idx}-${entry.isPlayer ? 'player' : 'bot'}`}
                     className={`flex items-center justify-between text-[10px] sm:text-xs font-cyber px-1 py-0.5 rounded ${
                       entry.isPlayer
                         ? 'bg-cyan-500/20 text-cyan-300 font-black border border-cyan-500/40'

@@ -15,11 +15,11 @@ const STORAGE_KEY = 'snake2_armed_profile_v2';
 
 const DEFAULT_PROFILE: PlayerProfile = {
   name: 'Viper²',
-  coins: 100, // Starter cash
+  coins: 150, // Starter cash
   highScore: 0,
   maxKills: 0,
-  selectedSkinId: 'cyber-viper',
-  unlockedSkinIds: ['cyber-viper'],
+  selectedSkinId: 'angel-seraph',
+  unlockedSkinIds: ['angel-seraph', 'devil-infernal', 'blackhole-void', 'robot-titan', 'cyber-viper'],
   selectedDeathEffectId: 'cyber-matrix',
   unlockedDeathEffectIds: ['cyber-matrix'],
 };
@@ -30,9 +30,14 @@ export default function App() {
       const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('snake2_armed_profile_v1');
       if (saved) {
         const parsed = JSON.parse(saved);
+        const starterSkins = ['angel-seraph', 'devil-infernal', 'blackhole-void', 'robot-titan', 'cyber-viper'];
+        const existingUnlocked = Array.isArray(parsed.unlockedSkinIds) ? parsed.unlockedSkinIds : ['cyber-viper'];
+        const mergedSkins = Array.from(new Set([...starterSkins, ...existingUnlocked]));
+
         return {
           ...DEFAULT_PROFILE,
           ...parsed,
+          unlockedSkinIds: mergedSkins,
           selectedDeathEffectId: parsed.selectedDeathEffectId || 'cyber-matrix',
           unlockedDeathEffectIds: parsed.unlockedDeathEffectIds || ['cyber-matrix'],
         };
