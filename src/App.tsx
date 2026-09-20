@@ -194,7 +194,7 @@ export default function App() {
   return (
     <div
       id="app-root"
-      className="relative w-screen h-screen overflow-hidden bg-slate-950 font-cyber text-white select-none"
+      className="fixed inset-0 w-full h-full h-[100dvh] w-[100dvw] overflow-hidden bg-slate-950 font-cyber text-white select-none"
     >
       {/* Landscape Advisor Banner */}
       {!isLandscape && (

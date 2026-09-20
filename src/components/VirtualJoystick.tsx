@@ -9,8 +9,8 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({ onMove }) => {
   const pointerIdRef = useRef<number | null>(null);
   const [active, setActive] = useState(false);
   const [knobPos, setKnobPos] = useState({ x: 0, y: 0 });
-  const baseRadius = 64;
-  const maxDistance = 46;
+  const baseRadius = 52;
+  const maxDistance = 38;
 
   const updateKnob = useCallback((clientX: number, clientY: number) => {
     if (!containerRef.current) return;
@@ -108,7 +108,7 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({ onMove }) => {
         {/* Crosshair guidelines */}
         <div className="absolute w-full h-[1px] bg-cyan-500/20" />
         <div className="absolute h-full w-[1px] bg-cyan-500/20" />
-        <div className="w-12 h-12 rounded-full border border-cyan-500/30" />
+        <div className="w-9 h-9 rounded-full border border-cyan-500/30" />
       </div>
 
       {/* Interactive analog knob */}
@@ -116,8 +116,8 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({ onMove }) => {
         id="joystick-knob"
         className={`absolute rounded-full pointer-events-none transition-transform duration-75 flex items-center justify-center ${
           active
-            ? 'w-14 h-14 bg-gradient-to-tr from-cyan-600 to-cyan-300 shadow-[0_0_15px_#22d3ee] border-2 border-white'
-            : 'w-12 h-12 bg-slate-700/80 border-2 border-cyan-500/40'
+            ? 'w-12 h-12 bg-gradient-to-tr from-cyan-600 to-cyan-300 shadow-[0_0_15px_#22d3ee] border-2 border-white'
+            : 'w-10 h-10 bg-slate-700/80 border-2 border-cyan-500/40'
         }`}
         style={{
           transform: `translate3d(${knobPos.x}px, ${knobPos.y}px, 0)`,

@@ -173,22 +173,22 @@ export const FireControl: React.FC<FireControlProps> = ({
   return (
     <div id="fire-control-group" className="flex items-end gap-3 select-none touch-none">
       {/* Boost / Thruster Button */}
-      <div className="flex flex-col items-center mb-1">
+      <div className="flex flex-col items-center mb-0.5">
         <button
           id="btn-boost"
           type="button"
           onPointerDown={handleBoostDown}
           onPointerUp={handleBoostUp}
           onPointerCancel={handleBoostUp}
-          className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center border-2 transition-all active:scale-95 shadow-lg ${
+          className={`w-11 h-11 sm:w-13 sm:h-13 rounded-2xl flex items-center justify-center border-2 transition-all active:scale-95 shadow-lg ${
             isBoosting
               ? 'bg-amber-500 border-yellow-200 text-white shadow-[0_0_20px_#f59e0b] scale-105'
               : 'bg-slate-900/85 border-slate-700/90 text-amber-400 hover:border-amber-500/60'
           } backdrop-blur-md`}
         >
-          <Flame className={`w-6 h-6 sm:w-7 sm:h-7 ${isBoosting ? 'animate-bounce' : ''}`} />
+          <Flame className={`w-5 h-5 sm:w-6 sm:h-6 ${isBoosting ? 'animate-bounce' : ''}`} />
         </button>
-        <span className="text-[9px] sm:text-[10px] font-cyber tracking-wider font-bold text-slate-400 mt-1 uppercase">
+        <span className="text-[8px] sm:text-[9px] font-cyber tracking-wider font-bold text-slate-400 mt-0.5 uppercase">
           BOOST <span className="hidden sm:inline">[Shift]</span>
         </span>
       </div>
@@ -198,7 +198,7 @@ export const FireControl: React.FC<FireControlProps> = ({
         {/* Status Badge above Pad */}
         <div
           id="laser-aim-status-badge"
-          className={`mb-1 px-2 py-0.5 rounded-full font-cyber text-[9px] sm:text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border transition-all ${
+          className={`mb-0.5 px-1.5 py-0.5 rounded-full font-cyber text-[8px] sm:text-[9px] font-black uppercase tracking-wider flex items-center gap-1 border transition-all ${
             !weapon || ammo <= 0
               ? 'bg-slate-900/70 border-slate-800 text-slate-500'
               : targetLocked
@@ -210,18 +210,18 @@ export const FireControl: React.FC<FireControlProps> = ({
         >
           {targetLocked ? (
             <>
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-              <span>⚡ LOCKED & AUTO-SHOOTING</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+              <span>⚡ LOCKED</span>
             </>
           ) : isAiming ? (
             <>
-              <Crosshair className="w-3 h-3 text-cyan-400" />
-              <span>LASER AIM: {deg}°</span>
+              <Crosshair className="w-2.5 h-2.5 text-cyan-400" />
+              <span>AIM: {deg}°</span>
             </>
           ) : weapon ? (
             <>
-              <Sparkles className="w-3 h-3 text-cyan-400" />
-              <span>DRAG TO AIM LASER</span>
+              <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
+              <span>DRAG TO AIM</span>
             </>
           ) : (
             <span>NO WEAPON</span>
@@ -236,7 +236,7 @@ export const FireControl: React.FC<FireControlProps> = ({
           onPointerMove={handlePadPointerMove}
           onPointerUp={handlePadPointerUp}
           onPointerCancel={handlePadPointerUp}
-          className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 flex items-center justify-center transition-all cursor-grab active:cursor-grabbing ${
+          className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 flex items-center justify-center transition-all cursor-grab active:cursor-grabbing ${
             !weapon || ammo <= 0
               ? 'bg-slate-950/70 border-slate-800/80 opacity-60'
               : targetLocked
@@ -258,14 +258,14 @@ export const FireControl: React.FC<FireControlProps> = ({
               style={{ transform: `rotate(${aimAngle}rad)` }}
             >
               <div
-                className={`absolute right-1 w-5 sm:w-6 h-1 rounded-full ${
+                className={`absolute right-1 w-4 sm:w-5 h-1 rounded-full ${
                   targetLocked
                     ? 'bg-rose-400 shadow-[0_0_10px_#f43f5e]'
                     : 'bg-cyan-400 shadow-[0_0_8px_#38bdf8]'
                 }`}
               />
               <div
-                className={`absolute right-0 w-2 h-2 rounded-full -mr-1 ${
+                className={`absolute right-0 w-1.5 h-1.5 rounded-full -mr-0.5 ${
                   targetLocked ? 'bg-rose-500' : 'bg-cyan-300'
                 }`}
               />
@@ -275,7 +275,7 @@ export const FireControl: React.FC<FireControlProps> = ({
           {/* Interactive Thumb Knob */}
           <div
             id="pad-laser-knob"
-            className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full border-2 flex flex-col items-center justify-center shadow-lg transition-transform pointer-events-none ${
+            className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full border-2 flex flex-col items-center justify-center shadow-lg transition-transform pointer-events-none ${
               !weapon || ammo <= 0
                 ? 'bg-slate-900 border-slate-700 text-slate-600'
                 : targetLocked
@@ -290,7 +290,7 @@ export const FireControl: React.FC<FireControlProps> = ({
           >
             {renderWeaponIcon()}
             {weapon && ammo > 0 && (
-              <span className="text-[8px] font-cyber font-black tracking-tighter">
+              <span className="text-[7px] sm:text-[8px] font-cyber font-black tracking-tighter">
                 ×{ammo}
               </span>
             )}
@@ -298,7 +298,7 @@ export const FireControl: React.FC<FireControlProps> = ({
         </div>
 
         {/* Label below pad */}
-        <span className="text-[9px] sm:text-[10px] font-cyber tracking-wider font-bold text-slate-400 mt-1 uppercase">
+        <span className="text-[8px] sm:text-[9px] font-cyber tracking-wider font-bold text-slate-400 mt-0.5 uppercase">
           LASER AIM <span className="text-cyan-400">[AUTO-FIRE]</span>
         </span>
       </div>

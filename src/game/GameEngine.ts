@@ -1473,20 +1473,40 @@ export class GameEngine {
       let currentSpeed = snake.baseSpeed;
       if (snake.isBoosting && snake.length > 8) {
         currentSpeed = snake.boostSpeed;
-        // Boosting consumes slight length / mass
-        if (Math.random() < 0.25) {
-          snake.length = Math.max(8, snake.length - 0.08);
-          // Drop tiny food behind tail
-          const tail = snake.segments[snake.segments.length - 1];
+        const tail = snake.segments[snake.segments.length - 1];
+        const prev = snake.segments[Math.max(0, snake.segments.length - 2)];
+        const exhaustAngle = Math.atan2(tail.y - prev.y, tail.x - prev.x);
+
+        // Continuous fiery tail propulsion exhaust particles
+        if (Math.random() < 0.85) {
+          const pAngle = exhaustAngle + (Math.random() - 0.5) * 0.65;
+          const pSpeed = 3.5 + Math.random() * 5;
           this.particles.push({
             x: tail.x,
             y: tail.y,
-            vx: -Math.cos(tail.angle) * 3 + (Math.random() - 0.5),
-            vy: -Math.sin(tail.angle) * 3 + (Math.random() - 0.5),
+            vx: Math.cos(pAngle) * pSpeed,
+            vy: Math.sin(pAngle) * pSpeed,
+            color: Math.random() > 0.4 ? '#f59e0b' : (snake.accentColor || '#38bdf8'),
+            size: Math.random() * 3 + 2,
+            life: 14 + Math.floor(Math.random() * 8),
+            maxLife: 22,
+            shape: 'square',
+          });
+        }
+
+        // Boosting consumes slight length / mass
+        if (Math.random() < 0.25) {
+          snake.length = Math.max(8, snake.length - 0.08);
+          // Drop food pellet remnant behind tail
+          this.particles.push({
+            x: tail.x + Math.cos(exhaustAngle) * 8,
+            y: tail.y + Math.sin(exhaustAngle) * 8,
+            vx: Math.cos(exhaustAngle) * 2 + (Math.random() - 0.5),
+            vy: Math.sin(exhaustAngle) * 2 + (Math.random() - 0.5),
             color: snake.accentColor,
-            size: 3,
-            life: 18,
-            maxLife: 18,
+            size: 3.5,
+            life: 20,
+            maxLife: 20,
             shape: 'square',
           });
         }

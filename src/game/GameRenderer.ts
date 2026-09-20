@@ -835,182 +835,494 @@ export class GameRenderer {
     const archetype = skin.archetype || snake.archetype || 'cyber';
     // Base segment radius (scales gracefully with score/length)
     const baseRadius = 13 + Math.min(snake.length * 0.12, 10);
-
-    // 1. Draw Body Segments (from tail to neck) using High-Speed Zero-Transform Sphere Batching
-    // Circles are rotation-invariant: drawing directly at (seg.x, seg.y) eliminates 3,000+ matrix operations per frame!
     const totalSegs = snake.segments.length;
-    for (let i = totalSegs - 1; i >= 1; i--) {
-      const seg = snake.segments[i];
-      // Organic smooth taper towards tail
-      const taper = Math.max(0.42, 1 - (i / totalSegs) * 0.58);
-      const r = baseRadius * taper;
+    if (totalSegs < 2) return;
 
-      // 1.1 Subtle 3D Underbelly Drop Shadow (gives rounded depth against the arena floor)
-      ctx.fillStyle = 'rgba(11, 15, 25, 0.45)';
-      ctx.beginPath();
-      ctx.arc(seg.x, seg.y + r * 0.18, r, 0, Math.PI * 2);
-      ctx.fill();
+    // 0. Compute Organic Taper Radii & Tangent Normals along the Serpentine Spine
+    // An actual snake has a neck constriction behind the broad viper head,
+    // a strong muscular chest/torso, and tapers smoothly to a slender pointed tail tip.
+    const segRadii: number[] = new Array(totalSegs);
+    for (let i = 0; i < totalSegs; i++) {
+      if (i === 0) {
+        segRadii[i] = baseRadius * 1.05;
+      } else if (i <= 3) {
+        // Muscular torso / hood behind the neck
+        const t = i / 3;
+        segRadii[i] = baseRadius * (0.96 + t * 0.12);
+      } else {
+        // Continuous organic taper down to a sleek pointed tail tip
+        const t = (i - 3) / Math.max(1, totalSegs - 4);
+        const taperFactor = Math.pow(1 - t, 0.88);
+        segRadii[i] = Math.max(2.8, baseRadius * 1.08 * (0.16 + 0.84 * taperFactor));
+      }
+    }
 
-      // 1.2 Main Glossy Spherical Bead (Alternating vibrant skin colors)
-      ctx.fillStyle = i % 2 === 0 ? skin.primaryColor : skin.secondaryColor;
-      ctx.beginPath();
-      ctx.arc(seg.x, seg.y, r, 0, Math.PI * 2);
-      ctx.fill();
+    // Precalculate spine tangents, normals, and left/right skin contours
+    const leftPoints: Array<{ x: number; y: number }> = new Array(totalSegs);
+    const rightPoints: Array<{ x: number; y: number }> = new Array(totalSegs);
+    const segAngles: number[] = new Array(totalSegs);
 
-      // 1.3 Archetype / Spine Specialty Pattern
-      if (archetype === 'angel') {
-        // Celestial Holy Core
-        ctx.fillStyle = 'rgba(254, 240, 138, 0.55)';
+    for (let i = 0; i < totalSegs; i++) {
+      const cur = snake.segments[i];
+      let dx = 0;
+      let dy = 0;
+
+      if (i === 0) {
+        const next = snake.segments[1];
+        dx = cur.x - next.x;
+        dy = cur.y - next.y;
+      } else if (i === totalSegs - 1) {
+        const prev = snake.segments[i - 1];
+        dx = prev.x - cur.x;
+        dy = prev.y - cur.y;
+      } else {
+        const prev = snake.segments[i - 1];
+        const next = snake.segments[i + 1];
+        dx = prev.x - next.x;
+        dy = prev.y - next.y;
+      }
+
+      let len = Math.hypot(dx, dy);
+      if (len < 0.001) {
+        dx = Math.cos(cur.angle || 0);
+        dy = Math.sin(cur.angle || 0);
+        len = 1;
+      }
+
+      const angle = Math.atan2(dy, dx);
+      segAngles[i] = angle;
+
+      // Normal perpendicular to spine (pointing left of movement direction)
+      const nx = -dy / len;
+      const ny = dx / len;
+      const r = segRadii[i];
+
+      leftPoints[i] = { x: cur.x + nx * r, y: cur.y + ny * r };
+      rightPoints[i] = { x: cur.x - nx * r, y: cur.y - ny * r };
+    }
+
+    // Direction pointing backwards away from the tail
+    const tailSeg = snake.segments[totalSegs - 1];
+    const prevTailSeg = snake.segments[Math.max(0, totalSegs - 2)];
+    const tailExhaustAngle = Math.atan2(tailSeg.y - prevTailSeg.y, tailSeg.x - prevTailSeg.x);
+    const tailR = segRadii[totalSegs - 1];
+    const tailTipDist = tailR * 1.6;
+    const tailTipX = tailSeg.x + Math.cos(tailExhaustAngle) * tailTipDist;
+    const tailTipY = tailSeg.y + Math.sin(tailExhaustAngle) * tailTipDist;
+
+    // 1. BOOST THRUSTER AT THE TAIL!
+    // User requirement: "Also if i click the boost make the boost is at the tail."
+    if (snake.isBoosting) {
+      ctx.save();
+      ctx.translate(tailTipX, tailTipY);
+      ctx.rotate(tailExhaustAngle);
+
+      const flicker = Math.sin(Date.now() * 0.045 + (snake.id.charCodeAt(0) || 0)) * 5;
+      const flameLen = 32 + baseRadius * 1.4 + flicker + Math.random() * 8;
+      const flameW = Math.max(9, tailR * 2.6);
+
+      // Pulsing thrust shockwave diamond rings drifting backwards
+      const pulsePhase = (Date.now() * 0.009) % 1;
+      for (let ring = 0; ring < 2; ring++) {
+        const ringT = (pulsePhase + ring * 0.5) % 1;
+        const ringX = ringT * flameLen * 0.85;
+        const ringAlpha = (1 - ringT) * 0.7;
+        ctx.strokeStyle = skin.accentColor || '#38bdf8';
+        ctx.lineWidth = 1.8;
+        ctx.globalAlpha = ringAlpha;
         ctx.beginPath();
-        ctx.arc(seg.x, seg.y, r * 0.45, 0, Math.PI * 2);
+        ctx.ellipse(ringX, 0, 3, flameW * (0.35 + ringT * 0.45), 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Outer roaring jet flame
+      const grad = ctx.createLinearGradient(0, 0, flameLen, 0);
+      grad.addColorStop(0, '#f97316');
+      grad.addColorStop(0.35, '#facc15');
+      grad.addColorStop(0.75, '#38bdf8');
+      grad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+
+      ctx.globalAlpha = 0.88;
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(0, -flameW * 0.5);
+      ctx.quadraticCurveTo(flameLen * 0.45, -flameW * 0.65, flameLen, 0);
+      ctx.quadraticCurveTo(flameLen * 0.45, flameW * 0.65, 0, flameW * 0.5);
+      ctx.closePath();
+      ctx.fill();
+
+      // Blistering white-hot inner energy core
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(0, -flameW * 0.22);
+      ctx.lineTo(flameLen * 0.55, 0);
+      ctx.lineTo(0, flameW * 0.22);
+      ctx.closePath();
+      ctx.fill();
+
+      // Exhaust nozzle ring at tail tip
+      ctx.globalAlpha = 1.0;
+      ctx.fillStyle = '#0f172a';
+      ctx.strokeStyle = skin.accentColor || '#38bdf8';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.max(3.5, tailR * 1.1), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // 2. Continuous Organic Underbelly Ground Shadow
+    ctx.save();
+    ctx.fillStyle = 'rgba(11, 15, 25, 0.45)';
+    const shadowOffX = baseRadius * 0.15;
+    const shadowOffY = baseRadius * 0.26;
+    ctx.beginPath();
+    ctx.moveTo(leftPoints[0].x + shadowOffX, leftPoints[0].y + shadowOffY);
+    for (let i = 1; i < totalSegs; i++) {
+      const prev = leftPoints[i - 1];
+      const cur = leftPoints[i];
+      const midX = (prev.x + cur.x) * 0.5 + shadowOffX;
+      const midY = (prev.y + cur.y) * 0.5 + shadowOffY;
+      ctx.quadraticCurveTo(prev.x + shadowOffX, prev.y + shadowOffY, midX, midY);
+    }
+    ctx.lineTo(tailTipX + shadowOffX, tailTipY + shadowOffY);
+    for (let i = totalSegs - 1; i >= 1; i--) {
+      const prev = rightPoints[i];
+      const next = rightPoints[i - 1];
+      const midX = (prev.x + next.x) * 0.5 + shadowOffX;
+      const midY = (prev.y + next.y) * 0.5 + shadowOffY;
+      ctx.quadraticCurveTo(prev.x + shadowOffX, prev.y + shadowOffY, midX, midY);
+    }
+    ctx.lineTo(rightPoints[0].x + shadowOffX, rightPoints[0].y + shadowOffY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // 3. Continuous Seamless Serpentine Body Contour (No disconnected circles or square blocks!)
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(leftPoints[0].x, leftPoints[0].y);
+    for (let i = 1; i < totalSegs; i++) {
+      const prev = leftPoints[i - 1];
+      const cur = leftPoints[i];
+      const midX = (prev.x + cur.x) * 0.5;
+      const midY = (prev.y + cur.y) * 0.5;
+      ctx.quadraticCurveTo(prev.x, prev.y, midX, midY);
+    }
+    // Sleek pointed tail tip
+    ctx.lineTo(tailTipX, tailTipY);
+    for (let i = totalSegs - 1; i >= 1; i--) {
+      const prev = rightPoints[i];
+      const next = rightPoints[i - 1];
+      const midX = (prev.x + next.x) * 0.5;
+      const midY = (prev.y + next.y) * 0.5;
+      ctx.quadraticCurveTo(prev.x, prev.y, midX, midY);
+    }
+    ctx.lineTo(rightPoints[0].x, rightPoints[0].y);
+    ctx.closePath();
+
+    // Main continuous skin fill
+    ctx.fillStyle = skin.primaryColor;
+    ctx.fill();
+
+    // Subtle 3D serpent body boundary rim
+    ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+    ctx.restore();
+
+    // 4. Authentic Snake Markings & Scales along the Continuous Body
+    // 4.1 Ventral Underbelly Pale Scutes / Plates
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(snake.segments[0].x, snake.segments[0].y);
+    for (let i = 1; i < totalSegs - 1; i++) {
+      const p1 = snake.segments[i - 1];
+      const p2 = snake.segments[i];
+      const midX = (p1.x + p2.x) * 0.5;
+      const midY = (p1.y + p2.y) * 0.5;
+      ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+    }
+    ctx.strokeStyle = skin.secondaryColor;
+    ctx.lineWidth = baseRadius * 0.5;
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.55;
+    ctx.stroke();
+    ctx.restore();
+
+    // 4.2 Dorsal Diamondback / Chevron Saddle Scales & Archetype Texture
+    // Real snakes have gorgeous overlapping diamond scales or chevrons running down their spine
+    for (let i = 1; i < totalSegs - 1; i++) {
+      const seg = snake.segments[i];
+      const r = segRadii[i];
+      const ang = segAngles[i];
+
+      ctx.save();
+      ctx.translate(seg.x, seg.y);
+      ctx.rotate(ang);
+
+      // Authentic Reptilian Diamondback Scale Saddle
+      const diamondLen = r * 0.95;
+      const diamondW = r * 0.72;
+      ctx.fillStyle = i % 2 === 0 ? skin.secondaryColor : (skin.accentColor || skin.primaryColor);
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(-diamondLen * 0.55, 0);
+      ctx.lineTo(0, -diamondW * 0.5);
+      ctx.lineTo(diamondLen * 0.55, 0);
+      ctx.lineTo(0, diamondW * 0.5);
+      ctx.closePath();
+      ctx.fill();
+
+      // Archetype Spine Specialization
+      if (archetype === 'dragon') {
+        // Draconic Serrated Spine Scute
+        ctx.fillStyle = '#facc15';
+        ctx.globalAlpha = 1.0;
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.35, 0);
+        ctx.lineTo(0, -r * 0.22);
+        ctx.lineTo(r * 0.35, 0);
+        ctx.lineTo(0, r * 0.22);
+        ctx.closePath();
+        ctx.fill();
+      } else if (archetype === 'angel') {
+        // Celestial Holy Scale Quill
+        ctx.fillStyle = 'rgba(254, 240, 138, 0.75)';
+        ctx.globalAlpha = 1.0;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * 0.42, r * 0.22, 0, 0, Math.PI * 2);
         ctx.fill();
       } else if (archetype === 'devil') {
         // Magma Fiery Seam
-        ctx.fillStyle = i % 3 === 0 ? '#ef4444' : '#f97316';
+        ctx.fillStyle = i % 2 === 0 ? '#ef4444' : '#f97316';
+        ctx.globalAlpha = 0.9;
         ctx.beginPath();
-        ctx.arc(seg.x, seg.y, r * 0.38, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, r * 0.38, r * 0.18, 0, 0, Math.PI * 2);
         ctx.fill();
+      } else if (archetype === 'robot') {
+        // Mecha Alloy Plate Line
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.2;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.moveTo(-diamondLen * 0.4, 0);
+        ctx.lineTo(diamondLen * 0.4, 0);
+        ctx.stroke();
       } else if (archetype === 'blackhole') {
-        // Singularity Void Core
+        // Singularity Void Node
         ctx.fillStyle = '#030712';
-        ctx.beginPath();
-        ctx.arc(seg.x, seg.y, r * 0.48, 0, Math.PI * 2);
-        ctx.fill();
         ctx.strokeStyle = '#c084fc';
         ctx.lineWidth = 1;
-        ctx.stroke();
-      } else if (archetype === 'robot') {
-        // Mecha Tech Power Ring
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 1.4;
+        ctx.globalAlpha = 0.9;
         ctx.beginPath();
-        ctx.arc(seg.x, seg.y, r * 0.6, 0, Math.PI * 2);
-        ctx.stroke();
-      } else if (archetype === 'dragon') {
-        // Reptilian Diamond Spine Plate
-        ctx.fillStyle = '#facc15';
-        ctx.beginPath();
-        ctx.arc(seg.x, seg.y, r * 0.28, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, r * 0.35, r * 0.25, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.stroke();
       } else {
-        // Cyber Glow Node
+        // Cyber Light Node
         ctx.fillStyle = skin.coreGlow;
-        ctx.globalAlpha = 0.7;
+        ctx.globalAlpha = 0.75;
         ctx.beginPath();
-        ctx.arc(seg.x, seg.y, r * 0.35, 0, Math.PI * 2);
+        ctx.arc(0, 0, r * 0.24, 0, Math.PI * 2);
         ctx.fill();
-        ctx.globalAlpha = 1.0;
       }
 
-      // 1.4 Signature 3D Glossy Specular Bubble Sheen (Upper-Left Reflection droplet)
-      ctx.fillStyle = '#ffffff';
-      ctx.globalAlpha = 0.55;
+      // Transverse Ventral Plate Groove (fine reptilian scale division line)
+      ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)';
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.6;
       ctx.beginPath();
-      ctx.arc(seg.x - r * 0.3, seg.y - r * 0.3, r * 0.32, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1.0;
+      ctx.moveTo(0, -r * 0.7);
+      ctx.lineTo(0, r * 0.7);
+      ctx.stroke();
+
+      ctx.restore();
     }
 
-    // 2. Draw Snake.io Organic Rounded Character Head
+    // 4.3 Smooth 3D Cylindrical Dorsal Sheen (Glossy spine highlight)
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(snake.segments[0].x, snake.segments[0].y);
+    for (let i = 1; i < totalSegs - 2; i++) {
+      const p1 = snake.segments[i - 1];
+      const p2 = snake.segments[i];
+      const midX = (p1.x + p2.x) * 0.5;
+      const midY = (p1.y + p2.y) * 0.5;
+      ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+    }
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = baseRadius * 0.28;
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.22;
+    ctx.stroke();
+    ctx.restore();
+
+    // 5. Authentic Sculpted Viper / Serpent Head
     ctx.save();
     ctx.translate(head.x, head.y);
     ctx.rotate(head.angle);
 
     const headR = baseRadius * 1.35;
 
-    // 2.1 Boosting Thruster Trails
-    if (snake.isBoosting) {
-      ctx.save();
-      const flameLen = headR * (1.2 + Math.random() * 0.4);
-      ctx.fillStyle = '#38bdf8';
-      ctx.beginPath();
-      ctx.moveTo(-headR * 0.6, -headR * 0.5);
-      ctx.lineTo(-headR * 0.6 - flameLen, 0);
-      ctx.lineTo(-headR * 0.6, headR * 0.5);
-      ctx.closePath();
-      ctx.fill();
+    // 5.1 Animated Forked Tongue (Bifid tongue flicks out to sample scents!)
+    const tongueCycle = (Date.now() + (snake.id.charCodeAt(0) || 0) * 120) % 2200;
+    if (tongueCycle < 680) {
+      const tProgress = tongueCycle < 340 ? tongueCycle / 340 : (680 - tongueCycle) / 340;
+      const tongueReach = headR * (0.7 + tProgress * 0.95);
+      const tongueStart = headR * 1.32;
+      const quiver = Math.sin(Date.now() * 0.05) * 2;
 
-      ctx.fillStyle = '#ffffff';
+      ctx.save();
+      ctx.strokeStyle = '#e11d48'; // deep serpent crimson
+      ctx.fillStyle = '#e11d48';
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(-headR * 0.6, -headR * 0.25);
-      ctx.lineTo(-headR * 0.6 - flameLen * 0.6, 0);
-      ctx.lineTo(-headR * 0.6, headR * 0.25);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(tongueStart, 0);
+      const forkBase = tongueStart + tongueReach * 0.62;
+      ctx.lineTo(forkBase, quiver);
+
+      // Bifurcated forked tines
+      const forkSpread = headR * 0.32 * tProgress;
+      const tineLen = tongueReach * 0.38;
+      ctx.lineTo(forkBase + tineLen, quiver - forkSpread);
+      ctx.moveTo(forkBase, quiver);
+      ctx.lineTo(forkBase + tineLen, quiver + forkSpread);
+      ctx.stroke();
       ctx.restore();
     }
 
-    // 2.2 Smooth Organic Rounded Head Shape (Curved aerodynamic Snake.io contour)
-    ctx.fillStyle = skin.primaryColor;
+    // 5.2 Sculpted Viper Skull Silhouette (Wedge-shaped with broad venom cheek lobes and tapered snout)
     ctx.beginPath();
-    ctx.ellipse(headR * 0.15, 0, headR * 1.05, headR * 0.88, 0, 0, Math.PI * 2);
+    // Snout rostral tip
+    ctx.moveTo(headR * 1.35, 0);
+    // Upper snout to supraocular eye brow
+    ctx.quadraticCurveTo(headR * 1.15, -headR * 0.38, headR * 0.55, -headR * 0.58);
+    // Supraocular flare above eye
+    ctx.quadraticCurveTo(headR * 0.2, -headR * 0.74, -headR * 0.15, -headR * 0.84);
+    // Broad posterior venom gland cheek lobe
+    ctx.quadraticCurveTo(-headR * 0.55, -headR * 0.8, -headR * 0.72, -headR * 0.42);
+    // Neck constriction base
+    ctx.quadraticCurveTo(-headR * 0.82, -headR * 0.15, -headR * 0.82, 0);
+    // Lower half (symmetrical)
+    ctx.quadraticCurveTo(-headR * 0.82, headR * 0.15, -headR * 0.72, headR * 0.42);
+    ctx.quadraticCurveTo(-headR * 0.55, headR * 0.8, -headR * 0.15, headR * 0.84);
+    ctx.quadraticCurveTo(headR * 0.2, headR * 0.74, headR * 0.55, headR * 0.58);
+    ctx.quadraticCurveTo(headR * 1.15, headR * 0.38, headR * 1.35, 0);
+    ctx.closePath();
+
+    // Fill authentic viper skull
+    ctx.fillStyle = skin.primaryColor;
     ctx.fill();
 
-    // Head 3D Specular Highlight (Soft curved glossy dome sheen)
-    ctx.fillStyle = '#ffffff';
-    ctx.globalAlpha = 0.28;
+    // Viper jawline & skull rim outline
+    ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // 5.3 Crown Armor Shield Plates (Frontal and Parietal Scales)
+    ctx.save();
+    ctx.strokeStyle = skin.accentColor || skin.secondaryColor;
+    ctx.lineWidth = 1.3;
+    ctx.globalAlpha = 0.45;
+    // Frontal crown scale
     ctx.beginPath();
-    ctx.ellipse(headR * 0.05, -headR * 0.25, headR * 0.75, headR * 0.45, -0.2, 0, Math.PI * 2);
+    ctx.moveTo(headR * 0.7, 0);
+    ctx.lineTo(headR * 0.2, -headR * 0.32);
+    ctx.lineTo(-headR * 0.3, -headR * 0.25);
+    ctx.lineTo(-headR * 0.45, 0);
+    ctx.lineTo(-headR * 0.3, headR * 0.25);
+    ctx.lineTo(headR * 0.2, headR * 0.32);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Snout dorsal ridge
+    ctx.beginPath();
+    ctx.moveTo(headR * 0.7, 0);
+    ctx.lineTo(headR * 1.25, 0);
+    ctx.stroke();
+    ctx.restore();
+
+    // 5.4 Dual Nostrils / Loreal Pit Organs
+    ctx.fillStyle = '#090d16';
+    ctx.beginPath();
+    ctx.arc(headR * 1.05, -headR * 0.22, headR * 0.075, 0, Math.PI * 2);
+    ctx.arc(headR * 1.05, headR * 0.22, headR * 0.075, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Head 3D Specular Highlight
+    ctx.fillStyle = '#ffffff';
+    ctx.globalAlpha = 0.24;
+    ctx.beginPath();
+    ctx.ellipse(headR * 0.1, -headR * 0.22, headR * 0.65, headR * 0.32, -0.15, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1.0;
 
-    // 2.3 Big Expressive Snake.io Cartoon Eyes
-    // Calculate pupil gaze tracking (towards aim angle or forward velocity)
+    // 5.5 Menacing Reptilian Predator Eyes (Slit pupils & hooded supraocular brow)
     const aimAngle = snake.aimAngle !== undefined ? snake.aimAngle : head.angle;
     const relGaze = aimAngle - head.angle;
-    const gazeDist = headR * 0.12;
-    const pupilOffX = Math.cos(relGaze) * gazeDist + headR * 0.05;
+    const gazeDist = headR * 0.1;
+    const pupilOffX = Math.cos(relGaze) * gazeDist + headR * 0.04;
     const pupilOffY = Math.sin(relGaze) * gazeDist;
 
-    const eyeOffsetX = headR * 0.32;
-    const eyeOffsetY = headR * 0.52;
-    const eyeRadius = headR * 0.34;
-    const pupilRadius = eyeRadius * 0.52;
+    const eyeOffsetX = headR * 0.34;
+    const eyeOffsetY = headR * 0.54;
+    const eyeRadiusX = headR * 0.34;
+    const eyeRadiusY = headR * 0.24;
 
-    // Draw Left & Right Eyes
     [-eyeOffsetY, eyeOffsetY].forEach((eyeY, eyeIdx) => {
-      // White glossy Sclera
-      ctx.fillStyle = '#ffffff';
+      const isLeft = eyeIdx === 0;
+      const eyeSlant = isLeft ? -0.2 : 0.2;
+
+      ctx.save();
+      ctx.translate(eyeOffsetX, eyeY);
+      ctx.rotate(eyeSlant);
+
+      // Almond Reptilian Eye Socket Sclera
+      ctx.fillStyle = '#0b0f19';
       ctx.beginPath();
-      ctx.arc(eyeOffsetX, eyeY, eyeRadius, 0, Math.PI * 2);
+      ctx.ellipse(0, 0, eyeRadiusX, eyeRadiusY, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Sclera subtle depth rim
-      ctx.strokeStyle = 'rgba(15, 23, 42, 0.25)';
-      ctx.lineWidth = 1.2;
+      // Vibrant Glowing Predator Iris
+      const irisGrad = ctx.createRadialGradient(pupilOffX * 0.5, pupilOffY * 0.5, 1, 0, 0, eyeRadiusX);
+      irisGrad.addColorStop(0, skin.eyeColor || skin.accentColor || '#facc15');
+      irisGrad.addColorStop(0.7, skin.accentColor || '#eab308');
+      irisGrad.addColorStop(1, '#0b0f19');
+      ctx.fillStyle = irisGrad;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, eyeRadiusX * 0.88, eyeRadiusY * 0.88, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Slit Reptilian Predator Pupil (oriented vertically like a true viper/cobra)
+      ctx.fillStyle = '#020617';
+      ctx.beginPath();
+      const pX = Math.max(-eyeRadiusX * 0.35, Math.min(eyeRadiusX * 0.35, pupilOffX));
+      const pY = Math.max(-eyeRadiusY * 0.35, Math.min(eyeRadiusY * 0.35, pupilOffY));
+      ctx.ellipse(pX, pY, eyeRadiusX * 0.22, eyeRadiusY * 0.82, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Glossy corneal specular reflection
+      ctx.fillStyle = '#ffffff';
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.arc(pX - eyeRadiusX * 0.22, pY - eyeRadiusY * 0.3, eyeRadiusX * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+
+      // Heavy Hooded Supraocular Brow Scale Ridge
+      ctx.strokeStyle = skin.accentColor || skin.secondaryColor;
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      const browDir = isLeft ? -1 : 1;
+      ctx.arc(0, browDir * eyeRadiusY * 0.25, eyeRadiusX * 1.12, browDir > 0 ? 0.3 : -1.85, browDir > 0 ? 1.85 : -0.3);
       ctx.stroke();
 
-      // Vibrant Iris
-      ctx.fillStyle = skin.eyeColor || skin.accentColor;
-      ctx.beginPath();
-      ctx.arc(eyeOffsetX + pupilOffX * 0.7, eyeY + pupilOffY * 0.7, eyeRadius * 0.75, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Pupil (looking towards velocity/aim direction)
-      ctx.fillStyle = '#090d16';
-      ctx.beginPath();
-      if (archetype === 'dragon') {
-        // Slitted reptilian dragon pupil
-        ctx.ellipse(eyeOffsetX + pupilOffX, eyeY + pupilOffY, pupilRadius * 0.45, pupilRadius * 1.15, 0, 0, Math.PI * 2);
-      } else {
-        // Classic round Snake.io expressive pupil
-        ctx.arc(eyeOffsetX + pupilOffX, eyeY + pupilOffY, pupilRadius, 0, Math.PI * 2);
-      }
-      ctx.fill();
-
-      // Cute lively white gleam sparkle in pupil
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(eyeOffsetX + pupilOffX - pupilRadius * 0.35, eyeY + pupilOffY - pupilRadius * 0.35, pupilRadius * 0.42, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Brow Ridge Curve
-      ctx.strokeStyle = skin.accentColor;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      const browDir = eyeIdx === 0 ? -1 : 1;
-      ctx.arc(eyeOffsetX - 2, eyeY - browDir * 2, eyeRadius * 1.1, browDir > 0 ? 0.3 : -1.8, browDir > 0 ? 1.8 : -0.3);
-      ctx.stroke();
+      ctx.restore();
     });
 
     // 2.4 Archetype Specific Head Adornments (Behance Snake.io character art features)

@@ -24,7 +24,7 @@ export const Minimap: React.FC<MinimapProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const sweepAngleRef = useRef(0);
 
-  const mapSize = isExpanded ? 210 : 125;
+  const mapSize = isExpanded ? 180 : 108;
 
   useEffect(() => {
     let animId: number;
