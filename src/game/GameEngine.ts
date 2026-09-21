@@ -24,7 +24,9 @@ import {
   playShieldPickupSound,
   playShieldDeflectSound,
   playObstacleHitSound,
+  playAbilitySound,
 } from '../utils/audio';
+import { ARCHETYPE_ABILITIES, getArchetypeAbility } from '../utils/archetypeAbilities';
 import { SKINS, getSkinById } from '../utils/skins';
 import { DEATH_EFFECTS } from '../utils/deathEffects';
 import { updateMissionProgress } from '../utils/missions';
@@ -478,6 +480,18 @@ export class GameEngine {
       invincibleTimer: 60, // Brief immunity on spawn
       botTurnTimer: 0,
       botFireTimer: 0,
+      // Ability state initialization
+      abilityCooldownTimer: 0,
+      abilityActiveTimer: 0,
+      abilityLevel: 1,
+      soulHarvestBonusDamage: 0,
+      lastDamageTakenTime: performance.now(),
+      autoRepairTimer: 4.0,
+      isOverheated: false,
+      overheatTimer: 0,
+      isWeaponJammed: false,
+      weaponJammedTimer: 0,
+      decoyTimer: 0,
     };
   }
 
@@ -614,14 +628,219 @@ export class GameEngine {
     }
   }
 
+  public triggerPlayerAbility() {
+    if (this.playerSnake && !this.playerSnake.isDead) {
+      this.triggerActiveAbility(this.playerSnake);
+    }
+  }
+
+  public triggerActiveAbility(snake: Snake) {
+    if (snake.isDead) return;
+    if ((snake.abilityCooldownTimer || 0) > 0) return;
+
+    const archetype = snake.archetype || 'cyber';
+    const abilityDef = getArchetypeAbility(archetype);
+    const head = snake.segments[0];
+
+    snake.abilityActiveTimer = abilityDef.activeDuration;
+    snake.abilityCooldownTimer = abilityDef.activeCooldown;
+
+    playAbilitySound(archetype);
+
+    if (archetype === 'angel') {
+      // Angel Active: Divine Shield - Halo bubble that blocks bullets for 3s
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 35,
+        text: '✨ DIVINE SHIELD ACTIVATED!',
+        color: '#facc15',
+        life: 50,
+        maxLife: 50,
+      });
+      // Golden halo particles
+      for (let k = 0; k < 24; k++) {
+        const a = (k / 24) * Math.PI * 2;
+        this.particles.push({
+          x: head.x + Math.cos(a) * 38,
+          y: head.y + Math.sin(a) * 38,
+          vx: Math.cos(a) * 1.5,
+          vy: Math.sin(a) * 1.5,
+          color: '#fde047',
+          size: 4,
+          life: 35,
+          maxLife: 35,
+          shape: 'circle',
+        });
+      }
+    } else if (archetype === 'devil') {
+      // Devil Active: Hellfire Burst - Ring of flames around head that burns nearby enemies
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 35,
+        text: '🔥 HELLFIRE BURST!',
+        color: '#ef4444',
+        life: 50,
+        maxLife: 50,
+      });
+      // Ring shockwave
+      this.explosions.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y,
+        radius: 20,
+        maxRadius: 180,
+        color: '#ef4444',
+        alpha: 1,
+        duration: 400,
+        elapsed: 0,
+        style: 'plasma',
+      });
+      // Fiery ember ring particles
+      for (let k = 0; k < 30; k++) {
+        const a = Math.random() * Math.PI * 2;
+        const spd = 4 + Math.random() * 6;
+        this.particles.push({
+          x: head.x,
+          y: head.y,
+          vx: Math.cos(a) * spd,
+          vy: Math.sin(a) * spd,
+          color: Math.random() > 0.4 ? '#ef4444' : '#f97316',
+          size: 4 + Math.random() * 3,
+          life: 30,
+          maxLife: 30,
+          shape: 'square',
+        });
+      }
+    } else if (archetype === 'blackhole') {
+      // Blackhole Active: Singularity - Gravity well pulling bots and pickups
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 35,
+        text: '🌌 SINGULARITY ACTIVATED!',
+        color: '#a855f7',
+        life: 50,
+        maxLife: 50,
+      });
+      this.explosions.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y,
+        radius: 30,
+        maxRadius: 260,
+        color: '#a855f7',
+        alpha: 1,
+        duration: 600,
+        elapsed: 0,
+        style: 'void',
+      });
+    } else if (archetype === 'robot') {
+      // Robot Active: Overclock - Burst of fire rate and boost speed, then overheat
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 35,
+        text: '⚡ OVERCLOCK TURBINE ENGAGED!',
+        color: '#38bdf8',
+        life: 50,
+        maxLife: 50,
+      });
+      snake.isOverheated = false;
+      snake.overheatTimer = 0;
+      for (let k = 0; k < 20; k++) {
+        this.particles.push({
+          x: head.x,
+          y: head.y,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8,
+          color: '#38bdf8',
+          size: 3.5,
+          life: 25,
+          maxLife: 25,
+          shape: 'lightning',
+        });
+      }
+    } else if (archetype === 'dragon') {
+      // Dragon Active: Flame Breath - Short cone of fire damaging everything in front
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 35,
+        text: '🐉 DRAGON FLAME BREATH!',
+        color: '#10b981',
+        life: 50,
+        maxLife: 50,
+      });
+    } else if (archetype === 'cyber') {
+      // Cyber Active: Glitch Dash - Teleport-dash leaving a decoy afterimage
+      snake.decoyX = head.x;
+      snake.decoyY = head.y;
+      snake.decoyAngle = head.angle;
+      snake.decoyTimer = 3.0; // Decoy stays for 3s to fool enemy bots and draw fire
+
+      // Teleport forward by 220px instantly!
+      const dashDist = 220;
+      const targetX = Math.max(30, Math.min(WORLD_SIZE - 30, snake.x + Math.cos(snake.angle) * dashDist));
+      const targetY = Math.max(30, Math.min(WORLD_SIZE - 30, snake.y + Math.sin(snake.angle) * dashDist));
+
+      // Quantum phase particles at source and destination
+      for (let k = 0; k < 18; k++) {
+        const a = Math.random() * Math.PI * 2;
+        this.particles.push({
+          x: snake.x,
+          y: snake.y,
+          vx: Math.cos(a) * (Math.random() * 5 + 2),
+          vy: Math.sin(a) * (Math.random() * 5 + 2),
+          color: '#06b6d4',
+          size: 4,
+          life: 22,
+          maxLife: 22,
+          shape: 'binary',
+          text: Math.random() > 0.5 ? '1' : '0',
+        });
+      }
+
+      snake.x = targetX;
+      snake.y = targetY;
+      head.x = targetX;
+      head.y = targetY;
+
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: snake.x,
+        y: snake.y - 35,
+        text: '⚡ GLITCH DASH TELEPORT!',
+        color: '#06b6d4',
+        life: 45,
+        maxLife: 45,
+      });
+    }
+  }
+
   public fireWeapon(snake: Snake, customAngle?: number) {
     if (!snake.weapon || snake.ammo <= 0 || snake.isDead) return;
+
+    // Cyber passive: weapon jammed check
+    if (snake.isWeaponJammed && snake.weaponJammedTimer && snake.weaponJammedTimer > 0) {
+      return;
+    }
+
+    // Robot active overheat check
+    if (snake.isOverheated) {
+      return;
+    }
 
     const config = WEAPONS[snake.weapon];
     if (!config) return;
 
+    // Robot Overclock active ability gives +75% fire rate (0.57x cooldown)
+    const isOverclocked = snake.archetype === 'robot' && (snake.abilityActiveTimer || 0) > 0;
+    const cooldown = isOverclocked ? config.fireCooldown * 0.57 : config.fireCooldown;
+
     const now = performance.now();
-    if (now - snake.lastFireTime < config.fireCooldown) return;
+    if (now - snake.lastFireTime < cooldown) return;
 
     snake.lastFireTime = now;
     snake.ammo--;
@@ -652,6 +871,10 @@ export class GameEngine {
     }
     const fireAngle = baseAngle + spread;
 
+    // Devil passive: Soul Harvest bonus damage (+5% per kill)
+    const soulBonus = snake.soulHarvestBonusDamage || 0;
+    const finalDamage = Math.round(config.damage * (1 + soulBonus));
+
     this.projectiles.push({
       id: this.nextEntityId++,
       ownerId: snake.id,
@@ -665,10 +888,10 @@ export class GameEngine {
       vy: Math.sin(fireAngle) * config.speed,
       distanceTraveled: 0,
       maxDistance: config.range,
-      damage: config.damage,
+      damage: finalDamage,
       isExplosive: !!config.isExplosive,
-      blastRadius: config.blastRadius || 180,
-      color: config.color,
+      blastRadius: config.blastRadius || 155,
+      color: soulBonus > 0 ? '#ef4444' : config.color,
       radius: config.isExplosive ? 7 : 4,
     });
 
@@ -950,18 +1173,54 @@ export class GameEngine {
 
       // Check collision with snakes
       let hit = false;
+      let devouredByEventHorizon = false;
+
       for (const snake of this.snakes) {
         if (snake.isDead || snake.id === p.ownerId) continue;
-        if (snake.invincibleTimer && snake.invincibleTimer > 0) continue;
 
-        // Check head hit
         const head = snake.segments[0];
         const headDist = Math.hypot(p.x - head.x, p.y - head.y);
-        const headRadius = 24;
 
+        // Blackhole Passive: Event Horizon - eats stray bullets passing close (65px) to the head
+        if (snake.archetype === 'blackhole' && headDist < 65) {
+          devouredByEventHorizon = true;
+          // Spawn dark matter absorption swirl particles
+          for (let k = 0; k < 6; k++) {
+            this.particles.push({
+              x: p.x,
+              y: p.y,
+              vx: (head.x - p.x) * 0.12 + (Math.random() - 0.5) * 2,
+              vy: (head.y - p.y) * 0.12 + (Math.random() - 0.5) * 2,
+              color: '#c084fc',
+              size: 3,
+              life: 16,
+              maxLife: 16,
+              shape: 'circle',
+            });
+          }
+          if (snake.isPlayer) {
+            this.damagePopups.push({
+              id: this.nextEntityId++,
+              x: head.x,
+              y: head.y - 25,
+              text: '🌌 EVENT HORIZON DEVOURED BULLET',
+              color: '#c084fc',
+              life: 25,
+              maxLife: 25,
+            });
+          }
+          break;
+        }
+
+        if (snake.invincibleTimer && snake.invincibleTimer > 0) continue;
+
+        const headRadius = 24;
+        const bulletAngle = Math.atan2(p.vy, p.vx);
+
+        // Check head hit
         if (headDist < headRadius + p.radius) {
           hit = true;
-          this.applyDamageToSnake(snake, p.damage, p.ownerId, p.weaponType, p.isExplosive);
+          this.applyDamageToSnake(snake, p.damage, p.ownerId, p.weaponType, p.isExplosive, bulletAngle);
           break;
         }
 
@@ -971,11 +1230,16 @@ export class GameEngine {
           const segDist = Math.hypot(p.x - seg.x, p.y - seg.y);
           if (segDist < 16 + p.radius) {
             hit = true;
-            this.applyDamageToSnake(snake, p.damage, p.ownerId, p.weaponType, p.isExplosive);
+            this.applyDamageToSnake(snake, p.damage, p.ownerId, p.weaponType, p.isExplosive, bulletAngle);
             break;
           }
         }
         if (hit) break;
+      }
+
+      if (devouredByEventHorizon) {
+        this.projectiles.splice(i, 1);
+        continue;
       }
 
       if (hit) {
@@ -1082,9 +1346,80 @@ export class GameEngine {
     damage: number,
     attackerId: string,
     weaponType: WeaponType,
-    isExplosive = false
+    isExplosive = false,
+    hitAngle?: number
   ) {
     const head = snake.segments[0];
+
+    // Angel Active: Divine Shield blocks all incoming bullets completely for 3s
+    if (snake.archetype === 'angel' && (snake.abilityActiveTimer || 0) > 0) {
+      if (snake.isPlayer) {
+        playShieldDeflectSound();
+      }
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x + (Math.random() * 20 - 10),
+        y: head.y - 25,
+        text: `✨ DIVINE SHIELD BLOCKED!`,
+        color: '#facc15',
+        life: 30,
+        maxLife: 30,
+      });
+      for (let k = 0; k < 8; k++) {
+        this.particles.push({
+          x: head.x,
+          y: head.y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          color: '#facc15',
+          size: 3.5,
+          life: 18,
+          maxLife: 18,
+          shape: 'circle',
+        });
+      }
+      return; // 100% blocked by Angel Divine Shield!
+    }
+
+    // Dragon Passive: Scales - takes 40% reduced damage from behind and sides
+    if (snake.archetype === 'dragon' && hitAngle !== undefined) {
+      let angleDiff = Math.abs(head.angle - hitAngle);
+      while (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+      // If hit from behind (angleDiff > PI/2) or side, apply 40% damage resistance
+      if (angleDiff > Math.PI * 0.35) {
+        damage *= 0.6; // 40% reduced damage
+        this.damagePopups.push({
+          id: this.nextEntityId++,
+          x: head.x + (Math.random() * 20 - 10),
+          y: head.y - 25,
+          text: `🛡️ SCALES -40% DMG`,
+          color: '#10b981',
+          life: 25,
+          maxLife: 25,
+        });
+      }
+    }
+
+    // Cyber Passive: Hack - when hit, 35% chance to disrupt & jam attacker's weapon for 2.5s
+    if (snake.archetype === 'cyber' && attackerId && Math.random() < 0.35) {
+      const attacker = this.snakes.find((s) => s.id === attackerId);
+      if (attacker && !attacker.isDead) {
+        attacker.isWeaponJammed = true;
+        attacker.weaponJammedTimer = 2.5;
+        this.damagePopups.push({
+          id: this.nextEntityId++,
+          x: attacker.segments[0].x,
+          y: attacker.segments[0].y - 30,
+          text: `⚠️ WEAPON HACKED & JAMMED (2.5s)!`,
+          color: '#06b6d4',
+          life: 45,
+          maxLife: 45,
+        });
+      }
+    }
+
+    // Record damage taken time for Angel Grace passive (regen when not taking damage)
+    snake.lastDamageTakenTime = performance.now();
 
     // SHIELD DEFENSE SYSTEM ABSORPTION
     if (snake.shieldHp && snake.shieldHp > 0) {
@@ -1165,6 +1500,22 @@ export class GameEngine {
     if (killer) {
       killer.kills++;
       killer.score += 250;
+
+      // Devil Passive: Soul Harvest - each kill adds +5% bonus damage permanently for match
+      if (killer.archetype === 'devil') {
+        killer.soulHarvestBonusDamage = (killer.soulHarvestBonusDamage || 0) + 0.05;
+        const totalBonusPct = Math.round(killer.soulHarvestBonusDamage * 100);
+        this.damagePopups.push({
+          id: this.nextEntityId++,
+          x: killer.segments[0].x,
+          y: killer.segments[0].y - 50,
+          text: `😈 SOUL HARVEST: +${totalBonusPct}% BONUS DAMAGE!`,
+          color: '#ef4444',
+          life: 60,
+          maxLife: 60,
+        });
+      }
+
       if (killer.isPlayer) {
         killCash = 50;
         playKillSound();
@@ -1486,8 +1837,20 @@ export class GameEngine {
 
       // 3. Speed & Boosting
       let currentSpeed = snake.baseSpeed;
+
+      // Robot Overclock active ability (+40% speed boost) or overheat penalty (-35% speed)
+      if (snake.archetype === 'robot') {
+        if ((snake.abilityActiveTimer || 0) > 0) {
+          currentSpeed *= 1.4;
+        } else if (snake.isOverheated) {
+          currentSpeed *= 0.65;
+        }
+      }
+
       if (snake.isBoosting && snake.length > 8) {
-        currentSpeed = snake.boostSpeed;
+        currentSpeed = snake.archetype === 'robot' && (snake.abilityActiveTimer || 0) > 0
+          ? snake.boostSpeed * 1.35
+          : snake.boostSpeed;
         const tail = snake.segments[snake.segments.length - 1];
         const prev = snake.segments[Math.max(0, snake.segments.length - 2)];
         const exhaustAngle = Math.atan2(tail.y - prev.y, tail.x - prev.x);
@@ -1639,6 +2002,9 @@ export class GameEngine {
         this.updateLaserTargetingAndAutoFire(snake);
       }
 
+      // 3.9 Update Archetype Active & Passive Abilities
+      this.updateSnakeAbilities(snake);
+
       // Track ongoing mission progress for player
       if (snake.isPlayer) {
         updateMissionProgress('reach_length', Math.floor(snake.length), 'max');
@@ -1647,6 +2013,326 @@ export class GameEngine {
 
       // 4. Check Head-to-Body Collision with other snakes (Classic Snake.io kill!)
       this.checkSnakeCollisions(snake);
+    }
+  }
+
+  private updateSnakeAbilities(snake: Snake) {
+    const dt = 1 / 60;
+    const archetype = snake.archetype || 'cyber';
+    const head = snake.segments[0];
+
+    // Decrement ability cooldown
+    if ((snake.abilityCooldownTimer || 0) > 0) {
+      snake.abilityCooldownTimer = Math.max(0, (snake.abilityCooldownTimer || 0) - dt);
+    }
+
+    // Decrement weapon jammed timer
+    if (snake.weaponJammedTimer && snake.weaponJammedTimer > 0) {
+      snake.weaponJammedTimer = Math.max(0, snake.weaponJammedTimer - dt);
+      if (snake.weaponJammedTimer === 0) {
+        snake.isWeaponJammed = false;
+      }
+    }
+
+    // Decrement decoy timer
+    if (snake.decoyTimer && snake.decoyTimer > 0) {
+      snake.decoyTimer = Math.max(0, snake.decoyTimer - dt);
+      // Decoy ghost particles
+      if (snake.decoyX !== undefined && snake.decoyY !== undefined && Math.random() < 0.3) {
+        this.particles.push({
+          x: snake.decoyX + (Math.random() - 0.5) * 20,
+          y: snake.decoyY + (Math.random() - 0.5) * 20,
+          vx: (Math.random() - 0.5) * 1.5,
+          vy: (Math.random() - 0.5) * 1.5,
+          color: '#06b6d4',
+          size: 3,
+          life: 18,
+          maxLife: 18,
+          shape: 'binary',
+          text: Math.random() > 0.5 ? '1' : '0',
+        });
+      }
+    }
+
+    // Decrement active ability duration timer
+    if ((snake.abilityActiveTimer || 0) > 0) {
+      snake.abilityActiveTimer = Math.max(0, (snake.abilityActiveTimer || 0) - dt);
+
+      // ACTIVE ABILITY RUNTIME TICKS
+      if (archetype === 'angel') {
+        // Divine Shield active visual halo aura
+        if (Math.random() < 0.4) {
+          const a = Math.random() * Math.PI * 2;
+          this.particles.push({
+            x: head.x + Math.cos(a) * 32,
+            y: head.y + Math.sin(a) * 32,
+            vx: Math.cos(a) * 0.5,
+            vy: Math.sin(a) * 0.5,
+            color: '#facc15',
+            size: 3,
+            life: 15,
+            maxLife: 15,
+            shape: 'circle',
+          });
+        }
+      } else if (archetype === 'devil') {
+        // Hellfire Burst: Ring of flames burning nearby enemy snakes within 160px
+        const burnRadius = 160;
+        const burnDmgPerSec = 45;
+        const burnDmg = burnDmgPerSec * dt;
+
+        // Visual fire embers orbiting head
+        for (let k = 0; k < 2; k++) {
+          const a = Math.random() * Math.PI * 2;
+          const r = 20 + Math.random() * 120;
+          this.particles.push({
+            x: head.x + Math.cos(a) * r,
+            y: head.y + Math.sin(a) * r,
+            vx: (Math.random() - 0.5) * 3,
+            vy: -Math.random() * 3 - 1,
+            color: Math.random() > 0.5 ? '#ef4444' : '#f97316',
+            size: 3.5,
+            life: 18,
+            maxLife: 18,
+            shape: 'square',
+          });
+        }
+
+        for (const other of this.snakes) {
+          if (other.isDead || other.id === snake.id) continue;
+          if (other.invincibleTimer && other.invincibleTimer > 0) continue;
+          const otherHead = other.segments[0];
+          const dist = Math.hypot(head.x - otherHead.x, head.y - otherHead.y);
+          if (dist < burnRadius) {
+            this.applyDamageToSnake(other, burnDmg, snake.id, 'pistol', false);
+          }
+        }
+      } else if (archetype === 'blackhole') {
+        // Singularity: Gravity well pulling nearby bots, food, and loot within 350px
+        const pullRadius = 350;
+        const pullStrength = 4.5;
+
+        // Pull Food
+        for (const food of this.foods) {
+          const dist = Math.hypot(head.x - food.x, head.y - food.y);
+          if (dist < pullRadius && dist > 10) {
+            const angle = Math.atan2(head.y - food.y, head.x - food.x);
+            food.x += Math.cos(angle) * pullStrength;
+            food.y += Math.sin(angle) * pullStrength;
+          }
+        }
+
+        // Pull Loot
+        for (const loot of this.loots) {
+          const dist = Math.hypot(head.x - loot.x, head.y - loot.y);
+          if (dist < pullRadius && dist > 10) {
+            const angle = Math.atan2(head.y - loot.y, head.x - loot.x);
+            loot.x += Math.cos(angle) * pullStrength;
+            loot.y += Math.sin(angle) * pullStrength;
+          }
+        }
+
+        // Pull Enemy Bots
+        for (const other of this.snakes) {
+          if (other.isDead || other.id === snake.id) continue;
+          const otherHead = other.segments[0];
+          const dist = Math.hypot(head.x - otherHead.x, head.y - otherHead.y);
+          if (dist < pullRadius && dist > 30) {
+            const angle = Math.atan2(head.y - otherHead.y, head.x - otherHead.x);
+            other.x += Math.cos(angle) * (pullStrength * 0.7);
+            other.y += Math.sin(angle) * (pullStrength * 0.7);
+          }
+        }
+
+        // Dark singularity swirl particles
+        if (Math.random() < 0.6) {
+          const a = Math.random() * Math.PI * 2;
+          const r = 40 + Math.random() * 180;
+          this.particles.push({
+            x: head.x + Math.cos(a) * r,
+            y: head.y + Math.sin(a) * r,
+            vx: -Math.cos(a) * 4,
+            vy: -Math.sin(a) * 4,
+            color: '#a855f7',
+            size: 3,
+            life: 20,
+            maxLife: 20,
+            shape: 'circle',
+          });
+        }
+      } else if (archetype === 'robot') {
+        // Robot Overclock active sparks
+        if (Math.random() < 0.6) {
+          this.particles.push({
+            x: head.x + (Math.random() - 0.5) * 20,
+            y: head.y + (Math.random() - 0.5) * 20,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6,
+            color: '#38bdf8',
+            size: 3,
+            life: 14,
+            maxLife: 14,
+            shape: 'lightning',
+          });
+        }
+      } else if (archetype === 'dragon') {
+        // Flame Breath: Cone of fire in front (220px range, 50-degree half-angle)
+        const breathRange = 220;
+        const breathAngleCone = 0.55; // radians (~32 degrees each side)
+        const flameDmgPerSec = 75;
+        const flameDmg = flameDmgPerSec * dt;
+
+        // Spawn fire jet particles
+        for (let k = 0; k < 3; k++) {
+          const spread = (Math.random() - 0.5) * breathAngleCone * 1.6;
+          const pAngle = head.angle + spread;
+          const spd = 6 + Math.random() * 6;
+          this.particles.push({
+            x: head.x + Math.cos(head.angle) * 18,
+            y: head.y + Math.sin(head.angle) * 18,
+            vx: Math.cos(pAngle) * spd,
+            vy: Math.sin(pAngle) * spd,
+            color: Math.random() > 0.4 ? '#10b981' : '#34d399',
+            size: 4 + Math.random() * 4,
+            life: 18,
+            maxLife: 18,
+            shape: 'square',
+          });
+        }
+
+        // Damage snakes caught in the cone
+        for (const other of this.snakes) {
+          if (other.isDead || other.id === snake.id) continue;
+          if (other.invincibleTimer && other.invincibleTimer > 0) continue;
+
+          for (const seg of other.segments) {
+            const dist = Math.hypot(seg.x - head.x, seg.y - head.y);
+            if (dist < breathRange) {
+              const toTargetAngle = Math.atan2(seg.y - head.y, seg.x - head.x);
+              let diff = Math.abs(toTargetAngle - head.angle);
+              while (diff > Math.PI) diff = Math.PI * 2 - diff;
+              if (diff < breathAngleCone) {
+                this.applyDamageToSnake(other, flameDmg, snake.id, 'pistol', false, toTargetAngle);
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Check for Robot ability expiration -> trigger Overheat!
+      if (snake.abilityActiveTimer === 0 && archetype === 'robot') {
+        snake.isOverheated = true;
+        snake.overheatTimer = 2.0; // Brief 2.0s overheat penalty
+        this.damagePopups.push({
+          id: this.nextEntityId++,
+          x: head.x,
+          y: head.y - 35,
+          text: '⚠️ SYSTEM OVERHEATED (2s)!',
+          color: '#f43f5e',
+          life: 45,
+          maxLife: 45,
+        });
+        // Smoke particles
+        for (let k = 0; k < 12; k++) {
+          this.particles.push({
+            x: head.x,
+            y: head.y,
+            vx: (Math.random() - 0.5) * 3,
+            vy: -Math.random() * 3 - 1,
+            color: '#64748b',
+            size: 4,
+            life: 25,
+            maxLife: 25,
+            shape: 'circle',
+          });
+        }
+      }
+    }
+
+    // Overheat timer countdown
+    if (snake.isOverheated && snake.overheatTimer && snake.overheatTimer > 0) {
+      snake.overheatTimer = Math.max(0, snake.overheatTimer - dt);
+      if (snake.overheatTimer === 0) {
+        snake.isOverheated = false;
+        this.damagePopups.push({
+          id: this.nextEntityId++,
+          x: head.x,
+          y: head.y - 30,
+          text: '✅ OVERHEAT COOLED DOWN',
+          color: '#38bdf8',
+          life: 30,
+          maxLife: 30,
+        });
+      }
+    }
+
+    // PASSIVE ABILITY RUNTIME TICKS
+    if (archetype === 'angel') {
+      // Angel Passive: Grace - slowly regenerates health when not taking damage (after 3s without dmg)
+      const now = performance.now();
+      const timeSinceDmg = (now - (snake.lastDamageTakenTime || 0)) / 1000;
+      if (timeSinceDmg > 3.0 && snake.hp < snake.maxHp) {
+        const regenRate = 6.0 * dt; // +6 HP per second
+        snake.hp = Math.min(snake.maxHp, snake.hp + regenRate);
+        if (Math.random() < 0.1) {
+          this.particles.push({
+            x: head.x + (Math.random() - 0.5) * 20,
+            y: head.y + (Math.random() - 0.5) * 20,
+            vx: 0,
+            vy: -1.2,
+            color: '#4ade80',
+            size: 3,
+            life: 20,
+            maxLife: 20,
+            shape: 'circle',
+          });
+        }
+      }
+    } else if (archetype === 'robot') {
+      // Robot Passive: Auto-Repair - small repair ticks on a timer (+10 HP every 5 seconds)
+      snake.autoRepairTimer = (snake.autoRepairTimer || 5.0) - dt;
+      if (snake.autoRepairTimer <= 0) {
+        snake.autoRepairTimer = 5.0;
+        if (snake.hp < snake.maxHp) {
+          const heal = Math.min(snake.maxHp - snake.hp, 10);
+          snake.hp += heal;
+          this.damagePopups.push({
+            id: this.nextEntityId++,
+            x: head.x,
+            y: head.y - 25,
+            text: `🔧 AUTO-REPAIR (+${heal} HP)`,
+            color: '#38bdf8',
+            life: 35,
+            maxLife: 35,
+          });
+          for (let k = 0; k < 6; k++) {
+            this.particles.push({
+              x: head.x + (Math.random() - 0.5) * 16,
+              y: head.y + (Math.random() - 0.5) * 16,
+              vx: (Math.random() - 0.5) * 2,
+              vy: -1.5,
+              color: '#38bdf8',
+              size: 3,
+              life: 20,
+              maxLife: 20,
+              shape: 'square',
+            });
+          }
+        }
+      }
+    }
+
+    // Bot AI ability auto-triggering logic
+    if (!snake.isPlayer && (snake.abilityCooldownTimer || 0) <= 0) {
+      // Trigger when player or enemy is close
+      const player = this.playerSnake;
+      if (player && !player.isDead) {
+        const d = Math.hypot(head.x - player.segments[0].x, head.y - player.segments[0].y);
+        if (d < 300 && Math.random() < 0.03) {
+          this.triggerActiveAbility(snake);
+        }
+      }
     }
   }
 

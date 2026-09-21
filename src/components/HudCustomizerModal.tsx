@@ -22,7 +22,7 @@ interface HudCustomizerModalProps {
   onClose: () => void;
 }
 
-type SelectedElementKey = 'joystick' | 'firePad' | 'boostBtn' | 'weaponGauge' | 'minimap' | 'statsBar';
+type SelectedElementKey = 'joystick' | 'firePad' | 'boostBtn' | 'abilityBtn' | 'weaponGauge' | 'minimap' | 'statsBar';
 
 export const HudCustomizerModal: React.FC<HudCustomizerModalProps> = ({
   layout: initialLayout,
@@ -328,6 +328,30 @@ export const HudCustomizerModal: React.FC<HudCustomizerModalProps> = ({
           <Flame className="w-6 h-6 text-amber-400" />
           <span className="font-cyber font-black text-[8px] text-amber-300">BOOST</span>
         </div>
+
+        {/* 7. ARCHETYPE ABILITY BUTTON */}
+        {config.abilityBtn && (
+          <div
+            id="hud-edit-ability"
+            onPointerDown={(e) => handlePointerDown('abilityBtn', e)}
+            className={`absolute cursor-move rounded-2xl border-2 flex flex-col items-center justify-center ${
+              selectedKey === 'abilityBtn'
+                ? 'ring-2 ring-cyan-400 bg-purple-950/70 border-purple-400 shadow-[0_0_20px_#c084fc]'
+                : 'bg-slate-900/80 border-slate-700'
+            }`}
+            style={{
+              left: `${config.abilityBtn.x}%`,
+              top: `${config.abilityBtn.y}%`,
+              transform: `translate(-50%, -50%) scale(${config.abilityBtn.scale})`,
+              opacity: config.abilityBtn.opacity,
+              width: 70,
+              height: 70,
+            }}
+          >
+            <Sparkles className="w-6 h-6 text-purple-400" />
+            <span className="font-cyber font-black text-[8px] text-purple-300">ABILITY</span>
+          </div>
+        )}
       </div>
 
       {/* Bottom Configuration Toolbar for Selected Control */}
@@ -342,6 +366,7 @@ export const HudCustomizerModal: React.FC<HudCustomizerModalProps> = ({
               {selectedKey === 'joystick' && 'Movement Joystick'}
               {selectedKey === 'firePad' && 'Laser Aim & Auto-Fire Pad'}
               {selectedKey === 'boostBtn' && 'Sprint Boost Button'}
+              {selectedKey === 'abilityBtn' && 'Active Archetype Ability Button'}
               {selectedKey === 'weaponGauge' && 'Vertical Weapon Ammo Gauge'}
               {selectedKey === 'minimap' && 'Radar Minimap'}
               {selectedKey === 'statsBar' && 'Top Stats Bar'}

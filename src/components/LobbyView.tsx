@@ -3,6 +3,7 @@ import { PlayerProfile, SkinDef, SnakeArchetype } from '../types';
 import { SKINS, getSkinById } from '../utils/skins';
 import { getDeathEffectById } from '../utils/deathEffects';
 import { WEAPONS } from '../utils/weapons';
+import { getArchetypeAbility } from '../utils/archetypeAbilities';
 import { SnakePreviewCanvas } from './SnakePreviewCanvas';
 import { DynamicCyberBackground } from './DynamicCyberBackground';
 import {
@@ -551,6 +552,45 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 />
               </div>
             </div>
+
+            {/* Archetype Active & Passive Ability Showcase Card */}
+            {(() => {
+              const ability = getArchetypeAbility(inspectingSkin.archetype);
+              return (
+                <div className="w-full mt-2 p-2 rounded-xl bg-slate-950/70 border border-slate-800 flex flex-col gap-1.5 text-left font-cyber">
+                  {/* Active Ability */}
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-[9px] px-1 py-0.5 rounded font-black tracking-wider uppercase border border-cyan-400/40 bg-cyan-500/15 text-cyan-300 shrink-0">
+                      ACTIVE
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[10px] font-black text-white flex items-center justify-between">
+                        <span>{ability.activeName}</span>
+                        <span className="text-slate-400 font-mono text-[9px]">{ability.activeCooldown}s CD</span>
+                      </div>
+                      <p className="text-[9px] text-slate-400 line-clamp-2 leading-tight">
+                        {ability.activeDesc}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Passive Ability */}
+                  <div className="flex items-start gap-1.5 border-t border-slate-800/80 pt-1">
+                    <span className="text-[9px] px-1 py-0.5 rounded font-black tracking-wider uppercase border border-amber-400/40 bg-amber-500/15 text-amber-300 shrink-0">
+                      PASSIVE
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[10px] font-black text-amber-200">
+                        {ability.passiveName}
+                      </div>
+                      <p className="text-[9px] text-slate-400 line-clamp-2 leading-tight">
+                        {ability.passiveDesc}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Quick Equip / Buy Action Button */}
             <div className="w-full mt-2">

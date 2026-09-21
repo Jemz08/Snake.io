@@ -194,6 +194,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     engine.setPlayerBoosting(false);
   }, [engine]);
 
+  const handleAbility = useCallback(() => {
+    engine.triggerPlayerAbility();
+  }, [engine]);
+
+  // Keyboard shortcut listener for space (boost) / E or F (ability)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'e' || e.key === 'E' || e.key === 'f' || e.key === 'F') {
+        engine.triggerPlayerAbility();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [engine]);
+
   return (
     <div
       id="game-canvas-container"
@@ -203,7 +218,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     >
       <canvas ref={canvasRef} className="block w-full h-full cursor-crosshair" />
 
-      {/* Overlay HUD with Virtual Joystick and Dedicated Fire Controls */}
+      {/* Overlay HUD with Virtual Joystick, Ability Button, and Dedicated Fire Controls */}
       <GameHud
         player={playerSnake}
         snakes={allSnakes}
@@ -216,6 +231,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         onSteer={handleSteer}
         onAim={handleAim}
         onFire={handleFire}
+        onAbility={handleAbility}
         onBoostStart={handleBoostStart}
         onBoostEnd={handleBoostEnd}
         onExitToLobby={onExitToLobby}

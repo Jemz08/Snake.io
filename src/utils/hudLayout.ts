@@ -25,6 +25,13 @@ export const DEFAULT_HUD_LAYOUT: HudLayoutConfig = {
     opacity: 0.95,
     visible: true,
   },
+  abilityBtn: {
+    x: 88,
+    y: 64, // Positioned ergonomically right above Boost & Fire
+    scale: 1.0,
+    opacity: 0.95,
+    visible: true,
+  },
   weaponGauge: {
     x: 4,
     y: 35,
@@ -66,6 +73,7 @@ export function loadHudLayout(): HudLayoutConfig {
       joystick: { ...DEFAULT_HUD_LAYOUT.joystick, ...parsed.joystick },
       firePad: { ...DEFAULT_HUD_LAYOUT.firePad, ...parsed.firePad },
       boostBtn: { ...DEFAULT_HUD_LAYOUT.boostBtn, ...parsed.boostBtn },
+      abilityBtn: { ...DEFAULT_HUD_LAYOUT.abilityBtn, ...parsed.abilityBtn },
       weaponGauge: { ...DEFAULT_HUD_LAYOUT.weaponGauge, ...parsed.weaponGauge },
       statsBar: { ...DEFAULT_HUD_LAYOUT.statsBar, ...parsed.statsBar },
       minimap: { ...DEFAULT_HUD_LAYOUT.minimap, ...parsed.minimap },

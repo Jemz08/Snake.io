@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Snake, LootItem, KillNotification, MapObstacle, ShieldPowerup, HudLayoutConfig } from '../types';
 import { VirtualJoystick } from './VirtualJoystick';
 import { FireControl } from './FireControl';
+import { AbilityButton } from './AbilityButton';
 import { Minimap } from './Minimap';
 import { HudCustomizerModal } from './HudCustomizerModal';
 import { loadHudLayout } from '../utils/hudLayout';
@@ -37,6 +38,7 @@ interface GameHudProps {
   onSteer: (angle: number) => void;
   onAim?: (angle: number, isAiming: boolean) => void;
   onFire: () => void;
+  onAbility?: () => void;
   onBoostStart: () => void;
   onBoostEnd: () => void;
   onExitToLobby: () => void;
@@ -57,6 +59,7 @@ export const GameHud: React.FC<GameHudProps> = ({
   onSteer,
   onAim,
   onFire,
+  onAbility,
   onBoostStart,
   onBoostEnd,
   onExitToLobby,
@@ -370,7 +373,7 @@ export const GameHud: React.FC<GameHudProps> = ({
         </div>
       )}
 
-      {/* Bottom Controls Row: Virtual Joystick (Left) + Fire Controls (Right) */}
+      {/* Bottom Controls Row: Virtual Joystick (Left) + Fire Controls & Ability (Right) */}
       <div className="absolute bottom-1 sm:bottom-2 left-2 right-2 flex items-end justify-between pointer-events-none select-none z-30">
         {/* Left: Virtual Analog Joystick (Floating follow or fixed) */}
         <div className="pointer-events-auto">
@@ -382,8 +385,20 @@ export const GameHud: React.FC<GameHudProps> = ({
           />
         </div>
 
-        {/* Right: Fire & Boost Action Controls */}
-        <div className="pointer-events-auto">
+        {/* Right: Archetype Active Ability + Fire & Boost Action Controls */}
+        <div className="pointer-events-auto flex items-end gap-2.5 sm:gap-3">
+          {/* Active Archetype Ability Button */}
+          {hudConfig.abilityBtn?.visible !== false && (
+            <div className="mb-1">
+              <AbilityButton
+                player={player}
+                onTrigger={onAbility || (() => {})}
+                scale={hudConfig.abilityBtn?.scale || 1.0}
+                opacity={hudConfig.abilityBtn?.opacity || 0.95}
+              />
+            </div>
+          )}
+
           <FireControl
             weapon={player?.weapon || null}
             ammo={player?.ammo || 0}

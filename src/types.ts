@@ -70,6 +70,23 @@ export interface Snake {
   botTurnTimer?: number;
   botFireTimer?: number;
   invincibleTimer?: number;
+  // Archetype Active & Passive Ability State
+  abilityCooldownTimer?: number; // Countdown in seconds until active ability ready (0 = ready)
+  abilityActiveTimer?: number; // Active duration timer in seconds
+  abilityLevel?: number; // 1 or 2 (Lv.2 style upgrade unlocked)
+  // Passive combat modifiers
+  soulHarvestBonusDamage?: number; // Devil passive (+5% per kill)
+  lastDamageTakenTime?: number; // Angel passive (out of combat health regen)
+  autoRepairTimer?: number; // Robot passive (repair tick timer)
+  isOverheated?: boolean; // Robot active penalty timer
+  overheatTimer?: number;
+  isWeaponJammed?: boolean; // Cyber passive weapon jam on attacker
+  weaponJammedTimer?: number;
+  // Glitch decoy afterimage coordinates
+  decoyX?: number;
+  decoyY?: number;
+  decoyTimer?: number;
+  decoyAngle?: number;
 }
 
 export interface FoodItem {
@@ -318,6 +335,7 @@ export interface HudLayoutConfig {
   joystick: HudElementPosition;
   firePad: HudElementPosition;
   boostBtn: HudElementPosition;
+  abilityBtn: HudElementPosition;
   weaponGauge: HudElementPosition;
   statsBar: HudElementPosition;
   minimap: HudElementPosition;

@@ -1772,6 +1772,126 @@ export class GameRenderer {
       }
     }
 
+    // 3.5 Render Archetype Active Ability Visual Auras
+    if ((snake.abilityActiveTimer || 0) > 0) {
+      ctx.save();
+      const archetype = snake.archetype || 'cyber';
+      const headR = 17;
+
+      if (archetype === 'angel') {
+        // Angel Divine Shield Halo Bubble
+        const pulse = Math.sin(Date.now() * 0.01) * 3;
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 3.5;
+        ctx.shadowColor = '#facc15';
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = 'rgba(253, 224, 71, 0.18)';
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, headR + 18 + pulse, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Halo Ring tilted above head
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.ellipse(head.x, head.y - headR - 12, 16, 6, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (archetype === 'devil') {
+        // Devil Hellfire Burst Fiery Orbiting Ring
+        const rot = (Date.now() * 0.005) % (Math.PI * 2);
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#dc2626';
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, headR + 24, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fill();
+
+        // Flame spurs
+        for (let sp = 0; sp < 6; sp++) {
+          const spAngle = rot + (sp * Math.PI) / 3;
+          const sx = head.x + Math.cos(spAngle) * (headR + 24);
+          const sy = head.y + Math.sin(spAngle) * (headR + 24);
+          ctx.fillStyle = '#f97316';
+          ctx.beginPath();
+          ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (archetype === 'blackhole') {
+        // Singularity Void Aura
+        const rot = (Date.now() * -0.004) % (Math.PI * 2);
+        ctx.strokeStyle = '#a855f7';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#c084fc';
+        ctx.shadowBlur = 24;
+        ctx.fillStyle = 'rgba(88, 28, 135, 0.25)';
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, headR + 28, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = '#e9d5ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, headR + 16, rot, rot + Math.PI);
+        ctx.stroke();
+      } else if (archetype === 'robot') {
+        // Robot Overclock Turbine Plasma Ring
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#0ea5e9';
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = 'rgba(14, 165, 233, 0.2)';
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, headR + 14, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else if (archetype === 'dragon') {
+        // Dragon Flame Breath Active Fiery Head Glow
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#34d399';
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.22)';
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, headR + 16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    // Cyber Decoy Hologram Rendering
+    if (snake.decoyTimer && snake.decoyTimer > 0 && snake.decoyX !== undefined && snake.decoyY !== undefined) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.75, snake.decoyTimer / 1.5);
+      ctx.translate(snake.decoyX, snake.decoyY);
+      ctx.rotate(snake.decoyAngle || 0);
+
+      // Holographic head decoy
+      ctx.strokeStyle = '#06b6d4';
+      ctx.lineWidth = 2.5;
+      ctx.fillStyle = 'rgba(6, 182, 212, 0.25)';
+      ctx.shadowColor = '#06b6d4';
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Hologram scan lines
+      ctx.fillStyle = '#22d3ee';
+      ctx.font = 'bold 9px Chakra Petch, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('[DECOY]', 0, -22);
+
+      ctx.restore();
+    }
+
     // 4. Draw Floating HP Bar and Name over Snake Head
     ctx.save();
     ctx.translate(head.x, head.y - headR - 20);
