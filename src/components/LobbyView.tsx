@@ -27,6 +27,7 @@ import {
   Check,
   Lock,
   Sparkles,
+  Sliders,
 } from 'lucide-react';
 import { getSoundMuted, setSoundMuted } from '../utils/audio';
 
@@ -38,6 +39,7 @@ interface LobbyViewProps {
   onOpenLeaderboard: () => void;
   onOpenMissions: () => void;
   onOpenExport?: () => void;
+  onOpenHudCustomizer?: () => void;
 }
 
 const ARCHETYPES: Array<{
@@ -106,6 +108,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   onOpenLeaderboard,
   onOpenMissions,
   onOpenExport,
+  onOpenHudCustomizer,
 }) => {
   const [playerName, setPlayerName] = useState(profile.name);
   const [muted, setMuted] = useState(getSoundMuted());
@@ -294,6 +297,19 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           >
             {isFullscreen ? <Minimize className="w-4 h-4 text-cyan-400" /> : <Maximize className="w-4 h-4 text-slate-300" />}
           </button>
+
+          {/* HUD Layout & Controls Editor */}
+          {onOpenHudCustomizer && (
+            <button
+              id="btn-lobby-hud-layout"
+              type="button"
+              onClick={onOpenHudCustomizer}
+              className="p-2 rounded-xl bg-slate-900/80 border border-slate-700 text-slate-300 hover:text-cyan-400 hover:border-cyan-500/60 transition-colors"
+              title="Customize Controls & HUD Layout"
+            >
+              <Sliders className="w-4 h-4 text-cyan-400" />
+            </button>
+          )}
 
           {/* Download / Export Button */}
           {onOpenExport && (

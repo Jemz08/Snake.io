@@ -50,6 +50,11 @@ export interface Snake {
   accentColor: string;
   deathEffectId?: DeathEffectType;
   archetype?: SnakeArchetype;
+  // AABB Bounding Box for ultra-fast collision rejection
+  minX?: number;
+  maxX?: number;
+  minY?: number;
+  maxY?: number;
   // Shield Defense System
   shieldHp?: number;
   maxShieldHp?: number;
@@ -79,6 +84,8 @@ export interface FoodItem {
   isSpecial?: boolean;
   isCashCoin?: boolean;
   cashValue?: number;
+  duration?: number; // Lifetime duration in seconds before despawning (2-3s for snake drops)
+  maxDuration?: number;
 }
 
 export interface LootItem {
@@ -296,5 +303,24 @@ export interface LeaderboardEntry {
   badge?: string;
   date?: string;
   isPlayer?: boolean;
+}
+
+export interface HudElementPosition {
+  x: number; // Percent 0-100 or pixels
+  y: number; // Percent 0-100 or pixels
+  scale: number; // 0.6 to 1.6
+  opacity: number; // 0.3 to 1.0
+  visible?: boolean;
+}
+
+export interface HudLayoutConfig {
+  isFloatingJoystick: boolean;
+  joystick: HudElementPosition;
+  firePad: HudElementPosition;
+  boostBtn: HudElementPosition;
+  weaponGauge: HudElementPosition;
+  statsBar: HudElementPosition;
+  minimap: HudElementPosition;
+  leaderboard: HudElementPosition;
 }
 

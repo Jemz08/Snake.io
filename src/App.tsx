@@ -7,7 +7,9 @@ import { GameOverModal } from './components/GameOverModal';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { DailyMissionsModal } from './components/DailyMissionsModal';
 import { ExportModal } from './components/ExportModal';
-import { PlayerProfile, SkinDef, DeathEffectDef, DeathEffectType } from './types';
+import { HudCustomizerModal } from './components/HudCustomizerModal';
+import { loadHudLayout, saveHudLayout } from './utils/hudLayout';
+import { PlayerProfile, SkinDef, DeathEffectDef, DeathEffectType, HudLayoutConfig } from './types';
 import { SKINS } from './utils/skins';
 import { Smartphone } from 'lucide-react';
 
@@ -54,6 +56,8 @@ export default function App() {
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isMissionsOpen, setIsMissionsOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isHudCustomizerOpen, setIsHudCustomizerOpen] = useState(false);
+  const [hudLayout, setHudLayout] = useState<HudLayoutConfig>(loadHudLayout);
   const [isLandscape, setIsLandscape] = useState(true);
   const [gameOverData, setGameOverData] = useState<{
     score: number;
@@ -217,6 +221,7 @@ export default function App() {
           onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
           onOpenMissions={() => setIsMissionsOpen(true)}
           onOpenExport={() => setIsExportOpen(true)}
+          onOpenHudCustomizer={() => setIsHudCustomizerOpen(true)}
         />
       )}
 
@@ -258,6 +263,18 @@ export default function App() {
         onClose={() => setIsLeaderboardOpen(false)}
         currentPlayerName={profile.name}
       />
+
+      {/* HUD Layout & Controls Customizer Modal */}
+      {isHudCustomizerOpen && (
+        <HudCustomizerModal
+          layout={hudLayout}
+          onSave={(newLayout) => {
+            setHudLayout(newLayout);
+            saveHudLayout(newLayout);
+          }}
+          onClose={() => setIsHudCustomizerOpen(false)}
+        />
+      )}
 
       {/* Download & Export Modal */}
       <ExportModal

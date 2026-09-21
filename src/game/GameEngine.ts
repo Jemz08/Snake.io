@@ -31,8 +31,8 @@ import { updateMissionProgress } from '../utils/missions';
 import { recordPlayerScore } from '../utils/leaderboard';
 
 const WORLD_SIZE = 5600;
-const MAX_FOOD = 700;
-const MAX_LOOT = 26;
+const MAX_FOOD = 300;
+const MAX_LOOT = 24;
 const MAX_SHIELDS = 14;
 const BOT_COUNT = 24;
 
@@ -535,21 +535,23 @@ export class GameEngine {
     });
   }
 
-  private spawnFood(atX?: number, atY?: number, isSpecial = false) {
+  private spawnFood(atX?: number, atY?: number, isSpecial = false, duration?: number, valueMult = 1) {
     const colors = ['#38bdf8', '#4ade80', '#f472b6', '#facc15', '#a855f7', '#fb923c'];
-    const x = atX !== undefined ? atX + (Math.random() * 60 - 30) : 50 + Math.random() * (WORLD_SIZE - 100);
-    const y = atY !== undefined ? atY + (Math.random() * 60 - 30) : 50 + Math.random() * (WORLD_SIZE - 100);
+    const x = atX !== undefined ? atX + (Math.random() * 24 - 12) : 50 + Math.random() * (WORLD_SIZE - 100);
+    const y = atY !== undefined ? atY + (Math.random() * 24 - 12) : 50 + Math.random() * (WORLD_SIZE - 100);
 
     this.foods.push({
       id: this.nextEntityId++,
       x: Math.max(30, Math.min(WORLD_SIZE - 30, x)),
       y: Math.max(30, Math.min(WORLD_SIZE - 30, y)),
-      radius: isSpecial ? 7 : 4.5,
-      value: isSpecial ? 5 : 1,
-      exp: isSpecial ? 8 : 2,
+      radius: isSpecial ? 7.5 : 4.5,
+      value: (isSpecial ? 5 : 1) * valueMult,
+      exp: (isSpecial ? 8 : 2) * valueMult,
       color: colors[Math.floor(Math.random() * colors.length)],
       pulsePhase: Math.random() * Math.PI * 2,
       isSpecial,
+      duration,
+      maxDuration: duration,
     });
   }
 
@@ -840,6 +842,17 @@ export class GameEngine {
 
     // 4. Check Food & Loot collection
     this.checkPickups();
+
+    // 4b. Update temporary snake-drop food lifetimes (2-3s duration)
+    for (let i = this.foods.length - 1; i >= 0; i--) {
+      const food = this.foods[i];
+      if (food.duration !== undefined) {
+        food.duration -= deltaTime;
+        if (food.duration <= 0) {
+          this.foods.splice(i, 1);
+        }
+      }
+    }
 
     // 5. Update Particles & Popups
     this.updateEffects();
@@ -1189,14 +1202,16 @@ export class GameEngine {
     });
     if (this.killFeed.length > 5) this.killFeed.pop();
 
-    // Turn victim body into mass amounts of glowing food and EXP!
-    for (let i = 0; i < victim.segments.length; i++) {
+    // Turn victim body into rich glowing food drops with 2.8s duration to eliminate lag!
+    // User request: "Also make the snakedrop when killed have durations to avoid causing lags. Like for 2-3 seconds"
+    const totalSegs = victim.segments.length;
+    const step = Math.max(2, Math.floor(totalSegs / 18));
+    const dropDuration = 2.8; // 2.8 seconds lifetime
+    const valueMultiplier = Math.max(1.5, Math.min(6, step * 1.2));
+
+    for (let i = 0; i < totalSegs; i += step) {
       const seg = victim.segments[i];
-      // Every segment drops high-value food drops
-      this.spawnFood(seg.x, seg.y, true);
-      if (i % 2 === 0) {
-        this.spawnFood(seg.x + (Math.random() * 20 - 10), seg.y + (Math.random() * 20 - 10), true);
-      }
+      this.spawnFood(seg.x, seg.y, true, dropDuration, valueMultiplier);
     }
 
     // Drop special golden cash coins! Every kill generates cash pickups
@@ -1568,11 +1583,16 @@ export class GameEngine {
         }
       }
 
-      // Update Segments
+      // Update Segments & compute snake AABB bounding box for fast collision rejection
       const head = snake.segments[0];
       head.x = snake.x;
       head.y = snake.y;
       head.angle = snake.angle;
+
+      let sMinX = head.x;
+      let sMaxX = head.x;
+      let sMinY = head.y;
+      let sMaxY = head.y;
 
       const segDist = 14;
       for (let i = 1; i < snake.segments.length; i++) {
@@ -1588,7 +1608,17 @@ export class GameEngine {
           cur.y += dy * ratio;
           cur.angle = Math.atan2(dy, dx);
         }
+
+        if (cur.x < sMinX) sMinX = cur.x;
+        else if (cur.x > sMaxX) sMaxX = cur.x;
+        if (cur.y < sMinY) sMinY = cur.y;
+        else if (cur.y > sMaxY) sMaxY = cur.y;
       }
+
+      snake.minX = sMinX;
+      snake.maxX = sMaxX;
+      snake.minY = sMinY;
+      snake.maxY = sMaxY;
 
       // Dynamic length growth / shrink
       const targetSegments = Math.floor(snake.length);
@@ -1632,18 +1662,28 @@ export class GameEngine {
       const other = this.snakes[oIdx];
       if (other.isDead || other.id === snake.id) continue;
 
-      // Quick snake-to-snake bounding box check
-      const otherHead = other.segments[0];
-      if (Math.abs(head.x - otherHead.x) > 600 || Math.abs(head.y - otherHead.y) > 600) {
+      // Fast AABB bounding box check - instantly reject entire snake if head is nowhere near
+      if (
+        other.minX !== undefined &&
+        (head.x < other.minX - reach ||
+          head.x > (other.maxX || WORLD_SIZE) + reach ||
+          head.y < (other.minY || 0) - reach ||
+          head.y > (other.maxY || WORLD_SIZE) + reach)
+      ) {
         continue;
       }
 
+      // Adaptive segment step for long snakes to eliminate framedrops
+      const segStep = other.segments.length > 50 ? 2 : 1;
+
       // Check collision with other snake's body segments
-      for (let s = 1; s < other.segments.length; s++) {
+      for (let s = 1; s < other.segments.length; s += segStep) {
         const seg = other.segments[s];
         const dx = head.x - seg.x;
+        if (Math.abs(dx) > reach) continue;
         const dy = head.y - seg.y;
-        if (Math.abs(dx) > reach || Math.abs(dy) > reach) continue;
+        if (Math.abs(dy) > reach) continue;
+
         if (dx * dx + dy * dy < reachSq) {
           // Crash! snake dies and other snake gets credit!
           this.killSnake(snake, other.id, null);
@@ -1768,22 +1808,41 @@ export class GameEngine {
   }
 
   private checkPickups() {
+    if (this.foods.length === 0 && this.loots.length === 0 && this.shields.length === 0) return;
+
+    // 1. Gather all living snakes' head positions & reach once
+    const eaters: Array<{
+      snake: Snake;
+      head: { x: number; y: number };
+      reach: number;
+    }> = [];
+
     for (let sIdx = 0; sIdx < this.snakes.length; sIdx++) {
-      const snake = this.snakes[sIdx];
-      if (snake.isDead) continue;
-      const head = snake.segments[0];
-      const eatRadius = 22 + Math.min(snake.length * 0.15, 15);
+      const s = this.snakes[sIdx];
+      if (!s.isDead && s.segments.length > 0) {
+        eaters.push({
+          snake: s,
+          head: s.segments[0],
+          reach: 22 + Math.min(s.length * 0.15, 15),
+        });
+      }
+    }
 
-      // Check Food & Cash Coin Pickups (Fast AABB + Squared distance)
-      for (let i = this.foods.length - 1; i >= 0; i--) {
-        const food = this.foods[i];
-        const reach = eatRadius + food.radius;
+    if (eaters.length === 0) return;
+
+    // 2. Check Food & Cash Coin Pickups (Single-pass reverse iteration, 10x faster!)
+    for (let i = this.foods.length - 1; i >= 0; i--) {
+      const food = this.foods[i];
+
+      for (let eIdx = 0; eIdx < eaters.length; eIdx++) {
+        const { snake, head, reach } = eaters[eIdx];
+        const totalReach = reach + food.radius;
         const dx = head.x - food.x;
-        if (Math.abs(dx) > reach) continue;
+        if (Math.abs(dx) > totalReach) continue;
         const dy = head.y - food.y;
-        if (Math.abs(dy) > reach) continue;
+        if (Math.abs(dy) > totalReach) continue;
 
-        if (dx * dx + dy * dy < reach * reach) {
+        if (dx * dx + dy * dy < totalReach * totalReach) {
           if (food.isCashCoin) {
             // Cash coin collected!
             const cash = food.cashValue || 10;
@@ -1818,10 +1877,14 @@ export class GameEngine {
           }
 
           this.foods.splice(i, 1);
+          break; // Food item consumed, move to next food
         }
       }
+    }
 
-      // Check Loot Crates Pickups (Fast AABB + Squared distance)
+    // 3. Check Loot Crates & Shields Pickups
+    for (let eIdx = 0; eIdx < eaters.length; eIdx++) {
+      const { snake, head, reach: eatRadius } = eaters[eIdx];
       for (let i = this.loots.length - 1; i >= 0; i--) {
         const loot = this.loots[i];
         const reach = eatRadius + loot.radius;

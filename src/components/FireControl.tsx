@@ -11,6 +11,10 @@ interface FireControlProps {
   onFire: () => void;
   onBoostStart: () => void;
   onBoostEnd: () => void;
+  padScale?: number;
+  padOpacity?: number;
+  boostScale?: number;
+  boostOpacity?: number;
 }
 
 export const FireControl: React.FC<FireControlProps> = ({
@@ -21,6 +25,10 @@ export const FireControl: React.FC<FireControlProps> = ({
   onFire,
   onBoostStart,
   onBoostEnd,
+  padScale = 1.0,
+  padOpacity = 0.95,
+  boostScale = 1.0,
+  boostOpacity = 0.95,
 }) => {
   const [isAiming, setIsAiming] = useState(false);
   const [aimAngle, setAimAngle] = useState(0);
@@ -173,7 +181,14 @@ export const FireControl: React.FC<FireControlProps> = ({
   return (
     <div id="fire-control-group" className="flex items-end gap-3 select-none touch-none">
       {/* Boost / Thruster Button */}
-      <div className="flex flex-col items-center mb-0.5">
+      <div
+        className="flex flex-col items-center mb-0.5"
+        style={{
+          transform: `scale(${boostScale})`,
+          transformOrigin: 'bottom center',
+          opacity: boostOpacity,
+        }}
+      >
         <button
           id="btn-boost"
           type="button"
@@ -194,7 +209,14 @@ export const FireControl: React.FC<FireControlProps> = ({
       </div>
 
       {/* Laser Aim Drag Turret Stick */}
-      <div className="flex flex-col items-center">
+      <div
+        className="flex flex-col items-center"
+        style={{
+          transform: `scale(${padScale})`,
+          transformOrigin: 'bottom right',
+          opacity: padOpacity,
+        }}
+      >
         {/* Status Badge above Pad */}
         <div
           id="laser-aim-status-badge"

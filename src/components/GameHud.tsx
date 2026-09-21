@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Snake, LootItem, KillNotification, MapObstacle, ShieldPowerup } from '../types';
+import { Snake, LootItem, KillNotification, MapObstacle, ShieldPowerup, HudLayoutConfig } from '../types';
 import { VirtualJoystick } from './VirtualJoystick';
 import { FireControl } from './FireControl';
 import { Minimap } from './Minimap';
+import { HudCustomizerModal } from './HudCustomizerModal';
+import { loadHudLayout } from '../utils/hudLayout';
 import { WEAPONS } from '../utils/weapons';
 import {
   Trophy,
@@ -19,6 +21,7 @@ import {
   Bomb,
   Crosshair,
   Zap,
+  Sliders,
 } from 'lucide-react';
 import { getSoundMuted, setSoundMuted } from '../utils/audio';
 
@@ -39,6 +42,7 @@ interface GameHudProps {
   onExitToLobby: () => void;
   onOpenLeaderboard?: () => void;
   onOpenMissions?: () => void;
+  onOpenHudCustomizer?: () => void;
 }
 
 export const GameHud: React.FC<GameHudProps> = ({
@@ -59,6 +63,8 @@ export const GameHud: React.FC<GameHudProps> = ({
   onOpenLeaderboard,
   onOpenMissions,
 }) => {
+  const [hudConfig, setHudConfig] = useState<HudLayoutConfig>(loadHudLayout);
+  const [showHudCustomizer, setShowHudCustomizer] = useState(false);
   const [muted, setMuted] = React.useState(getSoundMuted());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(() => {
@@ -188,6 +194,17 @@ export const GameHud: React.FC<GameHudProps> = ({
               {isFullscreen ? <Minimize className="w-3.5 h-3.5 text-cyan-400" /> : <Maximize className="w-3.5 h-3.5 text-slate-300" />}
             </button>
 
+            {/* Configure HUD / Controls Layout */}
+            <button
+              id="btn-hud-customize"
+              type="button"
+              onClick={() => setShowHudCustomizer(true)}
+              className="p-1 sm:p-1.5 rounded-lg bg-cyan-950/70 border border-cyan-500/40 hover:bg-cyan-900/70 text-cyan-300 transition-colors"
+              title="Customize Controls & HUD Layout"
+            >
+              <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+            </button>
+
             {/* Exit to Lobby */}
             <button
               id="btn-hud-exit"
@@ -260,7 +277,13 @@ export const GameHud: React.FC<GameHudProps> = ({
           </div>
 
           {/* Minimap radar */}
-          <div className="pointer-events-auto">
+          <div
+            className="pointer-events-auto origin-top-right transition-transform"
+            style={{
+              transform: `scale(${hudConfig.minimap.scale})`,
+              opacity: hudConfig.minimap.opacity,
+            }}
+          >
             <Minimap
               worldSize={worldSize}
               player={player}
@@ -277,10 +300,12 @@ export const GameHud: React.FC<GameHudProps> = ({
       {currentWeaponCfg && player && (
         <div
           id="left-vertical-weapon-indicator"
-          className="absolute left-2 sm:left-3 top-20 sm:top-24 pointer-events-auto flex flex-col items-center bg-slate-950/92 border-2 rounded-2xl p-1.5 shadow-2xl backdrop-blur-md transition-all animate-in slide-in-from-left duration-200 z-20"
+          className="absolute left-2 sm:left-3 top-20 sm:top-24 pointer-events-auto flex flex-col items-center bg-slate-950/92 border-2 rounded-2xl p-1.5 shadow-2xl backdrop-blur-md transition-all animate-in slide-in-from-left duration-200 z-20 origin-top-left"
           style={{
             borderColor: currentWeaponCfg.color,
             boxShadow: `0 0 16px ${currentWeaponCfg.color}35`,
+            transform: `scale(${hudConfig.weaponGauge.scale})`,
+            opacity: hudConfig.weaponGauge.opacity,
           }}
         >
           {/* Glowing Weapon Icon Header */}
@@ -347,9 +372,14 @@ export const GameHud: React.FC<GameHudProps> = ({
 
       {/* Bottom Controls Row: Virtual Joystick (Left) + Fire Controls (Right) */}
       <div className="absolute bottom-1 sm:bottom-2 left-2 right-2 flex items-end justify-between pointer-events-none select-none z-30">
-        {/* Left: Virtual Analog Joystick */}
+        {/* Left: Virtual Analog Joystick (Floating follow or fixed) */}
         <div className="pointer-events-auto">
-          <VirtualJoystick onMove={onSteer} />
+          <VirtualJoystick
+            onMove={onSteer}
+            isFloating={hudConfig.isFloatingJoystick}
+            scale={hudConfig.joystick.scale}
+            opacity={hudConfig.joystick.opacity}
+          />
         </div>
 
         {/* Right: Fire & Boost Action Controls */}
@@ -362,9 +392,24 @@ export const GameHud: React.FC<GameHudProps> = ({
             onFire={onFire}
             onBoostStart={onBoostStart}
             onBoostEnd={onBoostEnd}
+            padScale={hudConfig.firePad.scale}
+            padOpacity={hudConfig.firePad.opacity}
+            boostScale={hudConfig.boostBtn.scale}
+            boostOpacity={hudConfig.boostBtn.opacity}
           />
         </div>
       </div>
+
+      {/* HUD Layout & Controls Customizer Modal */}
+      {showHudCustomizer && (
+        <HudCustomizerModal
+          layout={hudConfig}
+          onSave={(newLayout) => {
+            setHudConfig(newLayout);
+          }}
+          onClose={() => setShowHudCustomizer(false)}
+        />
+      )}
     </div>
   );
 };

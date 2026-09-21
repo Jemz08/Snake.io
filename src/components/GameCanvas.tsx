@@ -53,6 +53,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     handleResize();
     window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
 
     const loop = (currentTime: number) => {
       // Delta time calculation with safety clamp to prevent physics jumps or frame skips
@@ -137,6 +145,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+      resizeObserver.disconnect();
     };
   }, [engine]);
 

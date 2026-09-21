@@ -146,18 +146,31 @@ export class GameRenderer {
       }
 
       // Standard / Special Food: Glowing 3D Snake.io energy orb (Zero-transform fast path)
+      let durationAlpha = 1.0;
+      let durationScale = 1.0;
+      if (food.duration !== undefined) {
+        if (food.duration < 0.9) {
+          // Rapid expiration blink in final 0.9s
+          durationAlpha = Math.max(0.2, food.duration / 0.9);
+          if (Math.sin(food.duration * 25) < 0) {
+            durationAlpha *= 0.35;
+          }
+          durationScale = 0.55 + 0.45 * (food.duration / 0.9);
+        }
+      }
+
       const pulse = 1 + Math.sin(food.pulsePhase) * 0.15;
-      const r = food.radius * pulse;
+      const r = food.radius * pulse * durationScale;
 
       // Soft outer energy glow
       ctx.fillStyle = food.color;
-      ctx.globalAlpha = food.isSpecial ? 0.38 : 0.2;
+      ctx.globalAlpha = (food.isSpecial ? 0.38 : 0.2) * durationAlpha;
       ctx.beginPath();
       ctx.arc(food.x, food.y, r + (food.isSpecial ? 3.5 : 2), 0, Math.PI * 2);
       ctx.fill();
 
       // Main vibrant sphere body
-      ctx.globalAlpha = 0.95;
+      ctx.globalAlpha = 0.95 * durationAlpha;
       ctx.beginPath();
       ctx.arc(food.x, food.y, r, 0, Math.PI * 2);
       ctx.fill();
@@ -166,6 +179,7 @@ export class GameRenderer {
       if (food.isSpecial) {
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1.2;
+        ctx.globalAlpha = 0.9 * durationAlpha;
         ctx.beginPath();
         ctx.arc(food.x, food.y, r * 0.9, 0, Math.PI * 2);
         ctx.stroke();
@@ -173,7 +187,7 @@ export class GameRenderer {
 
       // 3D Specular glossy bubble gleam (signature Snake.io sphere look)
       ctx.fillStyle = '#ffffff';
-      ctx.globalAlpha = 0.85;
+      ctx.globalAlpha = 0.85 * durationAlpha;
       ctx.beginPath();
       ctx.arc(food.x - r * 0.32, food.y - r * 0.32, r * 0.32, 0, Math.PI * 2);
       ctx.fill();
@@ -820,13 +834,19 @@ export class GameRenderer {
     const head = snake.segments[0];
     const { minX, maxX, minY, maxY } = this.viewport;
     if (!snake.isPlayer) {
-      const tail = snake.segments[snake.segments.length - 1];
-      const botMinX = Math.min(head.x, tail.x);
-      const botMaxX = Math.max(head.x, tail.x);
-      const botMinY = Math.min(head.y, tail.y);
-      const botMaxY = Math.max(head.y, tail.y);
-      if (botMaxX < minX - 120 || botMinX > maxX + 120 || botMaxY < minY - 120 || botMinY > maxY + 120) {
-        return;
+      if (snake.minX !== undefined && snake.maxX !== undefined && snake.minY !== undefined && snake.maxY !== undefined) {
+        if (snake.maxX < minX - 100 || snake.minX > maxX + 100 || snake.maxY < minY - 100 || snake.minY > maxY + 100) {
+          return;
+        }
+      } else {
+        const tail = snake.segments[snake.segments.length - 1];
+        const botMinX = Math.min(head.x, tail.x);
+        const botMaxX = Math.max(head.x, tail.x);
+        const botMinY = Math.min(head.y, tail.y);
+        const botMaxY = Math.max(head.y, tail.y);
+        if (botMaxX < minX - 120 || botMinX > maxX + 120 || botMaxY < minY - 120 || botMinY > maxY + 120) {
+          return;
+        }
       }
     }
 
@@ -901,6 +921,16 @@ export class GameRenderer {
       rightPoints[i] = { x: cur.x - nx * r, y: cur.y - ny * r };
     }
 
+    // Adaptive spline decimation for large snakes to eliminate framedrops
+    const splineIndices: number[] = [];
+    const splineStep = totalSegs > 80 ? 3 : totalSegs > 35 ? 2 : 1;
+    for (let i = 0; i < totalSegs; i++) {
+      if (i <= 3 || i >= totalSegs - 2 || i % splineStep === 0) {
+        splineIndices.push(i);
+      }
+    }
+    const splineCount = splineIndices.length;
+
     // Direction pointing backwards away from the tail
     const tailSeg = snake.segments[totalSegs - 1];
     const prevTailSeg = snake.segments[Math.max(0, totalSegs - 2)];
@@ -974,29 +1004,30 @@ export class GameRenderer {
       ctx.restore();
     }
 
-    // 2. Continuous Organic Underbelly Ground Shadow
+    // 2. Continuous Organic Underbelly Ground Shadow (using optimized spline sampling)
     ctx.save();
     ctx.fillStyle = 'rgba(11, 15, 25, 0.45)';
     const shadowOffX = baseRadius * 0.15;
     const shadowOffY = baseRadius * 0.26;
     ctx.beginPath();
-    ctx.moveTo(leftPoints[0].x + shadowOffX, leftPoints[0].y + shadowOffY);
-    for (let i = 1; i < totalSegs; i++) {
-      const prev = leftPoints[i - 1];
-      const cur = leftPoints[i];
+    const firstIdx = splineIndices[0];
+    ctx.moveTo(leftPoints[firstIdx].x + shadowOffX, leftPoints[firstIdx].y + shadowOffY);
+    for (let k = 1; k < splineCount; k++) {
+      const prev = leftPoints[splineIndices[k - 1]];
+      const cur = leftPoints[splineIndices[k]];
       const midX = (prev.x + cur.x) * 0.5 + shadowOffX;
       const midY = (prev.y + cur.y) * 0.5 + shadowOffY;
       ctx.quadraticCurveTo(prev.x + shadowOffX, prev.y + shadowOffY, midX, midY);
     }
     ctx.lineTo(tailTipX + shadowOffX, tailTipY + shadowOffY);
-    for (let i = totalSegs - 1; i >= 1; i--) {
-      const prev = rightPoints[i];
-      const next = rightPoints[i - 1];
+    for (let k = splineCount - 1; k >= 1; k--) {
+      const prev = rightPoints[splineIndices[k]];
+      const next = rightPoints[splineIndices[k - 1]];
       const midX = (prev.x + next.x) * 0.5 + shadowOffX;
       const midY = (prev.y + next.y) * 0.5 + shadowOffY;
       ctx.quadraticCurveTo(prev.x + shadowOffX, prev.y + shadowOffY, midX, midY);
     }
-    ctx.lineTo(rightPoints[0].x + shadowOffX, rightPoints[0].y + shadowOffY);
+    ctx.lineTo(rightPoints[firstIdx].x + shadowOffX, rightPoints[firstIdx].y + shadowOffY);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
@@ -1004,24 +1035,24 @@ export class GameRenderer {
     // 3. Continuous Seamless Serpentine Body Contour (No disconnected circles or square blocks!)
     ctx.save();
     ctx.beginPath();
-    ctx.moveTo(leftPoints[0].x, leftPoints[0].y);
-    for (let i = 1; i < totalSegs; i++) {
-      const prev = leftPoints[i - 1];
-      const cur = leftPoints[i];
+    ctx.moveTo(leftPoints[firstIdx].x, leftPoints[firstIdx].y);
+    for (let k = 1; k < splineCount; k++) {
+      const prev = leftPoints[splineIndices[k - 1]];
+      const cur = leftPoints[splineIndices[k]];
       const midX = (prev.x + cur.x) * 0.5;
       const midY = (prev.y + cur.y) * 0.5;
       ctx.quadraticCurveTo(prev.x, prev.y, midX, midY);
     }
     // Sleek pointed tail tip
     ctx.lineTo(tailTipX, tailTipY);
-    for (let i = totalSegs - 1; i >= 1; i--) {
-      const prev = rightPoints[i];
-      const next = rightPoints[i - 1];
+    for (let k = splineCount - 1; k >= 1; k--) {
+      const prev = rightPoints[splineIndices[k]];
+      const next = rightPoints[splineIndices[k - 1]];
       const midX = (prev.x + next.x) * 0.5;
       const midY = (prev.y + next.y) * 0.5;
       ctx.quadraticCurveTo(prev.x, prev.y, midX, midY);
     }
-    ctx.lineTo(rightPoints[0].x, rightPoints[0].y);
+    ctx.lineTo(rightPoints[firstIdx].x, rightPoints[firstIdx].y);
     ctx.closePath();
 
     // Main continuous skin fill
@@ -1039,9 +1070,9 @@ export class GameRenderer {
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(snake.segments[0].x, snake.segments[0].y);
-    for (let i = 1; i < totalSegs - 1; i++) {
-      const p1 = snake.segments[i - 1];
-      const p2 = snake.segments[i];
+    for (let k = 1; k < splineCount - 1; k++) {
+      const p1 = snake.segments[splineIndices[k - 1]];
+      const p2 = snake.segments[splineIndices[k]];
       const midX = (p1.x + p2.x) * 0.5;
       const midY = (p1.y + p2.y) * 0.5;
       ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
@@ -1053,103 +1084,98 @@ export class GameRenderer {
     ctx.stroke();
     ctx.restore();
 
-    // 4.2 Dorsal Diamondback / Chevron Saddle Scales & Archetype Texture
-    // Real snakes have gorgeous overlapping diamond scales or chevrons running down their spine
-    for (let i = 1; i < totalSegs - 1; i++) {
+    // 4.2 Dorsal Diamondback / Chevron Saddle Scales & Archetype Texture (Zero-Transform Fast Path)
+    // Avoids hundreds of ctx.save/restore calls per frame to eliminate lag
+    const scaleStep = totalSegs > 80 ? 3 : totalSegs > 35 ? 2 : 1;
+    for (let i = 1; i < totalSegs - 1; i += scaleStep) {
       const seg = snake.segments[i];
       const r = segRadii[i];
       const ang = segAngles[i];
+      const cos = Math.cos(ang);
+      const sin = Math.sin(ang);
 
-      ctx.save();
-      ctx.translate(seg.x, seg.y);
-      ctx.rotate(ang);
-
-      // Authentic Reptilian Diamondback Scale Saddle
+      // Authentic Reptilian Diamondback Scale Saddle computed directly in world space
       const diamondLen = r * 0.95;
       const diamondW = r * 0.72;
+      const halfL = diamondLen * 0.55;
+      const halfW = diamondW * 0.5;
+
       ctx.fillStyle = i % 2 === 0 ? skin.secondaryColor : (skin.accentColor || skin.primaryColor);
       ctx.globalAlpha = 0.85;
       ctx.beginPath();
-      ctx.moveTo(-diamondLen * 0.55, 0);
-      ctx.lineTo(0, -diamondW * 0.5);
-      ctx.lineTo(diamondLen * 0.55, 0);
-      ctx.lineTo(0, diamondW * 0.5);
+      // Back vertex
+      ctx.moveTo(seg.x - halfL * cos, seg.y - halfL * sin);
+      // Right vertex
+      ctx.lineTo(seg.x + halfW * sin, seg.y - halfW * cos);
+      // Front vertex
+      ctx.lineTo(seg.x + halfL * cos, seg.y + halfL * sin);
+      // Left vertex
+      ctx.lineTo(seg.x - halfW * sin, seg.y + halfW * cos);
       ctx.closePath();
       ctx.fill();
 
       // Archetype Spine Specialization
       if (archetype === 'dragon') {
-        // Draconic Serrated Spine Scute
         ctx.fillStyle = '#facc15';
         ctx.globalAlpha = 1.0;
         ctx.beginPath();
-        ctx.moveTo(-r * 0.35, 0);
-        ctx.lineTo(0, -r * 0.22);
-        ctx.lineTo(r * 0.35, 0);
-        ctx.lineTo(0, r * 0.22);
-        ctx.closePath();
+        ctx.arc(seg.x, seg.y, r * 0.28, 0, Math.PI * 2);
         ctx.fill();
       } else if (archetype === 'angel') {
-        // Celestial Holy Scale Quill
         ctx.fillStyle = 'rgba(254, 240, 138, 0.75)';
         ctx.globalAlpha = 1.0;
         ctx.beginPath();
-        ctx.ellipse(0, 0, r * 0.42, r * 0.22, 0, 0, Math.PI * 2);
+        ctx.arc(seg.x, seg.y, r * 0.26, 0, Math.PI * 2);
         ctx.fill();
       } else if (archetype === 'devil') {
-        // Magma Fiery Seam
         ctx.fillStyle = i % 2 === 0 ? '#ef4444' : '#f97316';
         ctx.globalAlpha = 0.9;
         ctx.beginPath();
-        ctx.ellipse(0, 0, r * 0.38, r * 0.18, 0, 0, Math.PI * 2);
+        ctx.arc(seg.x, seg.y, r * 0.25, 0, Math.PI * 2);
         ctx.fill();
       } else if (archetype === 'robot') {
-        // Mecha Alloy Plate Line
         ctx.strokeStyle = '#38bdf8';
         ctx.lineWidth = 1.2;
         ctx.globalAlpha = 0.85;
         ctx.beginPath();
-        ctx.moveTo(-diamondLen * 0.4, 0);
-        ctx.lineTo(diamondLen * 0.4, 0);
+        ctx.moveTo(seg.x - halfL * 0.8 * cos, seg.y - halfL * 0.8 * sin);
+        ctx.lineTo(seg.x + halfL * 0.8 * cos, seg.y + halfL * 0.8 * sin);
         ctx.stroke();
       } else if (archetype === 'blackhole') {
-        // Singularity Void Node
         ctx.fillStyle = '#030712';
         ctx.strokeStyle = '#c084fc';
         ctx.lineWidth = 1;
         ctx.globalAlpha = 0.9;
         ctx.beginPath();
-        ctx.ellipse(0, 0, r * 0.35, r * 0.25, 0, 0, Math.PI * 2);
+        ctx.arc(seg.x, seg.y, r * 0.25, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
       } else {
-        // Cyber Light Node
         ctx.fillStyle = skin.coreGlow;
         ctx.globalAlpha = 0.75;
         ctx.beginPath();
-        ctx.arc(0, 0, r * 0.24, 0, Math.PI * 2);
+        ctx.arc(seg.x, seg.y, r * 0.24, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Transverse Ventral Plate Groove (fine reptilian scale division line)
+      // Transverse Ventral Plate Groove
       ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)';
       ctx.lineWidth = 1;
       ctx.globalAlpha = 0.6;
       ctx.beginPath();
-      ctx.moveTo(0, -r * 0.7);
-      ctx.lineTo(0, r * 0.7);
+      ctx.moveTo(seg.x - r * 0.65 * sin, seg.y + r * 0.65 * cos);
+      ctx.lineTo(seg.x + r * 0.65 * sin, seg.y - r * 0.65 * cos);
       ctx.stroke();
-
-      ctx.restore();
     }
+    ctx.globalAlpha = 1.0;
 
     // 4.3 Smooth 3D Cylindrical Dorsal Sheen (Glossy spine highlight)
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(snake.segments[0].x, snake.segments[0].y);
-    for (let i = 1; i < totalSegs - 2; i++) {
-      const p1 = snake.segments[i - 1];
-      const p2 = snake.segments[i];
+    for (let k = 1; k < splineCount - 1; k++) {
+      const p1 = snake.segments[splineIndices[k - 1]];
+      const p2 = snake.segments[splineIndices[k]];
       const midX = (p1.x + p2.x) * 0.5;
       const midY = (p1.y + p2.y) * 0.5;
       ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
