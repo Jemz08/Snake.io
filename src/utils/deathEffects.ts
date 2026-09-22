@@ -78,6 +78,17 @@ export const DEATH_EFFECTS: DeathEffectDef[] = [
     icon: 'star',
     particleCount: 70,
   },
+  {
+    id: 'bat-swarm',
+    name: 'Vampiric Bat Swarm',
+    price: 35000,
+    badge: 'VAMPIRE',
+    description: 'Victim dissolves into a shadowy vortex of fluttering nocturnal bats with piercing scarlet eyes.',
+    primaryColor: '#dc2626',
+    secondaryColor: '#171717',
+    icon: 'bat',
+    particleCount: 50,
+  },
 ];
 
 export function getDeathEffectById(id: string): DeathEffectDef {

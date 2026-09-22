@@ -29,14 +29,17 @@ import {
   Lock,
   Sparkles,
   Sliders,
+  Package,
 } from 'lucide-react';
 import { getSoundMuted, setSoundMuted } from '../utils/audio';
+import { RARITY_CONFIG } from '../utils/skins';
 
 interface LobbyViewProps {
   profile: PlayerProfile;
   onUpdateProfile: (profile: Partial<PlayerProfile>) => void;
   onStartGame: () => void;
   onOpenShop: (tab?: 'skins' | 'death-effects') => void;
+  onOpenCrate?: () => void;
   onOpenLeaderboard: () => void;
   onOpenMissions: () => void;
   onOpenExport?: () => void;
@@ -69,7 +72,7 @@ const ARCHETYPES: Array<{
   },
   {
     id: 'blackhole',
-    label: 'Blackhole',
+    label: 'Void',
     icon: '🌌',
     premierSkinId: 'blackhole-void',
     colorClass: 'text-purple-300 bg-purple-500/10 border-purple-500/40',
@@ -98,6 +101,86 @@ const ARCHETYPES: Array<{
     premierSkinId: 'cyber-viper',
     colorClass: 'text-cyan-300 bg-cyan-500/10 border-cyan-400/40',
     activeBorder: 'border-cyan-400 bg-cyan-500/25 shadow-[0_0_15px_rgba(6,182,212,0.4)] text-cyan-100',
+  },
+  {
+    id: 'phoenix',
+    label: 'Phoenix',
+    icon: '🔥',
+    premierSkinId: 'phoenix-prime',
+    colorClass: 'text-orange-400 bg-orange-500/10 border-orange-500/40',
+    activeBorder: 'border-orange-400 bg-orange-500/25 shadow-[0_0_15px_rgba(249,115,22,0.4)] text-orange-200',
+  },
+  {
+    id: 'frost',
+    label: 'Frost',
+    icon: '❄️',
+    premierSkinId: 'frost-wyrm',
+    colorClass: 'text-cyan-200 bg-cyan-400/10 border-cyan-400/40',
+    activeBorder: 'border-cyan-300 bg-cyan-400/25 shadow-[0_0_15px_rgba(103,232,249,0.4)] text-cyan-100',
+  },
+  {
+    id: 'venom',
+    label: 'Venom',
+    icon: '🧪',
+    premierSkinId: 'venom-viper',
+    colorClass: 'text-lime-400 bg-lime-500/10 border-lime-500/40',
+    activeBorder: 'border-lime-400 bg-lime-500/25 shadow-[0_0_15px_rgba(163,230,53,0.4)] text-lime-100',
+  },
+  {
+    id: 'storm',
+    label: 'Storm',
+    icon: '⚡',
+    premierSkinId: 'storm-breaker',
+    colorClass: 'text-blue-400 bg-blue-500/10 border-blue-500/40',
+    activeBorder: 'border-blue-400 bg-blue-500/25 shadow-[0_0_15px_rgba(96,165,250,0.4)] text-blue-100',
+  },
+  {
+    id: 'phantom',
+    label: 'Phantom',
+    icon: '👻',
+    premierSkinId: 'phantom-spectre',
+    colorClass: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/40',
+    activeBorder: 'border-indigo-400 bg-indigo-500/25 shadow-[0_0_15px_rgba(129,140,248,0.4)] text-indigo-100',
+  },
+  {
+    id: 'vampire',
+    label: 'Vampire',
+    icon: '🦇',
+    premierSkinId: 'vampire-lord',
+    colorClass: 'text-rose-500 bg-rose-600/10 border-rose-600/40',
+    activeBorder: 'border-rose-600 bg-rose-600/25 shadow-[0_0_15px_rgba(225,29,72,0.4)] text-rose-100',
+  },
+  {
+    id: 'chrono',
+    label: 'Chrono',
+    icon: '⏳',
+    premierSkinId: 'chrono-weaver',
+    colorClass: 'text-amber-400 bg-amber-600/10 border-amber-600/40',
+    activeBorder: 'border-amber-400 bg-amber-500/25 shadow-[0_0_15px_rgba(245,158,11,0.4)] text-amber-100',
+  },
+  {
+    id: 'ninja',
+    label: 'Ninja',
+    icon: '🥷',
+    premierSkinId: 'ninja-shadow',
+    colorClass: 'text-slate-300 bg-slate-700/20 border-slate-600/40',
+    activeBorder: 'border-slate-300 bg-slate-600/25 shadow-[0_0_15px_rgba(203,213,225,0.4)] text-white',
+  },
+  {
+    id: 'crystal',
+    label: 'Crystal',
+    icon: '💎',
+    premierSkinId: 'crystal-golem',
+    colorClass: 'text-teal-300 bg-teal-500/10 border-teal-500/40',
+    activeBorder: 'border-teal-400 bg-teal-500/25 shadow-[0_0_15px_rgba(45,212,191,0.4)] text-teal-100',
+  },
+  {
+    id: 'alien',
+    label: 'Alien',
+    icon: '👽',
+    premierSkinId: 'alien-xeno',
+    colorClass: 'text-fuchsia-400 bg-fuchsia-500/10 border-fuchsia-500/40',
+    activeBorder: 'border-fuchsia-400 bg-fuchsia-500/25 shadow-[0_0_15px_rgba(217,70,239,0.4)] text-fuchsia-100',
   },
 ];
 

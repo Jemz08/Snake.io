@@ -94,6 +94,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       // Draw Grid & Perimeter
       renderer.drawGrid(cameraX, cameraY, width, height, engine.worldSize);
 
+      // Draw Elemental Hazard Trails (Phoenix fire, Frost ice, Venom toxic)
+      renderer.drawTrailHazards(engine.trailHazards);
+
       // Draw Foods & Dead Snake Drops
       renderer.drawFood(engine.foods);
 

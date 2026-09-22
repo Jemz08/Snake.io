@@ -11,6 +11,7 @@ import {
   KillNotification,
   WeaponType,
   DeathEffectType,
+  TrailHazard,
 } from '../types';
 import { WEAPONS, getWeaponConfig } from '../utils/weapons';
 import {
@@ -81,6 +82,7 @@ export class GameEngine {
   public particles: Particle[] = [];
   public damagePopups: DamagePopup[] = [];
   public killFeed: KillNotification[] = [];
+  public trailHazards: TrailHazard[] = [];
 
   private nextEntityId = 1;
   public playerSnake: Snake | null = null;
@@ -105,6 +107,7 @@ export class GameEngine {
     this.particles = [];
     this.damagePopups = [];
     this.killFeed = [];
+    this.trailHazards = [];
 
     // Initialize battlefield defensive obstacles
     this.initObstacles();
@@ -442,12 +445,17 @@ export class GameEngine {
       });
     }
 
+    const arch = skin.archetype || 'cyber';
+    const isCrystal = arch === 'crystal';
+    const baseSpeed = isCrystal ? 3.0 : 3.4;
+    const maxHp = isCrystal ? 150 : 100;
+
     return {
       id,
       name,
       isPlayer,
       skinId,
-      archetype: skin.archetype || 'cyber',
+      archetype: arch,
       deathEffectId,
       x,
       y,
@@ -457,15 +465,15 @@ export class GameEngine {
       isAiming: false,
       targetLockedSnakeId: null,
       laserLockPoint: null,
-      speed: 3.4,
-      baseSpeed: 3.4,
-      boostSpeed: 6.2,
+      speed: baseSpeed,
+      baseSpeed,
+      boostSpeed: isCrystal ? 5.6 : 6.2,
       length: initialLen,
       targetLength: initialLen,
       score: 0,
       kills: 0,
-      hp: 100,
-      maxHp: 100,
+      hp: maxHp,
+      maxHp,
       isDead: false,
       segments,
       weapon: null,
@@ -492,6 +500,18 @@ export class GameEngine {
       isWeaponJammed: false,
       weaponJammedTimer: 0,
       decoyTimer: 0,
+      // 10 New Archetypes state fields
+      hasRevived: false,
+      trailDropTimer: 0,
+      freezeLevel: 0,
+      freezeTimer: 0,
+      poisonTimer: 0,
+      poisonDamagePerSec: 0,
+      isPhasing: false,
+      chronoBubbleActive: false,
+      smokeEscapeTimer: 0,
+      ninjaSlashCooldown: 0,
+      isReflecting: false,
     };
   }
 
@@ -816,11 +836,334 @@ export class GameEngine {
         life: 45,
         maxLife: 45,
       });
+    } else if (archetype === 'phoenix') {
+      // Phoenix Active: Solar Flare Burst
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 35,
+        text: '🔥 SOLAR FLARE BURST!',
+        color: '#f97316',
+        life: 50,
+        maxLife: 50,
+      });
+      this.explosions.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y,
+        radius: 20,
+        maxRadius: 220,
+        color: '#f97316',
+        alpha: 1,
+        duration: 450,
+        elapsed: 0,
+        style: 'plasma',
+      });
+      // Push back enemies & destroy projectiles
+      for (const other of this.snakes) {
+        if (other.isDead || other.id === snake.id) continue;
+        const d = Math.hypot(head.x - other.segments[0].x, head.y - other.segments[0].y);
+        if (d < 220 && d > 0) {
+          const ang = Math.atan2(other.segments[0].y - head.y, other.segments[0].x - head.x);
+          other.x += Math.cos(ang) * 90;
+          other.y += Math.sin(ang) * 90;
+          this.applyDamageToSnake(other, 50, snake.id, 'pistol', true);
+        }
+      }
+    } else if (archetype === 'frost') {
+      // Frost Active: Blizzard Surge
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 35,
+        text: '❄️ BLIZZARD SURGE (FROZEN)!',
+        color: '#38bdf8',
+        life: 50,
+        maxLife: 50,
+      });
+      this.explosions.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y,
+        radius: 20,
+        maxRadius: 240,
+        color: '#38bdf8',
+        alpha: 1,
+        duration: 500,
+        elapsed: 0,
+      });
+      for (const other of this.snakes) {
+        if (other.isDead || other.id === snake.id) continue;
+        const d = Math.hypot(head.x - other.segments[0].x, head.y - other.segments[0].y);
+        if (d < 240) {
+          other.freezeLevel = 5;
+          other.freezeTimer = 4.0;
+        }
+      }
+      for (let k = 0; k < 25; k++) {
+        const a = Math.random() * Math.PI * 2;
+        const spd = 3 + Math.random() * 6;
+        this.particles.push({
+          x: head.x,
+          y: head.y,
+          vx: Math.cos(a) * spd,
+          vy: Math.sin(a) * spd,
+          color: '#bae6fd',
+          size: 4,
+          life: 25,
+          maxLife: 25,
+          shape: 'snowflake',
+        });
+      }
+    } else if (archetype === 'venom') {
+      // Venom Active: Acidic Outburst
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 35,
+        text: '🧪 ACIDIC OUTBURST!',
+        color: '#84cc16',
+        life: 50,
+        maxLife: 50,
+      });
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
+        this.trailHazards.push({
+          id: this.nextEntityId++,
+          ownerId: snake.id,
+          x: head.x + Math.cos(a) * 60,
+          y: head.y + Math.sin(a) * 60,
+          radius: 28,
+          type: 'toxic',
+          duration: 4.5,
+          maxDuration: 4.5,
+          color: '#84cc16',
+        });
+      }
+    } else if (archetype === 'storm') {
+      // Storm Active: Overcharge Discharge
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 35,
+        text: '⚡ OVERCHARGE DISCHARGE!',
+        color: '#60a5fa',
+        life: 50,
+        maxLife: 50,
+      });
+      for (const other of this.snakes) {
+        if (other.isDead || other.id === snake.id) continue;
+        const d = Math.hypot(head.x - other.segments[0].x, head.y - other.segments[0].y);
+        if (d < 320) {
+          this.applyDamageToSnake(other, 55, snake.id, 'pistol', false);
+          for (let k = 0; k < 6; k++) {
+            const ratio = k / 6;
+            this.particles.push({
+              x: head.x + (other.segments[0].x - head.x) * ratio,
+              y: head.y + (other.segments[0].y - head.y) * ratio,
+              vx: (Math.random() - 0.5) * 3,
+              vy: (Math.random() - 0.5) * 3,
+              color: '#60a5fa',
+              size: 3,
+              life: 15,
+              maxLife: 15,
+              shape: 'lightning',
+            });
+          }
+        }
+      }
+    } else if (archetype === 'phantom') {
+      // Phantom Active: Phase Shift
+      snake.isPhasing = true;
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 35,
+        text: '👻 PHASE SHIFT (INTANGIBLE)!',
+        color: '#818cf8',
+        life: 50,
+        maxLife: 50,
+      });
+      for (let k = 0; k < 18; k++) {
+        this.particles.push({
+          x: head.x + (Math.random() - 0.5) * 30,
+          y: head.y + (Math.random() - 0.5) * 30,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+          color: '#818cf8',
+          size: 4,
+          life: 25,
+          maxLife: 25,
+          shape: 'circle',
+        });
+      }
+    } else if (archetype === 'vampire') {
+      // Vampire Active: Blood Frenzy
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 35,
+        text: '🦇 BLOOD FRENZY (+45% SPEED)!',
+        color: '#ef4444',
+        life: 50,
+        maxLife: 50,
+      });
+      for (let k = 0; k < 18; k++) {
+        this.particles.push({
+          x: head.x + (Math.random() - 0.5) * 30,
+          y: head.y + (Math.random() - 0.5) * 30,
+          vx: (Math.random() - 0.5) * 5,
+          vy: (Math.random() - 0.5) * 5,
+          color: '#dc2626',
+          size: 5,
+          life: 25,
+          maxLife: 25,
+          shape: 'bat',
+        });
+      }
+    } else if (archetype === 'chrono') {
+      // Chrono Active: Time Dilation
+      snake.chronoBubbleActive = true;
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 35,
+        text: '⏳ TIME DILATION BUBBLE!',
+        color: '#f59e0b',
+        life: 50,
+        maxLife: 50,
+      });
+      for (let k = 0; k < 16; k++) {
+        const a = (k / 16) * Math.PI * 2;
+        this.particles.push({
+          x: head.x + Math.cos(a) * 80,
+          y: head.y + Math.sin(a) * 80,
+          vx: Math.cos(a) * 1.5,
+          vy: Math.sin(a) * 1.5,
+          color: '#f59e0b',
+          size: 6,
+          life: 30,
+          maxLife: 30,
+          shape: 'gear',
+        });
+      }
+    } else if (archetype === 'ninja') {
+      // Ninja Active: Smoke Bomb Escape
+      snake.smokeEscapeTimer = 3.0;
+      const escAngle = head.angle + Math.PI;
+      const escDist = 160;
+      const nextX = Math.max(30, Math.min(WORLD_SIZE - 30, head.x + Math.cos(escAngle) * escDist));
+      const nextY = Math.max(30, Math.min(WORLD_SIZE - 30, head.y + Math.sin(escAngle) * escDist));
+      for (let k = 0; k < 25; k++) {
+        this.particles.push({
+          x: head.x + (Math.random() - 0.5) * 20,
+          y: head.y + (Math.random() - 0.5) * 20,
+          vx: (Math.random() - 0.5) * 4,
+          vy: (Math.random() - 0.5) * 4,
+          color: '#71717a',
+          size: 8 + Math.random() * 6,
+          life: 40,
+          maxLife: 40,
+          shape: 'circle',
+        });
+      }
+      snake.x = nextX;
+      snake.y = nextY;
+      head.x = nextX;
+      head.y = nextY;
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: snake.x,
+        y: snake.y - 35,
+        text: '🥷 SMOKE BOMB ESCAPE!',
+        color: '#e4e4e7',
+        life: 45,
+        maxLife: 45,
+      });
+    } else if (archetype === 'crystal') {
+      // Crystal Active: Prismatic Reflection
+      snake.isReflecting = true;
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 35,
+        text: '💎 PRISMATIC REFLECTION (100%)!',
+        color: '#22d3ee',
+        life: 50,
+        maxLife: 50,
+      });
+      for (let k = 0; k < 20; k++) {
+        const a = (k / 20) * Math.PI * 2;
+        this.particles.push({
+          x: head.x + Math.cos(a) * 36,
+          y: head.y + Math.sin(a) * 36,
+          vx: Math.cos(a) * 2,
+          vy: Math.sin(a) * 2,
+          color: '#a5f3fc',
+          size: 4,
+          life: 25,
+          maxLife: 25,
+          shape: 'spark',
+        });
+      }
+    } else if (archetype === 'alien') {
+      // Alien Active: Corrosive Acid Nova
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
+        this.projectiles.push({
+          id: this.nextEntityId++,
+          ownerId: snake.id,
+          isPlayer: snake.isPlayer,
+          weaponType: 'pistol',
+          x: head.x + Math.cos(a) * 22,
+          y: head.y + Math.sin(a) * 22,
+          startX: head.x,
+          startY: head.y,
+          vx: Math.cos(a) * 13,
+          vy: Math.sin(a) * 13,
+          distanceTraveled: 0,
+          maxDistance: 650,
+          damage: 32,
+          isExplosive: false,
+          blastRadius: 0,
+          color: '#84cc16',
+          radius: 6,
+        });
+      }
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 35,
+        text: '👽 CORROSIVE ACID NOVA!',
+        color: '#10b981',
+        life: 50,
+        maxLife: 50,
+      });
     }
   }
 
   public fireWeapon(snake: Snake, customAngle?: number) {
-    if (!snake.weapon || snake.ammo <= 0 || snake.isDead) return;
+    if (snake.isDead) return;
+
+    // Ninja Archetype Passive: Dash-Slash Melee instead of a gun!
+    if (snake.archetype === 'ninja') {
+      const now = performance.now();
+      if (now - (snake.lastFireTime || 0) < 420) return;
+      snake.lastFireTime = now;
+      this.executeNinjaDashSlash(snake, customAngle);
+      return;
+    }
+
+    // Alien Archetype Passive: Innate Acid Spit when unarmed!
+    if (snake.archetype === 'alien' && (!snake.weapon || snake.ammo <= 0)) {
+      const now = performance.now();
+      if (now - (snake.lastFireTime || 0) < 350) return;
+      snake.lastFireTime = now;
+      this.fireAcidSpit(snake, customAngle);
+      return;
+    }
+
+    if (!snake.weapon || snake.ammo <= 0) return;
 
     // Cyber passive: weapon jammed check
     if (snake.isWeaponJammed && snake.weaponJammedTimer && snake.weaponJammedTimer > 0) {
@@ -875,6 +1218,13 @@ export class GameEngine {
     const soulBonus = snake.soulHarvestBonusDamage || 0;
     const finalDamage = Math.round(config.damage * (1 + soulBonus));
 
+    let projColor = soulBonus > 0 ? '#ef4444' : config.color;
+    if (snake.archetype === 'alien') projColor = '#84cc16';
+    else if (snake.archetype === 'frost') projColor = '#38bdf8';
+    else if (snake.archetype === 'venom') projColor = '#84cc16';
+    else if (snake.archetype === 'storm') projColor = '#60a5fa';
+    else if (snake.archetype === 'phoenix') projColor = '#f97316';
+
     this.projectiles.push({
       id: this.nextEntityId++,
       ownerId: snake.id,
@@ -891,7 +1241,7 @@ export class GameEngine {
       damage: finalDamage,
       isExplosive: !!config.isExplosive,
       blastRadius: config.blastRadius || 155,
-      color: soulBonus > 0 ? '#ef4444' : config.color,
+      color: projColor,
       radius: config.isExplosive ? 7 : 4,
     });
 
@@ -919,6 +1269,126 @@ export class GameEngine {
       snake.weapon = null;
       snake.targetLockedSnakeId = null;
       snake.laserLockPoint = null;
+    }
+  }
+
+  private executeNinjaDashSlash(snake: Snake, customAngle?: number) {
+    const head = snake.segments[0];
+    const slashAngle =
+      customAngle !== undefined
+        ? customAngle
+        : snake.aimAngle !== undefined
+        ? snake.aimAngle
+        : head.angle;
+
+    // High velocity forward dash (95px)
+    const dashDist = 95;
+    const nextX = Math.max(30, Math.min(WORLD_SIZE - 30, head.x + Math.cos(slashAngle) * dashDist));
+    const nextY = Math.max(30, Math.min(WORLD_SIZE - 30, head.y + Math.sin(slashAngle) * dashDist));
+    snake.x = nextX;
+    snake.y = nextY;
+    head.x = nextX;
+    head.y = nextY;
+    head.angle = slashAngle;
+    snake.angle = slashAngle;
+
+    if (snake.isPlayer) {
+      playShootSound('pistol');
+    }
+
+    // Katana Slash crescent particles
+    for (let k = -5; k <= 5; k++) {
+      const a = slashAngle + (k / 5) * 0.7;
+      const r = 40 + Math.abs(k) * 6;
+      this.particles.push({
+        x: head.x + Math.cos(a) * r,
+        y: head.y + Math.sin(a) * r,
+        vx: Math.cos(slashAngle) * 3 + (Math.random() - 0.5) * 2,
+        vy: Math.sin(slashAngle) * 3 + (Math.random() - 0.5) * 2,
+        color: Math.random() > 0.3 ? '#ef4444' : '#ffffff',
+        size: 3.5,
+        life: 16,
+        maxLife: 16,
+        shape: 'spark',
+      });
+    }
+
+    this.damagePopups.push({
+      id: this.nextEntityId++,
+      x: head.x,
+      y: head.y - 30,
+      text: '⚔️ KATANA DASH-SLASH (-85)',
+      color: '#ef4444',
+      life: 35,
+      maxLife: 35,
+    });
+
+    // Check hit on enemy snakes in 130px 75° cleave cone
+    const reach = 130;
+    const damage = 85;
+    for (const other of this.snakes) {
+      if (other.isDead || other.id === snake.id) continue;
+      const otherHead = other.segments[0];
+      const d = Math.hypot(otherHead.x - head.x, otherHead.y - head.y);
+      if (d < reach) {
+        const angleToTarget = Math.atan2(otherHead.y - head.y, otherHead.x - head.x);
+        let diff = Math.abs(angleToTarget - slashAngle);
+        while (diff > Math.PI) diff = Math.PI * 2 - diff;
+        if (diff < 0.75) {
+          this.applyDamageToSnake(other, damage, snake.id, 'pistol', false, slashAngle);
+        }
+      }
+    }
+  }
+
+  private fireAcidSpit(snake: Snake, customAngle?: number) {
+    const head = snake.segments[0];
+    const baseAngle =
+      customAngle !== undefined
+        ? customAngle
+        : snake.aimAngle !== undefined
+        ? snake.aimAngle
+        : head.angle;
+
+    const muzzleX = head.x + Math.cos(baseAngle) * 22;
+    const muzzleY = head.y + Math.sin(baseAngle) * 22;
+
+    this.projectiles.push({
+      id: this.nextEntityId++,
+      ownerId: snake.id,
+      isPlayer: snake.isPlayer,
+      weaponType: 'pistol',
+      x: muzzleX,
+      y: muzzleY,
+      startX: muzzleX,
+      startY: muzzleY,
+      vx: Math.cos(baseAngle) * 14,
+      vy: Math.sin(baseAngle) * 14,
+      distanceTraveled: 0,
+      maxDistance: 620,
+      damage: 28,
+      isExplosive: false,
+      blastRadius: 0,
+      color: '#84cc16',
+      radius: 5,
+    });
+
+    if (snake.isPlayer) {
+      playShootSound('pistol');
+    }
+
+    for (let k = 0; k < 6; k++) {
+      this.particles.push({
+        x: muzzleX,
+        y: muzzleY,
+        vx: Math.cos(baseAngle + (Math.random() - 0.5) * 0.6) * 4,
+        vy: Math.sin(baseAngle + (Math.random() - 0.5) * 0.6) * 4,
+        color: '#84cc16',
+        size: 3,
+        life: 14,
+        maxLife: 14,
+        shape: 'acid',
+      });
     }
   }
 
@@ -1057,6 +1527,9 @@ export class GameEngine {
     // 1. Update Projectiles
     this.updateProjectiles();
 
+    // 1b. Update Trail Hazards (Phoenix fire, Frost ice, Venom toxic)
+    this.updateTrailHazards(deltaTime || 1 / 60);
+
     // 2. Update Explosions
     this.updateExplosions();
 
@@ -1110,9 +1583,23 @@ export class GameEngine {
   private updateProjectiles() {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
-      p.x += p.vx;
-      p.y += p.vy;
-      p.distanceTraveled += Math.hypot(p.vx, p.vy);
+
+      // Chrono Archetype: Time Dilation slows down enemy projectiles traveling through bubble
+      let speedScale = 1.0;
+      for (const chronoSnake of this.snakes) {
+        if (chronoSnake.isDead || chronoSnake.id === p.ownerId) continue;
+        if (chronoSnake.archetype === 'chrono' && (chronoSnake.abilityActiveTimer || 0) > 0) {
+          const d = Math.hypot(p.x - chronoSnake.segments[0].x, p.y - chronoSnake.segments[0].y);
+          if (d < 220) {
+            speedScale = 0.25; // 75% projectile slow!
+            break;
+          }
+        }
+      }
+
+      p.x += p.vx * speedScale;
+      p.y += p.vy * speedScale;
+      p.distanceTraveled += Math.hypot(p.vx, p.vy) * speedScale;
 
       // Boundary check
       if (p.x < 0 || p.x > WORLD_SIZE || p.y < 0 || p.y > WORLD_SIZE) {
@@ -1234,7 +1721,93 @@ export class GameEngine {
             break;
           }
         }
-        if (hit) break;
+
+        if (hit) {
+          const attacker = this.snakes.find((s) => s.id === p.ownerId);
+          if (attacker) {
+            // Frost archetype: bullet stacks freeze effect
+            if (attacker.archetype === 'frost') {
+              snake.freezeLevel = Math.min(5, (snake.freezeLevel || 0) + 1);
+              snake.freezeTimer = 3.0;
+              this.damagePopups.push({
+                id: this.nextEntityId++,
+                x: head.x,
+                y: head.y - 25,
+                text: `❄️ FROSTBITE x${snake.freezeLevel}!`,
+                color: '#38bdf8',
+                life: 30,
+                maxLife: 30,
+              });
+            }
+            // Venom archetype: poison DoT
+            if (attacker.archetype === 'venom') {
+              snake.poisonTimer = 4.0;
+              snake.poisonDamagePerSec = 18;
+              snake.poisonAttackerId = p.ownerId;
+              this.damagePopups.push({
+                id: this.nextEntityId++,
+                x: head.x,
+                y: head.y - 25,
+                text: '🧪 NEUROTOXIN POISON (4s)!',
+                color: '#84cc16',
+                life: 35,
+                maxLife: 35,
+              });
+            }
+            // Storm archetype: chain lightning jumps between nearby enemies
+            if (attacker.archetype === 'storm') {
+              const chainEnemies = this.snakes.filter(
+                (s) =>
+                  !s.isDead &&
+                  s.id !== p.ownerId &&
+                  s.id !== snake.id &&
+                  Math.hypot(s.segments[0].x - head.x, s.segments[0].y - head.y) < 260
+              );
+              for (const chainTarget of chainEnemies.slice(0, 2)) {
+                this.applyDamageToSnake(chainTarget, 35, p.ownerId, p.weaponType, false);
+                this.damagePopups.push({
+                  id: this.nextEntityId++,
+                  x: chainTarget.segments[0].x,
+                  y: chainTarget.segments[0].y - 25,
+                  text: '⚡ CHAIN LIGHTNING (-35)',
+                  color: '#60a5fa',
+                  life: 30,
+                  maxLife: 30,
+                });
+                for (let k = 0; k < 6; k++) {
+                  const r = k / 6;
+                  this.particles.push({
+                    x: head.x + (chainTarget.segments[0].x - head.x) * r,
+                    y: head.y + (chainTarget.segments[0].y - head.y) * r,
+                    vx: (Math.random() - 0.5) * 3,
+                    vy: (Math.random() - 0.5) * 3,
+                    color: '#60a5fa',
+                    size: 3,
+                    life: 14,
+                    maxLife: 14,
+                    shape: 'lightning',
+                  });
+                }
+              }
+            }
+            // Alien archetype: acid spit melts shields
+            if (attacker.archetype === 'alien' || p.color === '#84cc16') {
+              if (snake.shieldHp && snake.shieldHp > 0) {
+                snake.shieldHp = 0;
+                this.damagePopups.push({
+                  id: this.nextEntityId++,
+                  x: head.x,
+                  y: head.y - 30,
+                  text: '🧪 SHIELD ACID MELTED (0 HP)!',
+                  color: '#84cc16',
+                  life: 35,
+                  maxLife: 35,
+                });
+              }
+            }
+          }
+          break;
+        }
       }
 
       if (devouredByEventHorizon) {
@@ -1350,6 +1923,56 @@ export class GameEngine {
     hitAngle?: number
   ) {
     const head = snake.segments[0];
+
+    // Phantom Archetype: Intangible while Phase Shift is active
+    if (snake.archetype === 'phantom' && (snake.abilityActiveTimer || 0) > 0) {
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: head.x,
+        y: head.y - 25,
+        text: '👻 PHASED (INTANGIBLE)!',
+        color: '#818cf8',
+        life: 25,
+        maxLife: 25,
+      });
+      return;
+    }
+
+    // Crystal Archetype: High Armor (-30% damage) & Bullet Reflection
+    if (snake.archetype === 'crystal') {
+      damage *= 0.7; // High-armor tank passive
+      const isReflecting = (snake.abilityActiveTimer || 0) > 0 || Math.random() < 0.35;
+      if (isReflecting && attackerId) {
+        const attacker = this.snakes.find((s) => s.id === attackerId);
+        if (attacker && !attacker.isDead && attacker.id !== snake.id) {
+          const reflectDmg = Math.round(damage * 1.2);
+          this.applyDamageToSnake(attacker, reflectDmg, snake.id, weaponType, false);
+          this.damagePopups.push({
+            id: this.nextEntityId++,
+            x: head.x,
+            y: head.y - 30,
+            text: `💎 REFLECTED (-${reflectDmg} TO ATTACKER)!`,
+            color: '#22d3ee',
+            life: 35,
+            maxLife: 35,
+          });
+          for (let k = 0; k < 8; k++) {
+            this.particles.push({
+              x: head.x,
+              y: head.y,
+              vx: (Math.random() - 0.5) * 6,
+              vy: (Math.random() - 0.5) * 6,
+              color: '#22d3ee',
+              size: 3.5,
+              life: 18,
+              maxLife: 18,
+              shape: 'spark',
+            });
+          }
+          return; // Bullet was reflected!
+        }
+      }
+    }
 
     // Angel Active: Divine Shield blocks all incoming bullets completely for 3s
     if (snake.archetype === 'angel' && (snake.abilityActiveTimer || 0) > 0) {
@@ -1492,6 +2115,53 @@ export class GameEngine {
   }
 
   private killSnake(victim: Snake, killerId: string, weapon: WeaponType) {
+    // Phoenix Archetype: Revives once per match with an explosive fire burst!
+    if (victim.archetype === 'phoenix' && !victim.hasRevived) {
+      victim.hasRevived = true;
+      victim.hp = Math.round(victim.maxHp * 0.75);
+      victim.isDead = false;
+      victim.invincibleTimer = 160; // ~2.6s invulnerability
+      playExplosionSound();
+
+      // Incandescent solar rebirth burst
+      this.explosions.push({
+        id: this.nextEntityId++,
+        x: victim.segments[0].x,
+        y: victim.segments[0].y,
+        radius: 25,
+        maxRadius: 260,
+        color: '#f97316',
+        alpha: 1,
+        duration: 550,
+        elapsed: 0,
+        style: 'plasma',
+      });
+
+      // Push back & burn nearby enemies
+      for (const other of this.snakes) {
+        if (other.isDead || other.id === victim.id) continue;
+        const d = Math.hypot(victim.segments[0].x - other.segments[0].x, victim.segments[0].y - other.segments[0].y);
+        if (d < 260 && d > 0) {
+          const ang = Math.atan2(other.segments[0].y - victim.segments[0].y, other.segments[0].x - victim.segments[0].x);
+          other.x += Math.cos(ang) * 110;
+          other.y += Math.sin(ang) * 110;
+          this.applyDamageToSnake(other, 65, victim.id, 'pistol', true);
+        }
+      }
+
+      this.damagePopups.push({
+        id: this.nextEntityId++,
+        x: victim.segments[0].x,
+        y: victim.segments[0].y - 45,
+        text: `🔥 PHOENIX REBIRTH! (+${victim.hp} HP)`,
+        color: '#f97316',
+        life: 75,
+        maxLife: 75,
+      });
+
+      return; // Canceled death! Revived!
+    }
+
     victim.isDead = true;
 
     // Find killer snake
@@ -1500,6 +2170,34 @@ export class GameEngine {
     if (killer) {
       killer.kills++;
       killer.score += 250;
+
+      // Vampire Archetype: Lifesteal on kills (+45 HP heal)
+      if (killer.archetype === 'vampire') {
+        const heal = Math.min(killer.maxHp - killer.hp, 45);
+        killer.hp += heal;
+        this.damagePopups.push({
+          id: this.nextEntityId++,
+          x: killer.segments[0].x,
+          y: killer.segments[0].y - 45,
+          text: `🩸 VAMPIRIC LIFESTEAL (+${heal} HP)`,
+          color: '#ef4444',
+          life: 55,
+          maxLife: 55,
+        });
+        for (let k = 0; k < 12; k++) {
+          this.particles.push({
+            x: killer.segments[0].x + (Math.random() - 0.5) * 30,
+            y: killer.segments[0].y + (Math.random() - 0.5) * 30,
+            vx: (Math.random() - 0.5) * 3,
+            vy: (Math.random() - 0.5) * 3,
+            color: '#ef4444',
+            size: 4,
+            life: 20,
+            maxLife: 20,
+            shape: 'bat',
+          });
+        }
+      }
 
       // Devil Passive: Soul Harvest - each kill adds +5% bonus damage permanently for match
       if (killer.archetype === 'devil') {
@@ -1581,7 +2279,10 @@ export class GameEngine {
     }
 
     // Trigger Custom Death Effect!
-    const effectType: DeathEffectType = killer?.deathEffectId || victim.deathEffectId || 'cyber-matrix';
+    const effectType: DeathEffectType =
+      victim.archetype === 'vampire' || victim.deathEffectId === 'bat-swarm'
+        ? 'bat-swarm'
+        : killer?.deathEffectId || victim.deathEffectId || 'cyber-matrix';
     this.triggerDeathEffect(effectType, victim.segments[0].x, victim.segments[0].y, victim.color);
 
     if (victim.isPlayer) {
@@ -1772,6 +2473,36 @@ export class GameEngine {
           vRot: (Math.random() - 0.5) * 0.15,
         });
       }
+    } else if (type === 'bat-swarm') {
+      this.explosions.push({
+        id: this.nextEntityId++,
+        x,
+        y,
+        radius: 20,
+        maxRadius: 130,
+        color: '#dc2626',
+        alpha: 1,
+        duration: 650,
+        elapsed: 0,
+        style: 'bat-swarm',
+      });
+      for (let i = 0; i < 35; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 8 + 3;
+        this.particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          color: Math.random() > 0.4 ? '#ef4444' : '#18181b',
+          size: Math.random() * 6 + 5,
+          life: Math.floor(Math.random() * 25 + 25),
+          maxLife: 50,
+          shape: 'bat',
+          rotation: angle,
+          vRot: (Math.random() - 0.5) * 0.2,
+        });
+      }
     } else {
       // Default: cyber-matrix
       this.explosions.push({
@@ -1814,6 +2545,82 @@ export class GameEngine {
     }
   }
 
+  private updateTrailHazards(dt: number) {
+    for (let i = this.trailHazards.length - 1; i >= 0; i--) {
+      const hazard = this.trailHazards[i];
+      hazard.duration -= dt;
+      if (hazard.duration <= 0) {
+        this.trailHazards.splice(i, 1);
+        continue;
+      }
+
+      // Check collision with snakes
+      for (const snake of this.snakes) {
+        if (snake.isDead || snake.id === hazard.ownerId) continue;
+        if (snake.invincibleTimer && snake.invincibleTimer > 0) continue;
+        if (snake.isPhasing || (snake.archetype === 'phantom' && (snake.abilityActiveTimer || 0) > 0)) continue;
+
+        const head = snake.segments[0];
+        const dist = Math.hypot(head.x - hazard.x, head.y - hazard.y);
+        if (dist < hazard.radius + 14) {
+          if (hazard.type === 'fire') {
+            // Phoenix fire trail burns
+            this.applyDamageToSnake(snake, 32 * dt, hazard.ownerId, 'pistol', false);
+            if (Math.random() < 0.15) {
+              this.particles.push({
+                x: head.x + (Math.random() - 0.5) * 16,
+                y: head.y + (Math.random() - 0.5) * 16,
+                vx: (Math.random() - 0.5) * 2,
+                vy: -Math.random() * 2 - 1,
+                color: '#f97316',
+                size: 3,
+                life: 14,
+                maxLife: 14,
+                shape: 'square',
+              });
+            }
+          } else if (hazard.type === 'ice') {
+            // Frost ice trail slows chasers
+            snake.freezeLevel = Math.max(snake.freezeLevel || 0, 3);
+            snake.freezeTimer = 2.5;
+            if (Math.random() < 0.15) {
+              this.particles.push({
+                x: head.x + (Math.random() - 0.5) * 16,
+                y: head.y + (Math.random() - 0.5) * 16,
+                vx: (Math.random() - 0.5) * 1.5,
+                vy: (Math.random() - 0.5) * 1.5,
+                color: '#38bdf8',
+                size: 3,
+                life: 14,
+                maxLife: 14,
+                shape: 'snowflake',
+              });
+            }
+          } else if (hazard.type === 'toxic') {
+            // Venom toxic trail poisons
+            snake.poisonTimer = 3.5;
+            snake.poisonDamagePerSec = 18;
+            snake.poisonAttackerId = hazard.ownerId;
+            this.applyDamageToSnake(snake, 18 * dt, hazard.ownerId, 'pistol', false);
+            if (Math.random() < 0.15) {
+              this.particles.push({
+                x: head.x + (Math.random() - 0.5) * 16,
+                y: head.y + (Math.random() - 0.5) * 16,
+                vx: 0,
+                vy: -1.2,
+                color: '#84cc16',
+                size: 3,
+                life: 14,
+                maxLife: 14,
+                shape: 'acid',
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
   private updateSnakes() {
     for (let idx = 0; idx < this.snakes.length; idx++) {
       const snake = this.snakes[idx];
@@ -1845,6 +2652,21 @@ export class GameEngine {
         } else if (snake.isOverheated) {
           currentSpeed *= 0.65;
         }
+      }
+
+      // Vampire Blood Frenzy active ability (+45% speed)
+      if (snake.archetype === 'vampire' && (snake.abilityActiveTimer || 0) > 0) {
+        currentSpeed *= 1.45;
+      }
+
+      // Crystal Archetype: high-armor tank that is slower
+      if (snake.archetype === 'crystal') {
+        currentSpeed *= 0.88;
+      }
+
+      // Freeze stacks slow effect
+      if (snake.freezeLevel && snake.freezeLevel > 0) {
+        currentSpeed *= Math.max(0.4, 1 - snake.freezeLevel * 0.12);
       }
 
       if (snake.isBoosting && snake.length > 8) {
@@ -1920,27 +2742,31 @@ export class GameEngine {
       }
 
       // Deflect snake head smoothly around defensive map obstacles (sliding cover)
-      for (const obs of this.obstacles) {
-        if (obs.shape === 'circle' && obs.radius) {
-          const d = Math.hypot(snake.x - obs.x, snake.y - obs.y);
-          const minDist = obs.radius + 18;
-          if (d < minDist && d > 0.001) {
-            const pushAngle = Math.atan2(snake.y - obs.y, snake.x - obs.x);
-            snake.x = obs.x + Math.cos(pushAngle) * minDist;
-            snake.y = obs.y + Math.sin(pushAngle) * minDist;
-          }
-        } else if (obs.shape === 'rect' && obs.width && obs.height) {
-          const halfW = obs.width / 2 + 18;
-          const halfH = obs.height / 2 + 18;
-          const dx = snake.x - obs.x;
-          const dy = snake.y - obs.y;
-          if (Math.abs(dx) < halfW && Math.abs(dy) < halfH) {
-            const overlapX = halfW - Math.abs(dx);
-            const overlapY = halfH - Math.abs(dy);
-            if (overlapX < overlapY) {
-              snake.x = obs.x + (dx > 0 ? halfW : -halfW);
-            } else {
-              snake.y = obs.y + (dy > 0 ? halfH : -halfH);
+      // Phantom passes through obstacles when Phase Shift is active!
+      const isPhasingObstacle = snake.isPhasing || (snake.archetype === 'phantom' && (snake.abilityActiveTimer || 0) > 0);
+      if (!isPhasingObstacle) {
+        for (const obs of this.obstacles) {
+          if (obs.shape === 'circle' && obs.radius) {
+            const d = Math.hypot(snake.x - obs.x, snake.y - obs.y);
+            const minDist = obs.radius + 18;
+            if (d < minDist && d > 0.001) {
+              const pushAngle = Math.atan2(snake.y - obs.y, snake.x - obs.x);
+              snake.x = obs.x + Math.cos(pushAngle) * minDist;
+              snake.y = obs.y + Math.sin(pushAngle) * minDist;
+            }
+          } else if (obs.shape === 'rect' && obs.width && obs.height) {
+            const halfW = obs.width / 2 + 18;
+            const halfH = obs.height / 2 + 18;
+            const dx = snake.x - obs.x;
+            const dy = snake.y - obs.y;
+            if (Math.abs(dx) < halfW && Math.abs(dy) < halfH) {
+              const overlapX = halfW - Math.abs(dx);
+              const overlapY = halfH - Math.abs(dy);
+              if (overlapX < overlapY) {
+                snake.x = obs.x + (dx > 0 ? halfW : -halfW);
+              } else {
+                snake.y = obs.y + (dy > 0 ? halfH : -halfH);
+              }
             }
           }
         }
@@ -2218,6 +3044,45 @@ export class GameEngine {
             }
           }
         }
+      } else if (archetype === 'chrono') {
+        // Chrono active: Time dilation bubble slows nearby enemies
+        const chronoRadius = 220;
+        for (const other of this.snakes) {
+          if (other.isDead || other.id === snake.id) continue;
+          const d = Math.hypot(head.x - other.segments[0].x, head.y - other.segments[0].y);
+          if (d < chronoRadius) {
+            other.freezeLevel = Math.max(other.freezeLevel || 0, 4);
+            other.freezeTimer = 0.5;
+          }
+        }
+        if (Math.random() < 0.3) {
+          const a = Math.random() * Math.PI * 2;
+          const r = Math.random() * chronoRadius * 0.9;
+          this.particles.push({
+            x: head.x + Math.cos(a) * r,
+            y: head.y + Math.sin(a) * r,
+            vx: -Math.sin(a) * 1.5,
+            vy: Math.cos(a) * 1.5,
+            color: '#f59e0b',
+            size: 4,
+            life: 22,
+            maxLife: 22,
+            shape: 'gear',
+            rotation: a,
+            vRot: 0.1,
+          });
+        }
+      }
+
+      // Check ability expiration for new archetypes
+      if (snake.abilityActiveTimer === 0) {
+        if (archetype === 'phantom') {
+          snake.isPhasing = false;
+        } else if (archetype === 'crystal') {
+          snake.isReflecting = false;
+        } else if (archetype === 'chrono') {
+          snake.chronoBubbleActive = false;
+        }
       }
 
       // Check for Robot ability expiration -> trigger Overheat!
@@ -2323,6 +3188,91 @@ export class GameEngine {
       }
     }
 
+    // Phoenix / Frost / Venom: Drop elemental hazard trail behind snake tail
+    if (archetype === 'phoenix' || archetype === 'frost' || archetype === 'venom') {
+      snake.trailDropTimer = (snake.trailDropTimer || 0) - dt;
+      if (snake.trailDropTimer <= 0) {
+        snake.trailDropTimer = 0.12;
+        const tail = snake.segments[snake.segments.length - 1];
+        const hazardType = archetype === 'phoenix' ? 'fire' : archetype === 'frost' ? 'ice' : 'toxic';
+        const hazardColor = archetype === 'phoenix' ? '#f97316' : archetype === 'frost' ? '#38bdf8' : '#84cc16';
+        this.trailHazards.push({
+          id: this.nextEntityId++,
+          ownerId: snake.id,
+          x: tail.x,
+          y: tail.y,
+          radius: 22,
+          type: hazardType,
+          duration: 3.2,
+          maxDuration: 3.2,
+          color: hazardColor,
+        });
+        if (this.trailHazards.length > 150) {
+          this.trailHazards.shift();
+        }
+      }
+    }
+
+    // Storm Archetype: Boosting creates static shock jumping to nearby enemies
+    if (archetype === 'storm' && snake.isBoosting) {
+      if (Math.random() < 0.22) {
+        const shockRadius = 160;
+        for (const other of this.snakes) {
+          if (other.isDead || other.id === snake.id) continue;
+          const d = Math.hypot(head.x - other.segments[0].x, head.y - other.segments[0].y);
+          if (d < shockRadius) {
+            this.applyDamageToSnake(other, 18, snake.id, 'pistol', false);
+            for (let k = 0; k < 4; k++) {
+              this.particles.push({
+                x: other.segments[0].x + (Math.random() - 0.5) * 16,
+                y: other.segments[0].y + (Math.random() - 0.5) * 16,
+                vx: (Math.random() - 0.5) * 4,
+                vy: (Math.random() - 0.5) * 4,
+                color: '#60a5fa',
+                size: 3,
+                life: 12,
+                maxLife: 12,
+                shape: 'lightning',
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Freeze status timer decay
+    if (snake.freezeTimer && snake.freezeTimer > 0) {
+      snake.freezeTimer -= dt;
+      if (snake.freezeTimer <= 0) {
+        snake.freezeLevel = 0;
+      }
+    }
+
+    // Poison status DoT tick
+    if (snake.poisonTimer && snake.poisonTimer > 0) {
+      snake.poisonTimer -= dt;
+      const poisonTick = (snake.poisonDamagePerSec || 18) * dt;
+      this.applyDamageToSnake(snake, poisonTick, snake.poisonAttackerId || '', 'pistol', false);
+      if (Math.random() < 0.18) {
+        this.particles.push({
+          x: head.x + (Math.random() - 0.5) * 20,
+          y: head.y + (Math.random() - 0.5) * 20,
+          vx: 0,
+          vy: -1.2,
+          color: '#84cc16',
+          size: 3,
+          life: 14,
+          maxLife: 14,
+          shape: 'acid',
+        });
+      }
+    }
+
+    // Ninja smoke escape timer decay
+    if (snake.smokeEscapeTimer && snake.smokeEscapeTimer > 0) {
+      snake.smokeEscapeTimer -= dt;
+    }
+
     // Bot AI ability auto-triggering logic
     if (!snake.isPlayer && (snake.abilityCooldownTimer || 0) <= 0) {
       // Trigger when player or enemy is close
@@ -2339,6 +3289,7 @@ export class GameEngine {
   private checkSnakeCollisions(snake: Snake) {
     if (snake.isDead) return;
     if (snake.invincibleTimer && snake.invincibleTimer > 0) return;
+    if (snake.isPhasing || (snake.archetype === 'phantom' && (snake.abilityActiveTimer || 0) > 0)) return;
 
     const head = snake.segments[0];
     const reach = 14 + 10;
@@ -2347,6 +3298,7 @@ export class GameEngine {
     for (let oIdx = 0; oIdx < this.snakes.length; oIdx++) {
       const other = this.snakes[oIdx];
       if (other.isDead || other.id === snake.id) continue;
+      if (other.isPhasing || (other.archetype === 'phantom' && (other.abilityActiveTimer || 0) > 0)) continue;
 
       // Fast AABB bounding box check - instantly reject entire snake if head is nowhere near
       if (

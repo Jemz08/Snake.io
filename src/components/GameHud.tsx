@@ -23,8 +23,10 @@ import {
   Crosshair,
   Zap,
   Sliders,
+  Activity,
 } from 'lucide-react';
 import { getSoundMuted, setSoundMuted } from '../utils/audio';
+import { useFpsDetector } from '../utils/fpsDetector';
 
 interface GameHudProps {
   player: Snake | null;
@@ -70,6 +72,7 @@ export const GameHud: React.FC<GameHudProps> = ({
   const [showHudCustomizer, setShowHudCustomizer] = useState(false);
   const [muted, setMuted] = React.useState(getSoundMuted());
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const fpsInfo = useFpsDetector();
   const [showLeaderboard, setShowLeaderboard] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth >= 1024;
@@ -148,6 +151,23 @@ export const GameHud: React.FC<GameHudProps> = ({
                 )}
               </div>
             ) : null}
+
+            {/* Real-time Device FPS & Refresh Rate Detector */}
+            <div
+              id="hud-fps-detector"
+              className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border font-cyber font-black text-[10px] sm:text-xs flex items-center gap-1.5 transition-colors ${
+                fpsInfo.currentFps >= 55
+                  ? 'bg-emerald-500/15 border-emerald-400/60 text-emerald-300'
+                  : fpsInfo.currentFps >= 30
+                  ? 'bg-amber-500/15 border-amber-400/60 text-amber-300'
+                  : 'bg-rose-500/15 border-rose-400/60 text-rose-300'
+              }`}
+              title={`Device FPS: ${fpsInfo.currentFps} | Screen Refresh: ${fpsInfo.label}`}
+            >
+              <Activity className={`w-3 h-3 ${fpsInfo.currentFps >= 55 ? 'text-emerald-400' : fpsInfo.currentFps >= 30 ? 'text-amber-400' : 'text-rose-400'}`} />
+              <span>FPS: {fpsInfo.currentFps}</span>
+              <span className="text-[9px] text-slate-400 font-mono hidden sm:inline">({fpsInfo.label})</span>
+            </div>
 
             {/* Daily Missions Toggle */}
             {onOpenMissions && (

@@ -37,12 +37,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           <Swords className="w-6 h-6 sm:w-9 sm:h-9" />
         </div>
 
-        <h2 className="font-cyber text-lg sm:text-2xl font-black text-white tracking-widest uppercase">
-          FRAME COMPROMISED
+        <h2 className="font-cyber text-lg sm:text-2xl font-black text-rose-500 tracking-widest uppercase">
+          YOU GOT KILLED.
         </h2>
-        <p className="text-[10px] sm:text-xs text-slate-400 font-cyber mb-3 sm:mb-4">
-          Your Snake² chassis was eliminated in combat
-        </p>
 
         {isHighScore && (
           <div className="w-full mb-3 py-1 px-2.5 rounded-lg bg-amber-500/20 border border-amber-400 text-amber-300 font-cyber text-[10px] sm:text-xs font-black flex items-center justify-center gap-1.5 animate-pulse">

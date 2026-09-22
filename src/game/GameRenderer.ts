@@ -1,5 +1,6 @@
 import {
   Snake,
+  SkinDef,
   FoodItem,
   LootItem,
   Projectile,
@@ -8,6 +9,7 @@ import {
   DamagePopup,
   MapObstacle,
   ShieldPowerup,
+  TrailHazard,
 } from '../types';
 import { getSkinById } from '../utils/skins';
 import { WEAPONS } from '../utils/weapons';
@@ -33,6 +35,73 @@ export class GameRenderer {
   public clear(width: number, height: number) {
     this.ctx.fillStyle = '#090d16';
     this.ctx.fillRect(0, 0, width, height);
+  }
+
+  // Draw fire, ice, and toxic hazard trails left behind by Phoenix, Frost, and Venom
+  public drawTrailHazards(hazards: TrailHazard[]) {
+    if (!hazards || hazards.length === 0) return;
+    const ctx = this.ctx;
+    const { minX, maxX, minY, maxY } = this.viewport;
+
+    for (let i = 0; i < hazards.length; i++) {
+      const h = hazards[i];
+      if (h.x < minX - 50 || h.x > maxX + 50 || h.y < minY - 50 || h.y > maxY + 50) {
+        continue;
+      }
+
+      const lifeRatio = Math.max(0, h.duration / h.maxDuration);
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.85, lifeRatio * 1.1);
+      ctx.translate(h.x, h.y);
+
+      if (h.type === 'fire') {
+        const flicker = 1 + Math.sin(Date.now() * 0.015 + h.id) * 0.15;
+        const r = h.radius * flicker;
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.35, '#f97316');
+        grad.addColorStop(0.7, 'rgba(239, 68, 68, 0.6)');
+        grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (h.type === 'ice') {
+        const r = h.radius;
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+        grad.addColorStop(0, '#e0f2fe');
+        grad.addColorStop(0.4, '#38bdf8');
+        grad.addColorStop(0.8, 'rgba(14, 165, 233, 0.4)');
+        grad.addColorStop(1, 'rgba(14, 165, 233, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#bae6fd';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = (k * Math.PI) / 3;
+          ctx.lineTo(Math.cos(a) * (r * 0.65), Math.sin(a) * (r * 0.65));
+        }
+        ctx.closePath();
+        ctx.stroke();
+      } else if (h.type === 'toxic') {
+        const r = h.radius;
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+        grad.addColorStop(0, '#d9f99d');
+        grad.addColorStop(0.4, '#84cc16');
+        grad.addColorStop(0.8, 'rgba(101, 163, 13, 0.45)');
+        grad.addColorStop(1, 'rgba(101, 163, 13, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
   }
 
   // Draw cybernetic arena grid
@@ -800,6 +869,49 @@ export class GameRenderer {
         ctx.stroke();
       } else if (p.shape === 'square') {
         ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      } else if (p.shape === 'bat') {
+        const s = p.size;
+        ctx.beginPath();
+        ctx.moveTo(0, s * 0.2);
+        ctx.quadraticCurveTo(s * 0.5, -s * 0.8, s, -s * 0.3);
+        ctx.quadraticCurveTo(s * 0.6, 0.2 * s, 0, s * 0.5);
+        ctx.quadraticCurveTo(-s * 0.6, 0.2 * s, -s, -s * 0.3);
+        ctx.quadraticCurveTo(-s * 0.5, -s * 0.8, 0, s * 0.2);
+        ctx.closePath();
+        ctx.fill();
+      } else if (p.shape === 'snowflake') {
+        const s = p.size;
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 1.5;
+        for (let a = 0; a < 3; a++) {
+          ctx.beginPath();
+          const ang = (a * Math.PI) / 3;
+          ctx.moveTo(-Math.cos(ang) * s, -Math.sin(ang) * s);
+          ctx.lineTo(Math.cos(ang) * s, Math.sin(ang) * s);
+          ctx.stroke();
+        }
+      } else if (p.shape === 'gear') {
+        const s = p.size;
+        ctx.beginPath();
+        for (let k = 0; k < 8; k++) {
+          const ang = (k * Math.PI) / 4;
+          const rInner = s * 0.65;
+          const rOuter = s;
+          ctx.lineTo(Math.cos(ang - 0.15) * rOuter, Math.sin(ang - 0.15) * rOuter);
+          ctx.lineTo(Math.cos(ang + 0.15) * rOuter, Math.sin(ang + 0.15) * rOuter);
+          ctx.lineTo(Math.cos(ang + 0.25) * rInner, Math.sin(ang + 0.25) * rInner);
+        }
+        ctx.closePath();
+        ctx.fill();
+      } else if (p.shape === 'acid') {
+        const s = p.size;
+        ctx.beginPath();
+        ctx.arc(0, 0, s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(-s * 0.3, -s * 0.3, s * 0.35, 0, Math.PI * 2);
+        ctx.fill();
       } else {
         ctx.beginPath();
         ctx.arc(0, 0, p.size, 0, Math.PI * 2);
@@ -823,6 +935,1283 @@ export class GameRenderer {
       ctx.shadowColor = isCash ? '#eab308' : '#000000';
       ctx.shadowBlur = isCash ? 12 : 5;
       ctx.fillText(dp.text, dp.x, dp.y);
+      ctx.restore();
+    }
+  }
+
+  // Controlled, non-blinding ambient aura surrounding the snake contour
+  private drawSnakeControlledAura(
+    ctx: CanvasRenderingContext2D,
+    snake: Snake,
+    skin: SkinDef,
+    archetype: string,
+    leftPoints: Array<{ x: number; y: number }>,
+    rightPoints: Array<{ x: number; y: number }>,
+    splineIndices: number[],
+    splineCount: number,
+    tailTipX: number,
+    tailTipY: number,
+    baseRadius: number
+  ) {
+    if (splineCount < 2) return;
+    const firstIdx = splineIndices[0];
+
+    // Controlled, tasteful aura color mapped to archetype / skin
+    let auraColor = skin.accentColor || skin.coreGlow || '#38bdf8';
+    if (archetype === 'phoenix') auraColor = '#f97316';
+    else if (archetype === 'frost') auraColor = '#38bdf8';
+    else if (archetype === 'venom') auraColor = '#84cc16';
+    else if (archetype === 'storm') auraColor = '#60a5fa';
+    else if (archetype === 'phantom') auraColor = '#818cf8';
+    else if (archetype === 'vampire') auraColor = '#ef4444';
+    else if (archetype === 'chrono') auraColor = '#f59e0b';
+    else if (archetype === 'ninja') auraColor = '#f43f5e';
+    else if (archetype === 'crystal') auraColor = '#22d3ee';
+    else if (archetype === 'alien') auraColor = '#10b981';
+    else if (archetype === 'angel') auraColor = '#fde047';
+    else if (archetype === 'devil') auraColor = '#f97316';
+    else if (archetype === 'blackhole') auraColor = '#c084fc';
+    else if (archetype === 'robot') auraColor = '#0ea5e9';
+    else if (archetype === 'dragon') auraColor = '#34d399';
+    else if (archetype === 'cyber') auraColor = '#06b6d4';
+
+    // Rhythmic organic breathing pulse (subtle, 0.20 - 0.28 alpha)
+    const seed = (snake.id.charCodeAt(0) || 1) + (snake.id.charCodeAt(snake.id.length - 1) || 2);
+    const breath = 0.22 + Math.sin(Date.now() * 0.0035 + seed) * 0.06;
+
+    ctx.save();
+    // Non-blinding glow: controlled shadowBlur 8px (avoids blinding bloom)
+    ctx.shadowColor = auraColor;
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = auraColor;
+    ctx.lineWidth = Math.max(3.2, baseRadius * 0.32);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.globalAlpha = breath;
+
+    ctx.beginPath();
+    ctx.moveTo(leftPoints[firstIdx].x, leftPoints[firstIdx].y);
+    for (let k = 1; k < splineCount; k++) {
+      const prev = leftPoints[splineIndices[k - 1]];
+      const cur = leftPoints[splineIndices[k]];
+      const midX = (prev.x + cur.x) * 0.5;
+      const midY = (prev.y + cur.y) * 0.5;
+      ctx.quadraticCurveTo(prev.x, prev.y, midX, midY);
+    }
+    ctx.lineTo(tailTipX, tailTipY);
+    for (let k = splineCount - 1; k >= 1; k--) {
+      const prev = rightPoints[splineIndices[k]];
+      const next = rightPoints[splineIndices[k - 1]];
+      const midX = (prev.x + next.x) * 0.5;
+      const midY = (prev.y + next.y) * 0.5;
+      ctx.quadraticCurveTo(prev.x, prev.y, midX, midY);
+    }
+    ctx.lineTo(rightPoints[firstIdx].x, rightPoints[firstIdx].y);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Crisp inner energy fringe
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 1.4;
+    ctx.globalAlpha = breath * 1.3;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Unique archetype dorsal spikes, flank blades, crystals, horns, and vents along the body
+  private drawArchetypeBodySpikes(
+    ctx: CanvasRenderingContext2D,
+    snake: Snake,
+    skin: SkinDef,
+    archetype: string,
+    segRadii: number[],
+    segAngles: number[],
+    leftPoints: Array<{ x: number; y: number }>,
+    rightPoints: Array<{ x: number; y: number }>,
+    totalSegs: number
+  ) {
+    if (totalSegs < 3) return;
+    const stride = totalSegs > 60 ? 3 : totalSegs > 25 ? 2 : 1;
+
+    for (let i = 1; i < totalSegs - 1; i += stride) {
+      const seg = snake.segments[i];
+      const r = segRadii[i];
+      const ang = segAngles[i];
+      const cos = Math.cos(ang);
+      const sin = Math.sin(ang);
+      const nx = -sin;
+      const ny = cos;
+
+      const lp = leftPoints[i];
+      const rp = rightPoints[i];
+
+      if (archetype === 'crystal') {
+        // Protruding faceted 3D diamond crystal spikes
+        const spikeLen = r * 0.75;
+        const spikeBase = r * 0.42;
+
+        const tipLX = lp.x + nx * spikeLen - cos * (spikeLen * 0.35);
+        const tipLY = lp.y + ny * spikeLen - sin * (spikeLen * 0.35);
+        const b1LX = lp.x - cos * spikeBase;
+        const b1LY = lp.y - sin * spikeBase;
+        const b2LX = lp.x + cos * spikeBase;
+        const b2LY = lp.y + sin * spikeBase;
+
+        ctx.fillStyle = '#0891b2';
+        ctx.beginPath();
+        ctx.moveTo(b1LX, b1LY);
+        ctx.lineTo(tipLX, tipLY);
+        ctx.lineTo(lp.x, lp.y);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#67e8f9';
+        ctx.beginPath();
+        ctx.moveTo(lp.x, lp.y);
+        ctx.lineTo(tipLX, tipLY);
+        ctx.lineTo(b2LX, b2LY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(lp.x, lp.y);
+        ctx.lineTo(tipLX, tipLY);
+        ctx.stroke();
+
+        const tipRX = rp.x - nx * spikeLen - cos * (spikeLen * 0.35);
+        const tipRY = rp.y - ny * spikeLen - sin * (spikeLen * 0.35);
+        const b1RX = rp.x - cos * spikeBase;
+        const b1RY = rp.y - sin * spikeBase;
+        const b2RX = rp.x + cos * spikeBase;
+        const b2RY = rp.y + sin * spikeBase;
+
+        ctx.fillStyle = '#0891b2';
+        ctx.beginPath();
+        ctx.moveTo(b1RX, b1RY);
+        ctx.lineTo(tipRX, tipRY);
+        ctx.lineTo(rp.x, rp.y);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#67e8f9';
+        ctx.beginPath();
+        ctx.moveTo(rp.x, rp.y);
+        ctx.lineTo(tipRX, tipRY);
+        ctx.lineTo(b2RX, b2RY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(rp.x, rp.y);
+        ctx.lineTo(tipRX, tipRY);
+        ctx.stroke();
+
+        // Dorsal crystal shard on spine
+        ctx.fillStyle = i % 2 === 0 ? '#22d3ee' : '#a5f3fc';
+        ctx.beginPath();
+        ctx.moveTo(seg.x - cos * (r * 0.45), seg.y - sin * (r * 0.45));
+        ctx.lineTo(seg.x + nx * (r * 0.35), seg.y + ny * (r * 0.35));
+        ctx.lineTo(seg.x + cos * (r * 0.45), seg.y + sin * (r * 0.45));
+        ctx.lineTo(seg.x - nx * (r * 0.35), seg.y - ny * (r * 0.35));
+        ctx.closePath();
+        ctx.fill();
+      } else if (archetype === 'devil') {
+        // Jagged obsidian magma spikes with molten tips
+        const spikeLen = r * 0.8;
+        const tipLX = lp.x + nx * spikeLen - cos * (spikeLen * 0.55);
+        const tipLY = lp.y + ny * spikeLen - sin * (spikeLen * 0.55);
+        const tipRX = rp.x - nx * spikeLen - cos * (spikeLen * 0.55);
+        const tipRY = rp.y - ny * spikeLen - sin * (spikeLen * 0.55);
+
+        ctx.fillStyle = '#18181b';
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1.2;
+
+        ctx.beginPath();
+        ctx.moveTo(lp.x - cos * (r * 0.35), lp.y - sin * (r * 0.35));
+        ctx.lineTo(tipLX, tipLY);
+        ctx.lineTo(lp.x + cos * (r * 0.35), lp.y + sin * (r * 0.35));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rp.x - cos * (r * 0.35), rp.y - sin * (r * 0.35));
+        ctx.lineTo(tipRX, tipRY);
+        ctx.lineTo(rp.x + cos * (r * 0.35), rp.y + sin * (r * 0.35));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Molten glowing tips
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(tipLX, tipLY, 2.2, 0, Math.PI * 2);
+        ctx.arc(tipRX, tipRY, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Dorsal spine magma crest
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.moveTo(seg.x - cos * (r * 0.5), seg.y - sin * (r * 0.5));
+        ctx.lineTo(seg.x, seg.y);
+        ctx.lineTo(seg.x - cos * (r * 0.3) + nx * 2, seg.y - sin * (r * 0.3) + ny * 2);
+        ctx.closePath();
+        ctx.fill();
+      } else if (archetype === 'frost') {
+        // Sub-zero glacial icicle spikes
+        const spikeLen = r * 0.78;
+        const tipLX = lp.x + nx * spikeLen - cos * (spikeLen * 0.6);
+        const tipLY = lp.y + ny * spikeLen - sin * (spikeLen * 0.6);
+        const tipRX = rp.x - nx * spikeLen - cos * (spikeLen * 0.6);
+        const tipRY = rp.y - ny * spikeLen - sin * (spikeLen * 0.6);
+
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.75)';
+        ctx.strokeStyle = '#e0f2fe';
+        ctx.lineWidth = 1;
+
+        ctx.beginPath();
+        ctx.moveTo(lp.x - cos * (r * 0.3), lp.y - sin * (r * 0.3));
+        ctx.lineTo(tipLX, tipLY);
+        ctx.lineTo(lp.x + cos * (r * 0.3), lp.y + sin * (r * 0.3));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rp.x - cos * (r * 0.3), rp.y - sin * (r * 0.3));
+        ctx.lineTo(tipRX, tipRY);
+        ctx.lineTo(rp.x + cos * (r * 0.3), rp.y + sin * (r * 0.3));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Ice diamond center scale
+        ctx.fillStyle = '#e0f2fe';
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.22, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (archetype === 'venom') {
+        // Toxic quills with glowing venom glands
+        const spikeLen = r * 0.72;
+        const tipLX = lp.x + nx * spikeLen - cos * (spikeLen * 0.65);
+        const tipLY = lp.y + ny * spikeLen - sin * (spikeLen * 0.65);
+        const tipRX = rp.x - nx * spikeLen - cos * (spikeLen * 0.65);
+        const tipRY = rp.y - ny * spikeLen - sin * (spikeLen * 0.65);
+
+        ctx.strokeStyle = '#4d7c0f';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(lp.x, lp.y);
+        ctx.lineTo(tipLX, tipLY);
+        ctx.moveTo(rp.x, rp.y);
+        ctx.lineTo(tipRX, tipRY);
+        ctx.stroke();
+
+        // Dripping venom gland at stinger base
+        ctx.fillStyle = '#a3e635';
+        ctx.beginPath();
+        ctx.arc(lp.x, lp.y, 2.8, 0, Math.PI * 2);
+        ctx.arc(rp.x, rp.y, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Dorsal toxic node
+        ctx.fillStyle = '#84cc16';
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (archetype === 'storm') {
+        // High-voltage Tesla conductor needles
+        const spikeLen = r * 0.75;
+        const tipLX = lp.x + nx * spikeLen - cos * (spikeLen * 0.4);
+        const tipLY = lp.y + ny * spikeLen - sin * (spikeLen * 0.4);
+        const tipRX = rp.x - nx * spikeLen - cos * (spikeLen * 0.4);
+        const tipRY = rp.y - ny * spikeLen - sin * (spikeLen * 0.4);
+
+        ctx.strokeStyle = '#60a5fa';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(lp.x, lp.y);
+        ctx.lineTo(tipLX, tipLY);
+        ctx.moveTo(rp.x, rp.y);
+        ctx.lineTo(tipRX, tipRY);
+        ctx.stroke();
+
+        // Spark cap
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(tipLX, tipLY, 2, 0, Math.PI * 2);
+        ctx.arc(tipRX, tipRY, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Dorsal lightning chevron
+        ctx.fillStyle = '#3b82f6';
+        ctx.beginPath();
+        ctx.moveTo(seg.x - cos * (r * 0.4), seg.y - sin * (r * 0.4));
+        ctx.lineTo(seg.x + nx * (r * 0.25), seg.y + ny * (r * 0.25));
+        ctx.lineTo(seg.x + cos * (r * 0.4), seg.y + sin * (r * 0.4));
+        ctx.closePath();
+        ctx.fill();
+      } else if (archetype === 'phoenix') {
+        // Solar feathered fire quills
+        const quillLen = r * 0.8;
+        const tipLX = lp.x + nx * quillLen - cos * (quillLen * 0.5);
+        const tipLY = lp.y + ny * quillLen - sin * (quillLen * 0.5);
+        const tipRX = rp.x - nx * quillLen - cos * (quillLen * 0.5);
+        const tipRY = rp.y - ny * quillLen - sin * (quillLen * 0.5);
+
+        ctx.fillStyle = '#f97316';
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(lp.x - cos * (r * 0.35), lp.y - sin * (r * 0.35));
+        ctx.quadraticCurveTo(lp.x + nx * (quillLen * 0.5), lp.y + ny * (quillLen * 0.5), tipLX, tipLY);
+        ctx.lineTo(lp.x + cos * (r * 0.2), lp.y + sin * (r * 0.2));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rp.x - cos * (r * 0.35), rp.y - sin * (r * 0.35));
+        ctx.quadraticCurveTo(rp.x - nx * (quillLen * 0.5), rp.y - ny * (quillLen * 0.5), tipRX, tipRY);
+        ctx.lineTo(rp.x + cos * (r * 0.2), rp.y + sin * (r * 0.2));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Sun ember spine node
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.24, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (archetype === 'ninja') {
+        // Razor-sharp shuriken blade fins
+        const bladeLen = r * 0.7;
+        const tipLX = lp.x + nx * bladeLen - cos * (bladeLen * 0.45);
+        const tipLY = lp.y + ny * bladeLen - sin * (bladeLen * 0.45);
+        const tipRX = rp.x - nx * bladeLen - cos * (bladeLen * 0.45);
+        const tipRY = rp.y - ny * bladeLen - sin * (bladeLen * 0.45);
+
+        ctx.fillStyle = '#18181b';
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1.2;
+
+        ctx.beginPath();
+        ctx.moveTo(lp.x - cos * (r * 0.3), lp.y - sin * (r * 0.3));
+        ctx.lineTo(tipLX, tipLY);
+        ctx.lineTo(lp.x + cos * (r * 0.3), lp.y + sin * (r * 0.3));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rp.x - cos * (r * 0.3), rp.y - sin * (r * 0.3));
+        ctx.lineTo(tipRX, tipRY);
+        ctx.lineTo(rp.x + cos * (r * 0.3), rp.y + sin * (r * 0.3));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Steel edge glint
+        ctx.strokeStyle = '#f1f5f9';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(lp.x + cos * (r * 0.3), lp.y + sin * (r * 0.3));
+        ctx.lineTo(tipLX, tipLY);
+        ctx.moveTo(rp.x + cos * (r * 0.3), rp.y + sin * (r * 0.3));
+        ctx.lineTo(tipRX, tipRY);
+        ctx.stroke();
+      } else if (archetype === 'alien') {
+        // Curved Xenomorph ribcage exoskeleton spikes
+        const ribLen = r * 0.72;
+        const tipLX = lp.x + nx * ribLen - cos * (ribLen * 0.35);
+        const tipLY = lp.y + ny * ribLen - sin * (ribLen * 0.35);
+        const tipRX = rp.x - nx * ribLen - cos * (ribLen * 0.35);
+        const tipRY = rp.y - ny * ribLen - sin * (ribLen * 0.35);
+
+        ctx.strokeStyle = '#022c22';
+        ctx.lineWidth = 1.8;
+
+        ctx.beginPath();
+        ctx.moveTo(lp.x, lp.y);
+        ctx.quadraticCurveTo(lp.x + nx * ribLen, lp.y + ny * ribLen, tipLX, tipLY);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rp.x, rp.y);
+        ctx.quadraticCurveTo(rp.x - nx * ribLen, rp.y - ny * ribLen, tipRX, tipRY);
+        ctx.stroke();
+
+        // Bio-luminescent acid vertebrae dot
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.24, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (archetype === 'chrono') {
+        // Clockwork gear teeth along flanks
+        const toothLen = r * 0.55;
+        const toothW = r * 0.32;
+        const tipLX = lp.x + nx * toothLen;
+        const tipLY = lp.y + ny * toothLen;
+        const tipRX = rp.x - nx * toothLen;
+        const tipRY = rp.y - ny * toothLen;
+
+        ctx.fillStyle = '#b45309';
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 1;
+
+        ctx.beginPath();
+        ctx.moveTo(lp.x - cos * toothW, lp.y - sin * toothW);
+        ctx.lineTo(tipLX - cos * (toothW * 0.7), tipLY - sin * (toothW * 0.7));
+        ctx.lineTo(tipLX + cos * (toothW * 0.7), tipLY + sin * (toothW * 0.7));
+        ctx.lineTo(lp.x + cos * toothW, lp.y + sin * toothW);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rp.x - cos * toothW, rp.y - sin * toothW);
+        ctx.lineTo(tipRX - cos * (toothW * 0.7), tipRY - sin * (toothW * 0.7));
+        ctx.lineTo(tipRX + cos * (toothW * 0.7), tipRY + sin * (toothW * 0.7));
+        ctx.lineTo(rp.x + cos * toothW, rp.y + sin * toothW);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Spine brass cogwheel
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.28, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (archetype === 'vampire') {
+        // Gothic gargoyle spine spikes
+        const spikeLen = r * 0.75;
+        const tipLX = lp.x + nx * spikeLen - cos * (spikeLen * 0.5);
+        const tipLY = lp.y + ny * spikeLen - sin * (spikeLen * 0.5);
+        const tipRX = rp.x - nx * spikeLen - cos * (spikeLen * 0.5);
+        const tipRY = rp.y - ny * spikeLen - sin * (spikeLen * 0.5);
+
+        ctx.fillStyle = '#450a0a';
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1.2;
+
+        ctx.beginPath();
+        ctx.moveTo(lp.x - cos * (r * 0.3), lp.y - sin * (r * 0.3));
+        ctx.lineTo(tipLX, tipLY);
+        ctx.lineTo(lp.x + cos * (r * 0.3), lp.y + sin * (r * 0.3));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rp.x - cos * (r * 0.3), rp.y - sin * (r * 0.3));
+        ctx.lineTo(tipRX, tipRY);
+        ctx.lineTo(rp.x + cos * (r * 0.3), rp.y + sin * (r * 0.3));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Blood ruby spine drop
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (archetype === 'phantom') {
+        // Ethereal phase blade ribbons
+        const ribbonLen = r * 0.7;
+        const tipLX = lp.x + nx * ribbonLen - cos * (ribbonLen * 0.4);
+        const tipLY = lp.y + ny * ribbonLen - sin * (ribbonLen * 0.4);
+        const tipRX = rp.x - nx * ribbonLen - cos * (ribbonLen * 0.4);
+        const tipRY = rp.y - ny * ribbonLen - sin * (ribbonLen * 0.4);
+
+        ctx.fillStyle = 'rgba(129, 140, 248, 0.45)';
+        ctx.strokeStyle = 'rgba(199, 210, 254, 0.6)';
+        ctx.lineWidth = 1;
+
+        ctx.beginPath();
+        ctx.moveTo(lp.x, lp.y);
+        ctx.quadraticCurveTo(lp.x + nx * ribbonLen, lp.y + ny * ribbonLen, tipLX, tipLY);
+        ctx.lineTo(lp.x - cos * (r * 0.3), lp.y - sin * (r * 0.3));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rp.x, rp.y);
+        ctx.quadraticCurveTo(rp.x - nx * ribbonLen, rp.y - ny * ribbonLen, tipRX, tipRY);
+        ctx.lineTo(rp.x - cos * (r * 0.3), rp.y - sin * (r * 0.3));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else if (archetype === 'dragon') {
+        // Draconic dorsal ridge fin & flank scales
+        const finLen = r * 0.7;
+        const tipLX = lp.x + nx * (finLen * 0.6) - cos * (finLen * 0.4);
+        const tipLY = lp.y + ny * (finLen * 0.6) - sin * (finLen * 0.4);
+        const tipRX = rp.x - nx * (finLen * 0.6) - cos * (finLen * 0.4);
+        const tipRY = rp.y - ny * (finLen * 0.6) - sin * (finLen * 0.4);
+
+        ctx.fillStyle = '#065f46';
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 1;
+
+        ctx.beginPath();
+        ctx.moveTo(lp.x - cos * (r * 0.3), lp.y - sin * (r * 0.3));
+        ctx.lineTo(tipLX, tipLY);
+        ctx.lineTo(lp.x + cos * (r * 0.2), lp.y + sin * (r * 0.2));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rp.x - cos * (r * 0.3), rp.y - sin * (r * 0.3));
+        ctx.lineTo(tipRX, tipRY);
+        ctx.lineTo(rp.x + cos * (r * 0.2), rp.y + sin * (r * 0.2));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Continuous dragon ridge spine diamond
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.28, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (archetype === 'robot') {
+        // Segmented titanium plating & blue heat exhausts
+        const plateW = r * 0.45;
+        const plateOut = r * 0.48;
+
+        ctx.fillStyle = '#334155';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.2;
+
+        ctx.beginPath();
+        ctx.rect(lp.x - plateW * 0.5, lp.y - plateW * 0.5, plateOut, plateW);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.rect(rp.x - plateOut + plateW * 0.5, rp.y - plateW * 0.5, plateOut, plateW);
+        ctx.fill();
+        ctx.stroke();
+
+        // Glowing reactor exhaust slit
+        ctx.fillStyle = '#0ea5e9';
+        ctx.fillRect(seg.x - 2, seg.y - r * 0.35, 4, r * 0.7);
+      } else if (archetype === 'angel') {
+        // Celestial feathered winglet plumes
+        const wingLen = r * 0.72;
+        const tipLX = lp.x + nx * wingLen - cos * (wingLen * 0.5);
+        const tipLY = lp.y + ny * wingLen - sin * (wingLen * 0.5);
+        const tipRX = rp.x - nx * wingLen - cos * (wingLen * 0.5);
+        const tipRY = rp.y - ny * wingLen - sin * (wingLen * 0.5);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 1.2;
+
+        ctx.beginPath();
+        ctx.moveTo(lp.x - cos * (r * 0.3), lp.y - sin * (r * 0.3));
+        ctx.quadraticCurveTo(lp.x + nx * (wingLen * 0.5), lp.y + ny * (wingLen * 0.5), tipLX, tipLY);
+        ctx.lineTo(lp.x + cos * (r * 0.2), lp.y + sin * (r * 0.2));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rp.x - cos * (r * 0.3), rp.y - sin * (r * 0.3));
+        ctx.quadraticCurveTo(rp.x - nx * (wingLen * 0.5), rp.y - ny * (wingLen * 0.5), tipRX, tipRY);
+        ctx.lineTo(rp.x + cos * (r * 0.2), rp.y + sin * (r * 0.2));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Starlight golden spine glyph
+        ctx.fillStyle = '#fef08a';
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.26, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (archetype === 'blackhole') {
+        // Gravitational dark matter spikes
+        const warpLen = r * 0.65;
+        const tipLX = lp.x + nx * warpLen - cos * (warpLen * 0.5);
+        const tipLY = lp.y + ny * warpLen - sin * (warpLen * 0.5);
+        const tipRX = rp.x - nx * warpLen - cos * (warpLen * 0.5);
+        const tipRY = rp.y - ny * warpLen - sin * (warpLen * 0.5);
+
+        ctx.fillStyle = '#030712';
+        ctx.strokeStyle = '#c084fc';
+        ctx.lineWidth = 1.2;
+
+        ctx.beginPath();
+        ctx.moveTo(lp.x - cos * (r * 0.3), lp.y - sin * (r * 0.3));
+        ctx.quadraticCurveTo(lp.x + nx * (warpLen * 0.6), lp.y + ny * (warpLen * 0.6), tipLX, tipLY);
+        ctx.lineTo(lp.x + cos * (r * 0.2), lp.y + sin * (r * 0.2));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rp.x - cos * (r * 0.3), rp.y - sin * (r * 0.3));
+        ctx.quadraticCurveTo(rp.x - nx * (warpLen * 0.6), rp.y - ny * (warpLen * 0.6), tipRX, tipRY);
+        ctx.lineTo(rp.x + cos * (r * 0.2), rp.y + sin * (r * 0.2));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Singularity core
+        ctx.fillStyle = '#030712';
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.28, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Cyber aero composite chevron fins
+        const finLen = r * 0.65;
+        const tipLX = lp.x + nx * finLen - cos * (finLen * 0.5);
+        const tipLY = lp.y + ny * finLen - sin * (finLen * 0.5);
+        const tipRX = rp.x - nx * finLen - cos * (finLen * 0.5);
+        const tipRY = rp.y - ny * finLen - sin * (finLen * 0.5);
+
+        ctx.fillStyle = '#0e7490';
+        ctx.strokeStyle = '#22d3ee';
+        ctx.lineWidth = 1.2;
+
+        ctx.beginPath();
+        ctx.moveTo(lp.x - cos * (r * 0.3), lp.y - sin * (r * 0.3));
+        ctx.lineTo(tipLX, tipLY);
+        ctx.lineTo(lp.x + cos * (r * 0.2), lp.y + sin * (r * 0.2));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rp.x - cos * (r * 0.3), rp.y - sin * (r * 0.3));
+        ctx.lineTo(tipRX, tipRY);
+        ctx.lineTo(rp.x + cos * (r * 0.2), rp.y + sin * (r * 0.2));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Neon core dot
+        ctx.fillStyle = skin.accentColor || '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r * 0.24, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Sculpted archetype-specific head crests, horns, antennae, crowns, and accessories
+  private drawArchetypeHeadCrest(
+    ctx: CanvasRenderingContext2D,
+    snake: Snake,
+    skin: SkinDef,
+    archetype: string,
+    headR: number
+  ) {
+    if (archetype === 'angel') {
+      // Divine Levitating Golden Angel Halo
+      ctx.save();
+      const haloFloat = Math.sin(Date.now() * 0.005) * 3;
+      ctx.translate(0, -headR * 1.35 + haloFloat);
+      ctx.scale(1.15, 0.42);
+
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, headR * 0.8, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, headR * 0.8 - 1, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Celestial Feathered Wings on Head/Neck
+      const wingFlap = Math.sin(Date.now() * 0.009) * 0.22;
+      ctx.save();
+      ctx.translate(-headR * 0.2, -headR * 0.85);
+      ctx.rotate(-0.5 + wingFlap);
+      ctx.fillStyle = '#f8fafc';
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(-14, -20, -6, -32);
+      ctx.quadraticCurveTo(8, -24, 12, -16);
+      ctx.quadraticCurveTo(10, -8, 0, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(-headR * 0.2, headR * 0.85);
+      ctx.rotate(0.5 - wingFlap);
+      ctx.fillStyle = '#f8fafc';
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(-14, 20, -6, 32);
+      ctx.quadraticCurveTo(8, 24, 12, 16);
+      ctx.quadraticCurveTo(10, 8, 0, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    } else if (archetype === 'devil') {
+      // Demonic Obsidian Horns & Magma Vents
+      ctx.save();
+      ctx.translate(-headR * 0.15, -headR * 0.85);
+      ctx.rotate(-0.55);
+      ctx.fillStyle = '#18181b';
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -3);
+      ctx.quadraticCurveTo(8, -14, 2, -26);
+      ctx.quadraticCurveTo(-6, -16, -4, -3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = '#f97316';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, -5);
+      ctx.lineTo(2, -22);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(-headR * 0.15, headR * 0.85);
+      ctx.rotate(0.55);
+      ctx.fillStyle = '#18181b';
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 3);
+      ctx.quadraticCurveTo(8, 14, 2, 26);
+      ctx.quadraticCurveTo(-6, 16, -4, 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = '#f97316';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, 5);
+      ctx.lineTo(2, 22);
+      ctx.stroke();
+      ctx.restore();
+
+      // Brimstone forehead crest
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath();
+      ctx.moveTo(headR * 0.3, 0);
+      ctx.lineTo(0, -6);
+      ctx.lineTo(-headR * 0.2, 0);
+      ctx.lineTo(0, 6);
+      ctx.closePath();
+      ctx.fill();
+    } else if (archetype === 'phoenix') {
+      // 3-Plume Blazing Solar Phoenix Flame Crest
+      const flicker = Math.sin(Date.now() * 0.012) * 2;
+      ctx.save();
+      // Center sweeping flame plume
+      ctx.fillStyle = '#f97316';
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.2, 0);
+      ctx.quadraticCurveTo(-headR * 0.8, -headR * 0.4 + flicker, -headR * 1.5, 0);
+      ctx.quadraticCurveTo(-headR * 0.8, headR * 0.4 - flicker, -headR * 0.2, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // White-hot core in center plume
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-headR * 0.7, 0, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Left flame plume
+      ctx.fillStyle = '#ea580c';
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.3, -headR * 0.3);
+      ctx.quadraticCurveTo(-headR * 0.9, -headR * 0.9, -headR * 1.3, -headR * 0.6 + flicker);
+      ctx.quadraticCurveTo(-headR * 0.6, -headR * 0.2, -headR * 0.3, -headR * 0.3);
+      ctx.closePath();
+      ctx.fill();
+
+      // Right flame plume
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.3, headR * 0.3);
+      ctx.quadraticCurveTo(-headR * 0.9, headR * 0.9, -headR * 1.3, headR * 0.6 - flicker);
+      ctx.quadraticCurveTo(-headR * 0.6, headR * 0.2, -headR * 0.3, headR * 0.3);
+      ctx.closePath();
+      ctx.fill();
+
+      // Raptor beak supraocular brow
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(headR * 0.8, -headR * 0.3);
+      ctx.lineTo(headR * 1.25, 0);
+      ctx.lineTo(headR * 0.8, headR * 0.3);
+      ctx.stroke();
+      ctx.restore();
+    } else if (archetype === 'frost') {
+      // Twin Jagged Glacial Icicle Horns & Frozen Diamond Brow
+      ctx.save();
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
+      ctx.strokeStyle = '#e0f2fe';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.2, -headR * 0.6);
+      ctx.lineTo(-headR * 0.9, -headR * 1.3);
+      ctx.lineTo(-headR * 0.6, -headR * 0.9);
+      ctx.lineTo(-headR * 1.2, -headR * 1.6);
+      ctx.lineTo(-headR * 0.35, -headR * 0.45);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.2, headR * 0.6);
+      ctx.lineTo(-headR * 0.9, headR * 1.3);
+      ctx.lineTo(-headR * 0.6, headR * 0.9);
+      ctx.lineTo(-headR * 1.2, headR * 1.6);
+      ctx.lineTo(-headR * 0.35, headR * 0.45);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Crystalline diamond brow gem
+      ctx.fillStyle = '#e0f2fe';
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(headR * 0.35, 0);
+      ctx.lineTo(headR * 0.1, -headR * 0.25);
+      ctx.lineTo(-headR * 0.15, 0);
+      ctx.lineTo(headR * 0.1, headR * 0.25);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    } else if (archetype === 'venom') {
+      // Flared Cobra Venom Hood Frills & Dripping Fangs
+      ctx.save();
+      ctx.fillStyle = '#3f6212';
+      ctx.strokeStyle = '#a3e635';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.4, -headR * 0.6);
+      ctx.quadraticCurveTo(-headR * 0.7, -headR * 1.2, -headR * 0.95, -headR * 0.75);
+      ctx.quadraticCurveTo(-headR * 0.75, -headR * 0.3, -headR * 0.5, 0);
+      ctx.quadraticCurveTo(-headR * 0.75, headR * 0.3, -headR * 0.95, headR * 0.75);
+      ctx.quadraticCurveTo(-headR * 0.7, headR * 1.2, -headR * 0.4, headR * 0.6);
+      ctx.stroke();
+
+      // Dual venom fangs at snout
+      ctx.fillStyle = '#86efac';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(headR * 1.15, -headR * 0.2);
+      ctx.lineTo(headR * 1.45, -headR * 0.28);
+      ctx.lineTo(headR * 1.22, -headR * 0.12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(headR * 1.15, headR * 0.2);
+      ctx.lineTo(headR * 1.45, headR * 0.28);
+      ctx.lineTo(headR * 1.22, headR * 0.12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Toxic forehead emblem
+      ctx.fillStyle = '#84cc16';
+      ctx.beginPath();
+      ctx.arc(headR * 0.1, 0, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else if (archetype === 'storm') {
+      // Dual Tesla Lightning Conductor Prongs & Electric Arc
+      ctx.save();
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = 2.5;
+
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.15, -headR * 0.7);
+      ctx.lineTo(-headR * 0.6, -headR * 1.2);
+      ctx.lineTo(-headR * 0.85, -headR * 1.1);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.15, headR * 0.7);
+      ctx.lineTo(-headR * 0.6, headR * 1.2);
+      ctx.lineTo(-headR * 0.85, headR * 1.1);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-headR * 0.85, -headR * 1.1, 3, 0, Math.PI * 2);
+      ctx.arc(-headR * 0.85, headR * 1.1, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Crackling electric arc between electrodes
+      if (Math.random() < 0.65) {
+        ctx.strokeStyle = '#93c5fd';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-headR * 0.85, -headR * 1.1);
+        const midOff = (Math.random() - 0.5) * 12;
+        ctx.lineTo(-headR * 0.95 + midOff, 0);
+        ctx.lineTo(-headR * 0.85, headR * 1.1);
+        ctx.stroke();
+      }
+
+      // Forehead lightning bolt badge
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath();
+      ctx.moveTo(headR * 0.35, -headR * 0.1);
+      ctx.lineTo(headR * 0.05, headR * 0.15);
+      ctx.lineTo(headR * 0.12, 0);
+      ctx.lineTo(-headR * 0.15, headR * 0.15);
+      ctx.lineTo(headR * 0.1, -headR * 0.15);
+      ctx.lineTo(headR * 0.05, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    } else if (archetype === 'phantom') {
+      // Ethereal Spectral Wraith Cowl Horns
+      ctx.save();
+      ctx.globalAlpha = 0.65;
+      ctx.fillStyle = '#6366f1';
+      ctx.strokeStyle = '#c7d2fe';
+      ctx.lineWidth = 1.5;
+
+      const float = Math.sin(Date.now() * 0.007) * 4;
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.2, -headR * 0.65);
+      ctx.quadraticCurveTo(-headR * 0.8, -headR * 1.2 + float, -headR * 1.4, -headR * 0.9);
+      ctx.quadraticCurveTo(-headR * 0.7, -headR * 0.3, -headR * 0.3, 0);
+      ctx.quadraticCurveTo(-headR * 0.7, headR * 0.3, -headR * 1.4, headR * 0.9);
+      ctx.quadraticCurveTo(-headR * 0.8, headR * 1.2 - float, -headR * 0.2, headR * 0.65);
+      ctx.stroke();
+
+      // Hollow void forehead wisp
+      ctx.fillStyle = '#1e1b4b';
+      ctx.beginPath();
+      ctx.ellipse(-headR * 0.1, 0, 5, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else if (archetype === 'vampire') {
+      // Gothic Bat-Wing Ear Crests & Blood Ruby Forehead Gem
+      ctx.save();
+      ctx.fillStyle = '#450a0a';
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 1.6;
+
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.2, -headR * 0.7);
+      ctx.lineTo(-headR * 0.7, -headR * 1.35);
+      ctx.quadraticCurveTo(-headR * 0.5, -headR * 1.05, -headR * 0.3, -headR * 1.15);
+      ctx.quadraticCurveTo(-headR * 0.35, -headR * 0.85, -headR * 0.1, -headR * 0.6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.2, headR * 0.7);
+      ctx.lineTo(-headR * 0.7, headR * 1.35);
+      ctx.quadraticCurveTo(-headR * 0.5, headR * 1.05, -headR * 0.3, headR * 1.15);
+      ctx.quadraticCurveTo(-headR * 0.35, headR * 0.85, -headR * 0.1, headR * 0.6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Elongated vampire fangs
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(headR * 1.1, -headR * 0.25);
+      ctx.lineTo(headR * 1.4, -headR * 0.32);
+      ctx.lineTo(headR * 1.18, -headR * 0.18);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(headR * 1.1, headR * 0.25);
+      ctx.lineTo(headR * 1.4, headR * 0.32);
+      ctx.lineTo(headR * 1.18, headR * 0.18);
+      ctx.closePath();
+      ctx.fill();
+
+      // Blood-ruby forehead gem
+      ctx.fillStyle = '#dc2626';
+      ctx.strokeStyle = '#fca5a5';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(headR * 0.25, 0);
+      ctx.lineTo(headR * 0.05, -headR * 0.2);
+      ctx.lineTo(-headR * 0.12, 0);
+      ctx.lineTo(headR * 0.05, headR * 0.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    } else if (archetype === 'chrono') {
+      // Clockwork Pendulum Dial & Rotating Cog Horns
+      ctx.save();
+      const tickAngle = (Date.now() * 0.003) % (Math.PI * 2);
+
+      ctx.fillStyle = '#78350f';
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(0, 0, headR * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(tickAngle) * (headR * 0.3), Math.sin(tickAngle) * (headR * 0.3));
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(tickAngle * 0.2) * (headR * 0.2), Math.sin(tickAngle * 0.2) * (headR * 0.2));
+      ctx.stroke();
+
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(-headR * 0.3, -headR * 0.75, headR * 0.28, 0, Math.PI * 2);
+      ctx.arc(-headR * 0.3, headR * 0.75, headR * 0.28, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    } else if (archetype === 'ninja') {
+      // Shinobi Forehead Protector Plate & Red Fluttering Scarf Streamers
+      ctx.save();
+      ctx.fillStyle = '#64748b';
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.rect(headR * 0.1, -headR * 0.35, headR * 0.28, headR * 0.7);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(headR * 0.24, 0, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      const scarfWave1 = Math.sin(Date.now() * 0.015) * 5;
+      const scarfWave2 = Math.cos(Date.now() * 0.015) * 5;
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.65, -3);
+      ctx.quadraticCurveTo(-headR * 1.1, -8 + scarfWave1, -headR * 1.6, -14 + scarfWave2);
+      ctx.lineTo(-headR * 1.5, -9 + scarfWave2);
+      ctx.quadraticCurveTo(-headR * 1.0, -4 + scarfWave1, -headR * 0.65, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.65, 0);
+      ctx.quadraticCurveTo(-headR * 1.1, 8 - scarfWave2, -headR * 1.7, 12 - scarfWave1);
+      ctx.lineTo(-headR * 1.55, 7 - scarfWave1);
+      ctx.quadraticCurveTo(-headR * 1.0, 4 - scarfWave2, -headR * 0.65, 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    } else if (archetype === 'crystal') {
+      // 5-Spike Faceted Diamond Crystal Crown
+      ctx.save();
+      const crownSpikes = [
+        { angle: -0.65, len: headR * 1.25, w: 5 },
+        { angle: -0.32, len: headR * 1.45, w: 6 },
+        { angle: 0, len: headR * 1.6, w: 7 },
+        { angle: 0.32, len: headR * 1.45, w: 6 },
+        { angle: 0.65, len: headR * 1.25, w: 5 },
+      ];
+
+      for (const sp of crownSpikes) {
+        ctx.save();
+        ctx.translate(-headR * 0.2, 0);
+        ctx.rotate(sp.angle);
+
+        ctx.fillStyle = '#0891b2';
+        ctx.beginPath();
+        ctx.moveTo(0, -sp.w);
+        ctx.lineTo(-sp.len, 0);
+        ctx.lineTo(0, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#67e8f9';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-sp.len, 0);
+        ctx.lineTo(0, sp.w);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-sp.len, 0);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+    } else if (archetype === 'alien') {
+      // Swept-Back Xenomorph Cranial Carapace & Bio-Luminescent Antennae
+      ctx.save();
+      ctx.fillStyle = '#022c22';
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.3, -headR * 0.55);
+      ctx.quadraticCurveTo(-headR * 1.1, -headR * 0.45, -headR * 1.65, 0);
+      ctx.quadraticCurveTo(-headR * 1.1, headR * 0.45, -headR * 0.3, headR * 0.55);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = '#059669';
+      ctx.lineWidth = 1.2;
+      for (let b = 1; b <= 3; b++) {
+        const bx = -headR * (0.4 + b * 0.3);
+        ctx.beginPath();
+        ctx.moveTo(bx, -headR * 0.35);
+        ctx.lineTo(bx, headR * 0.35);
+        ctx.stroke();
+      }
+
+      const antWiggle = Math.sin(Date.now() * 0.008) * 3;
+      ctx.strokeStyle = '#84cc16';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(headR * 0.3, -headR * 0.5);
+      ctx.quadraticCurveTo(headR * 0.7, -headR * 0.95 + antWiggle, headR * 1.05, -headR * 0.8);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(headR * 0.3, headR * 0.5);
+      ctx.quadraticCurveTo(headR * 0.7, headR * 0.95 - antWiggle, headR * 1.05, headR * 0.8);
+      ctx.stroke();
+
+      ctx.fillStyle = '#a3e635';
+      ctx.beginPath();
+      ctx.arc(headR * 1.05, -headR * 0.8, 3.2, 0, Math.PI * 2);
+      ctx.arc(headR * 1.05, headR * 0.8, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else if (archetype === 'blackhole') {
+      // Accretion Disk Rings & Photon Sphere
+      ctx.save();
+      const spin = (Date.now() * 0.004) % (Math.PI * 2);
+      ctx.rotate(spin);
+      ctx.strokeStyle = 'rgba(168, 85, 247, 0.85)';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath();
+      ctx.arc(0, 0, headR * 0.82, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.rotate(-spin * 2.3);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 5]);
+      ctx.beginPath();
+      ctx.arc(0, 0, headR * 0.62, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = '#030712';
+      ctx.strokeStyle = '#c084fc';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, headR * 0.44, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    } else if (archetype === 'robot') {
+      // Hydraulic Comms Antennas & Mecha Plates
+      ctx.save();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.3, -headR * 0.7);
+      ctx.lineTo(-headR * 0.7, -headR * 1.35);
+      ctx.moveTo(-headR * 0.3, headR * 0.7);
+      ctx.lineTo(-headR * 0.7, headR * 1.35);
+      ctx.stroke();
+
+      ctx.fillStyle = Math.floor(Date.now() / 250) % 2 === 0 ? '#ef4444' : '#7f1d1d';
+      ctx.beginPath();
+      ctx.arc(-headR * 0.7, -headR * 1.35, 3, 0, Math.PI * 2);
+      ctx.arc(-headR * 0.7, headR * 1.35, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Center Laser Optic Scanner
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(headR * 0.42, -headR * 0.15, 3, headR * 0.3);
+      ctx.restore();
+    } else if (archetype === 'dragon') {
+      // Draconic Crest Horns, Whiskers & Spines
+      ctx.save();
+      ctx.fillStyle = '#10b981';
+      ctx.strokeStyle = '#022c22';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.4, 0);
+      ctx.lineTo(-headR * 1.1, -14);
+      ctx.lineTo(-headR * 0.75, 0);
+      ctx.lineTo(-headR * 1.1, 14);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      const whiskerWiggle = Math.sin(Date.now() * 0.009) * 4;
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(headR * 1.1, -headR * 0.2);
+      ctx.quadraticCurveTo(headR * 1.5, -headR * 0.6 + whiskerWiggle, headR * 1.7, -headR * 0.3);
+      ctx.moveTo(headR * 1.1, headR * 0.2);
+      ctx.quadraticCurveTo(headR * 1.5, headR * 0.6 - whiskerWiggle, headR * 1.7, headR * 0.3);
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      // Cyber Tactical HUD Visor & Aero Canopy Ridge
+      ctx.save();
+      ctx.strokeStyle = skin.accentColor || '#06b6d4';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-headR * 0.4, 0);
+      ctx.lineTo(headR * 0.4, 0);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(6, 182, 212, 0.35)';
+      ctx.strokeStyle = '#22d3ee';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.rect(headR * 0.15, -headR * 0.3, headR * 0.25, headR * 0.6);
+      ctx.fill();
+      ctx.stroke();
       ctx.restore();
     }
   }
@@ -853,10 +2242,21 @@ export class GameRenderer {
     const ctx = this.ctx;
     const skin = getSkinById(snake.skinId);
     const archetype = skin.archetype || snake.archetype || 'cyber';
+    const isPhasing = !!(snake.isPhasing || (archetype === 'phantom' && (snake.abilityActiveTimer || 0) > 0));
+
+    // Phasing and bio-luminescent aura wrapper
+    ctx.save();
+    if (isPhasing) {
+      ctx.globalAlpha = 0.38;
+    }
+
     // Base segment radius (scales gracefully with score/length)
     const baseRadius = 13 + Math.min(snake.length * 0.12, 10);
     const totalSegs = snake.segments.length;
-    if (totalSegs < 2) return;
+    if (totalSegs < 2) {
+      ctx.restore();
+      return;
+    }
 
     // 0. Compute Organic Taper Radii & Tangent Normals along the Serpentine Spine
     // An actual snake has a neck constriction behind the broad viper head,
@@ -1004,6 +2404,21 @@ export class GameRenderer {
       ctx.restore();
     }
 
+    // 1.5 Balanced Controlled Ambient Aura ("Glowing but not too glowy")
+    this.drawSnakeControlledAura(
+      ctx,
+      snake,
+      skin,
+      archetype,
+      leftPoints,
+      rightPoints,
+      splineIndices,
+      splineCount,
+      tailTipX,
+      tailTipY,
+      baseRadius
+    );
+
     // 2. Continuous Organic Underbelly Ground Shadow (using optimized spline sampling)
     ctx.save();
     ctx.fillStyle = 'rgba(11, 15, 25, 0.45)';
@@ -1064,6 +2479,19 @@ export class GameRenderer {
     ctx.lineWidth = 1.8;
     ctx.stroke();
     ctx.restore();
+
+    // 3.5 Unique Archetype Body Spikes, Fins, Crystals, Horns & Dorsal Plates
+    this.drawArchetypeBodySpikes(
+      ctx,
+      snake,
+      skin,
+      archetype,
+      segRadii,
+      segAngles,
+      leftPoints,
+      rightPoints,
+      totalSegs
+    );
 
     // 4. Authentic Snake Markings & Scales along the Continuous Body
     // 4.1 Ventral Underbelly Pale Scutes / Plates
@@ -1351,215 +2779,8 @@ export class GameRenderer {
       ctx.restore();
     });
 
-    // 2.4 Archetype Specific Head Adornments (Behance Snake.io character art features)
-    if (archetype === 'angel') {
-      // 1. Divine Levitating Golden Angel Halo
-      ctx.save();
-      const haloFloat = Math.sin(Date.now() * 0.005) * 3;
-      ctx.translate(0, -headR * 1.35 + haloFloat);
-      ctx.scale(1.15, 0.42);
-
-      ctx.strokeStyle = '#facc15';
-      ctx.lineWidth = 3.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, headR * 0.8, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, headR * 0.8 - 1, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-
-      // 2. Celestial Feathered Wings on Head/Neck
-      const wingFlap = Math.sin(Date.now() * 0.009) * 0.22;
-      // Left Wing
-      ctx.save();
-      ctx.translate(-headR * 0.2, -headR * 0.85);
-      ctx.rotate(-0.5 + wingFlap);
-      ctx.fillStyle = '#f8fafc';
-      ctx.strokeStyle = '#facc15';
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(-14, -20, -6, -32);
-      ctx.quadraticCurveTo(8, -24, 12, -16);
-      ctx.quadraticCurveTo(10, -8, 0, 0);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-
-      // Right Wing
-      ctx.save();
-      ctx.translate(-headR * 0.2, headR * 0.85);
-      ctx.rotate(0.5 - wingFlap);
-      ctx.fillStyle = '#f8fafc';
-      ctx.strokeStyle = '#facc15';
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(-14, 20, -6, 32);
-      ctx.quadraticCurveTo(8, 24, 12, 16);
-      ctx.quadraticCurveTo(10, 8, 0, 0);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-    } else if (archetype === 'devil') {
-      // Demonic Obsidian Horns & Magma Vents
-      ctx.save();
-      // Left Horn
-      ctx.save();
-      ctx.translate(-headR * 0.15, -headR * 0.85);
-      ctx.rotate(-0.55);
-      ctx.fillStyle = '#18181b';
-      ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, -3);
-      ctx.quadraticCurveTo(8, -14, 2, -26);
-      ctx.quadraticCurveTo(-6, -16, -4, -3);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      // Molten magma vein
-      ctx.strokeStyle = '#f97316';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(0, -5);
-      ctx.lineTo(2, -22);
-      ctx.stroke();
-      ctx.restore();
-
-      // Right Horn
-      ctx.save();
-      ctx.translate(-headR * 0.15, headR * 0.85);
-      ctx.rotate(0.55);
-      ctx.fillStyle = '#18181b';
-      ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, 3);
-      ctx.quadraticCurveTo(8, 14, 2, 26);
-      ctx.quadraticCurveTo(-6, 16, -4, 3);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      // Molten magma vein
-      ctx.strokeStyle = '#f97316';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(0, 5);
-      ctx.lineTo(2, 22);
-      ctx.stroke();
-      ctx.restore();
-
-      // Brimstone forehead crest
-      ctx.fillStyle = '#f97316';
-      ctx.beginPath();
-      ctx.moveTo(headR * 0.3, 0);
-      ctx.lineTo(0, -6);
-      ctx.lineTo(-headR * 0.2, 0);
-      ctx.lineTo(0, 6);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    } else if (archetype === 'blackhole') {
-      // Swirling Event Horizon Singularity Vortex Core
-      ctx.save();
-      const spin = (Date.now() * 0.004) % (Math.PI * 2);
-
-      // Rotating Accretion Rings
-      ctx.save();
-      ctx.rotate(spin);
-      ctx.strokeStyle = 'rgba(168, 85, 247, 0.85)';
-      ctx.lineWidth = 2.5;
-      ctx.setLineDash([8, 6]);
-      ctx.beginPath();
-      ctx.arc(0, 0, headR * 0.82, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.rotate(-spin * 2.3);
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 5]);
-      ctx.beginPath();
-      ctx.arc(0, 0, headR * 0.62, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-
-      // Black Hole Pure Event Horizon Singularity Center
-      ctx.fillStyle = '#030712';
-      ctx.strokeStyle = '#c084fc';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 0, headR * 0.44, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Photon sphere point
-      ctx.fillStyle = '#38bdf8';
-      ctx.beginPath();
-      ctx.arc(Math.cos(spin * 3) * (headR * 0.26), Math.sin(spin * 3) * (headR * 0.26), 2.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    } else if (archetype === 'robot') {
-      // Dual Hydraulic Comms Antennas & Mecha Plates
-      ctx.save();
-      // Left antenna
-      ctx.strokeStyle = '#94a3b8';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(-headR * 0.3, -headR * 0.7);
-      ctx.lineTo(-headR * 0.7, -headR * 1.35);
-      ctx.stroke();
-      // Blinking beacon LED
-      ctx.fillStyle = (Math.floor(Date.now() / 250) % 2 === 0) ? '#ef4444' : '#7f1d1d';
-      ctx.beginPath();
-      ctx.arc(-headR * 0.7, -headR * 1.35, 3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Right antenna
-      ctx.strokeStyle = '#94a3b8';
-      ctx.beginPath();
-      ctx.moveTo(-headR * 0.3, headR * 0.7);
-      ctx.lineTo(-headR * 0.7, headR * 1.35);
-      ctx.stroke();
-      ctx.fillStyle = (Math.floor(Date.now() / 250) % 2 === 0) ? '#ef4444' : '#7f1d1d';
-      ctx.beginPath();
-      ctx.arc(-headR * 0.7, headR * 1.35, 3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Center Laser Optic Scanner
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(headR * 0.42, -headR * 0.15, 3, headR * 0.3);
-      ctx.restore();
-    } else if (archetype === 'dragon') {
-      // Draconic Crest Horns & Spines
-      ctx.save();
-      ctx.fillStyle = '#10b981';
-      ctx.strokeStyle = '#022c22';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(-headR * 0.4, 0);
-      ctx.lineTo(-headR * 0.95, -10);
-      ctx.lineTo(-headR * 0.7, 0);
-      ctx.lineTo(-headR * 0.95, 10);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-    } else {
-      // Cyber Aero Canopy Ridge
-      ctx.strokeStyle = skin.accentColor;
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.moveTo(-headR * 0.4, 0);
-      ctx.lineTo(headR * 0.3, 0);
-      ctx.stroke();
-    }
+    // 2.4 Archetype Specific Sculpted Head Adornments (Horns, Crests, Cowls, Halos, Antennae)
+    this.drawArchetypeHeadCrest(ctx, snake, skin, archetype, headR);
 
     // 3. Render Mounted Swivel Weapon Turret at the BACK of the Head!
     if (snake.weapon) {
@@ -1824,38 +3045,119 @@ export class GameRenderer {
         // Singularity Void Aura
         const rot = (Date.now() * -0.004) % (Math.PI * 2);
         ctx.strokeStyle = '#a855f7';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2.5;
         ctx.shadowColor = '#c084fc';
-        ctx.shadowBlur = 24;
-        ctx.fillStyle = 'rgba(88, 28, 135, 0.25)';
+        ctx.shadowBlur = 9;
+        ctx.fillStyle = 'rgba(88, 28, 135, 0.2)';
         ctx.beginPath();
-        ctx.arc(head.x, head.y, headR + 28, 0, Math.PI * 2);
+        ctx.arc(head.x, head.y, headR + 26, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
 
         ctx.strokeStyle = '#e9d5ff';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.arc(head.x, head.y, headR + 16, rot, rot + Math.PI);
+        ctx.arc(head.x, head.y, headR + 15, rot, rot + Math.PI);
         ctx.stroke();
       } else if (archetype === 'robot') {
         // Robot Overclock Turbine Plasma Ring
         ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2.5;
         ctx.shadowColor = '#0ea5e9';
-        ctx.shadowBlur = 20;
-        ctx.fillStyle = 'rgba(14, 165, 233, 0.2)';
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = 'rgba(14, 165, 233, 0.16)';
         ctx.beginPath();
-        ctx.arc(head.x, head.y, headR + 14, 0, Math.PI * 2);
+        ctx.arc(head.x, head.y, headR + 13, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
       } else if (archetype === 'dragon') {
         // Dragon Flame Breath Active Fiery Head Glow
         ctx.strokeStyle = '#10b981';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2.5;
         ctx.shadowColor = '#34d399';
-        ctx.shadowBlur = 18;
-        ctx.fillStyle = 'rgba(16, 185, 129, 0.22)';
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.18)';
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, headR + 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else if (archetype === 'chrono') {
+        // Chrono Time Dilation Bubble with Clock-Gear Visuals
+        const rot = (Date.now() * 0.003) % (Math.PI * 2);
+        const chronoR = 75;
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#d97706';
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = 'rgba(245, 158, 11, 0.1)';
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, chronoR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Outer rotating gear teeth
+        ctx.save();
+        ctx.translate(head.x, head.y);
+        ctx.rotate(rot);
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 1.8;
+        for (let i = 0; i < 12; i++) {
+          const a = (i * Math.PI) / 6;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * (chronoR - 8), Math.sin(a) * (chronoR - 8));
+          ctx.lineTo(Math.cos(a) * (chronoR + 6), Math.sin(a) * (chronoR + 6));
+          ctx.stroke();
+        }
+        ctx.restore();
+      } else if (archetype === 'crystal') {
+        // Crystal Prismatic Reflection Shield
+        const rot = (Date.now() * 0.004) % (Math.PI * 2);
+        const cryR = headR + 20;
+        ctx.strokeStyle = '#22d3ee';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = '#67e8f9';
+        ctx.shadowBlur = 9;
+        ctx.fillStyle = 'rgba(34, 211, 238, 0.16)';
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = rot + (i * Math.PI) / 3;
+          const x = head.x + Math.cos(a) * cryR;
+          const y = head.y + Math.sin(a) * cryR;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else if (archetype === 'vampire') {
+        // Vampire Crimson Swirl
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2.2;
+        ctx.shadowColor = '#991b1b';
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, headR + 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else if (archetype === 'storm') {
+        // Storm Electric Surge
+        ctx.strokeStyle = '#60a5fa';
+        ctx.lineWidth = 2.2;
+        ctx.shadowColor = '#3b82f6';
+        ctx.shadowBlur = 9;
+        ctx.fillStyle = 'rgba(59, 130, 246, 0.16)';
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, headR + 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else if (archetype === 'alien') {
+        // Alien Bio-Luminescent Acid Surge
+        ctx.strokeStyle = '#84cc16';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = '#4ade80';
+        ctx.shadowBlur = 9;
+        ctx.fillStyle = 'rgba(132, 204, 22, 0.18)';
         ctx.beginPath();
         ctx.arc(head.x, head.y, headR + 16, 0, Math.PI * 2);
         ctx.fill();
@@ -1891,6 +3193,9 @@ export class GameRenderer {
 
       ctx.restore();
     }
+
+    // Restore body phasing / alien glow wrapper before drawing UI elements
+    ctx.restore();
 
     // 4. Draw Floating HP Bar and Name over Snake Head
     ctx.save();

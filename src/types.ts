@@ -87,6 +87,31 @@ export interface Snake {
   decoyY?: number;
   decoyTimer?: number;
   decoyAngle?: number;
+  // New Archetype fields
+  hasRevived?: boolean; // Phoenix rebirth once per match
+  trailDropTimer?: number; // Timer for dropping fire/ice/toxic trails
+  freezeLevel?: number; // Frost stack (0 to 5)
+  freezeTimer?: number;
+  poisonTimer?: number; // Venom DoT timer
+  poisonDamagePerSec?: number;
+  poisonAttackerId?: string;
+  isPhasing?: boolean; // Phantom phase through obstacles
+  chronoBubbleActive?: boolean; // Chrono slow bubble
+  smokeEscapeTimer?: number; // Ninja smoke bomb escape invisibility
+  ninjaSlashCooldown?: number; // Ninja melee dash-slash cooldown
+  isReflecting?: boolean; // Crystal bullet reflection
+}
+
+export interface TrailHazard {
+  id: number;
+  ownerId: string;
+  x: number;
+  y: number;
+  radius: number;
+  type: 'fire' | 'ice' | 'toxic';
+  duration: number;
+  maxDuration: number;
+  color: string;
 }
 
 export interface FoodItem {
@@ -174,7 +199,7 @@ export interface ExplosionEffect {
   alpha: number;
   duration: number;
   elapsed: number;
-  style?: 'standard' | 'supernova' | 'void' | 'plasma' | 'skull' | 'cash';
+  style?: 'standard' | 'supernova' | 'void' | 'plasma' | 'skull' | 'cash' | 'bat-swarm';
 }
 
 export interface Particle {
@@ -186,7 +211,20 @@ export interface Particle {
   size: number;
   life: number;
   maxLife: number;
-  shape?: 'square' | 'circle' | 'spark' | 'skull' | 'dollar' | 'binary' | 'star' | 'lightning';
+  shape?:
+    | 'square'
+    | 'circle'
+    | 'spark'
+    | 'skull'
+    | 'dollar'
+    | 'binary'
+    | 'star'
+    | 'lightning'
+    | 'bat'
+    | 'snowflake'
+    | 'gear'
+    | 'fire-trail'
+    | 'acid';
   alpha?: number;
   text?: string;
   rotation?: number;
@@ -219,14 +257,28 @@ export type SnakeArchetype =
   | 'blackhole'
   | 'robot'
   | 'dragon'
-  | 'cyber';
+  | 'cyber'
+  | 'phoenix'
+  | 'frost'
+  | 'venom'
+  | 'storm'
+  | 'phantom'
+  | 'vampire'
+  | 'chrono'
+  | 'ninja'
+  | 'crystal'
+  | 'alien';
+
+export type SkinRarity = 'common' | 'uncommon' | 'epic' | 'legendary' | 'mythic' | 'secret';
 
 export interface SkinDef {
   id: string;
   name: string;
   archetype?: SnakeArchetype;
+  rarity?: SkinRarity;
   badge?: string;
   price: number;
+  crateExclusive?: boolean;
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
@@ -244,7 +296,19 @@ export interface SkinDef {
     | 'infernal'
     | 'cosmic_void'
     | 'mecha'
-    | 'draconic';
+    | 'draconic'
+    | 'phoenix'
+    | 'frost'
+    | 'venom'
+    | 'storm'
+    | 'phantom'
+    | 'vampire'
+    | 'chrono'
+    | 'ninja'
+    | 'crystal'
+    | 'alien'
+    | 'rainbow'
+    | 'glitch';
   headDetail:
     | 'dual-cannon'
     | 'visor'
@@ -254,7 +318,17 @@ export interface SkinDef {
     | 'devil-horns'
     | 'singularity-vortex'
     | 'mecha-visor-antennas'
-    | 'dragon-crest';
+    | 'dragon-crest'
+    | 'phoenix-crest'
+    | 'frost-horns'
+    | 'venom-fangs'
+    | 'storm-conductor'
+    | 'phantom-cowl'
+    | 'vampire-fangs'
+    | 'chrono-gear'
+    | 'ninja-mask'
+    | 'crystal-facets'
+    | 'alien-antennae';
   specialAura?: string;
   description: string;
 }
@@ -266,7 +340,8 @@ export type DeathEffectType =
   | 'void-singularity'
   | 'golden-cash-storm'
   | 'plasma-storm'
-  | 'laser-fireworks';
+  | 'laser-fireworks'
+  | 'bat-swarm';
 
 export interface DeathEffectDef {
   id: DeathEffectType;
