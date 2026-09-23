@@ -30,8 +30,8 @@ interface CrateOpeningModalProps {
 }
 
 const CRATE_PRICE = 1000;
-const REEL_CARD_WIDTH = 140; // width of each card in pixels
-const REEL_CARD_GAP = 12; // gap between cards
+const REEL_CARD_WIDTH = 118; // width of each card in pixels
+const REEL_CARD_GAP = 10; // gap between cards
 const TOTAL_CARD_STRIDE = REEL_CARD_WIDTH + REEL_CARD_GAP;
 const REEL_TOTAL_ITEMS = 50;
 const WINNER_INDEX = 40; // Winner placed at index 40 for optimal suspense
@@ -245,33 +245,33 @@ export const CrateOpeningModal: React.FC<CrateOpeningModalProps> = ({
         </div>
 
         {/* Main Crate Stage */}
-        <div className="flex-1 p-3 sm:p-6 flex flex-col justify-between overflow-y-auto space-y-4 sm:space-y-6">
+        <div className="flex-1 p-2.5 sm:p-5 flex flex-col justify-between overflow-y-auto space-y-3">
           {/* Crate Visual Presentation Box */}
-          <div className="relative rounded-2xl bg-gradient-to-b from-slate-950 to-slate-900/90 border border-slate-800 p-4 sm:p-6 overflow-hidden flex flex-col items-center justify-center min-h-[220px]">
+          <div className="relative rounded-2xl bg-gradient-to-b from-slate-950 to-slate-900/90 border border-slate-800 p-3 sm:p-5 overflow-hidden flex flex-col items-center justify-center min-h-[170px] sm:min-h-[200px]">
             {/* Ambient Background Grid & Glow */}
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-amber-500/10 via-transparent to-transparent pointer-events-none" />
 
             {/* THE HORIZONTAL ROULETTE REEL VIEWPORT */}
-            <div className="w-full relative py-4">
+            <div className="w-full relative py-2">
               {/* Center Pointer / Laser Needle Indicator (Top) */}
               <div className="absolute top-0 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex flex-col items-center">
-                <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[14px] border-t-amber-400 filter drop-shadow-[0_0_8px_rgba(251,191,36,0.9)] animate-pulse" />
-                <div className="w-0.5 h-6 bg-gradient-to-b from-amber-400 to-transparent" />
+                <div className="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[12px] border-t-amber-400 filter drop-shadow-[0_0_8px_rgba(251,191,36,0.9)] animate-pulse" />
+                <div className="w-0.5 h-4 bg-gradient-to-b from-amber-400 to-transparent" />
               </div>
 
               {/* Center Pointer / Laser Needle Indicator (Bottom) */}
               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex flex-col items-center">
-                <div className="w-0.5 h-6 bg-gradient-to-t from-amber-400 to-transparent" />
-                <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[14px] border-b-amber-400 filter drop-shadow-[0_0_8px_rgba(251,191,36,0.9)] animate-pulse" />
+                <div className="w-0.5 h-4 bg-gradient-to-t from-amber-400 to-transparent" />
+                <div className="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[12px] border-b-amber-400 filter drop-shadow-[0_0_8px_rgba(251,191,36,0.9)] animate-pulse" />
               </div>
 
               {/* Laser Center Axis Line Across Reel */}
-              <div className="absolute inset-y-2 left-1/2 -translate-x-1/2 w-0.5 bg-amber-400/30 z-20 pointer-events-none shadow-[0_0_10px_rgba(251,191,36,0.5)]" />
+              <div className="absolute inset-y-1 left-1/2 -translate-x-1/2 w-0.5 bg-amber-400/30 z-20 pointer-events-none shadow-[0_0_10px_rgba(251,191,36,0.5)]" />
 
               {/* Reel Container */}
               <div
                 ref={reelContainerRef}
-                className="w-full overflow-hidden relative rounded-xl border border-slate-700/60 bg-slate-950/80 shadow-2xl py-3"
+                className="w-full overflow-hidden relative rounded-xl border border-slate-700/60 bg-slate-950/80 shadow-2xl py-2"
               >
                 {/* Reel Track */}
                 <div
@@ -287,7 +287,7 @@ export const CrateOpeningModal: React.FC<CrateOpeningModalProps> = ({
                     return (
                       <div
                         key={`${item.id}-${idx}`}
-                        className={`shrink-0 rounded-xl p-2.5 flex flex-col items-center justify-between border-2 transition-all relative overflow-hidden ${
+                        className={`shrink-0 rounded-xl p-2 flex flex-col items-center justify-between border-2 transition-all relative overflow-hidden ${
                           config.borderColor
                         } ${config.bgColor} ${
                           isWinner && showWinReveal
@@ -296,13 +296,13 @@ export const CrateOpeningModal: React.FC<CrateOpeningModalProps> = ({
                         }`}
                         style={{
                           width: `${REEL_CARD_WIDTH}px`,
-                          height: '140px',
+                          height: '115px',
                         }}
                       >
                         {/* Rarity Pill Badge */}
                         <div className="w-full flex items-center justify-between">
                           <span
-                            className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded"
+                            className="text-[8px] font-black uppercase tracking-wider px-1 py-0.5 rounded truncate max-w-[65px]"
                             style={{
                               backgroundColor: `${config.color}25`,
                               color: config.color,
@@ -310,48 +310,39 @@ export const CrateOpeningModal: React.FC<CrateOpeningModalProps> = ({
                           >
                             {config.label}
                           </span>
-                          <span className="text-[10px] font-mono text-slate-400 uppercase">
+                          <span className="text-[9px] font-mono text-slate-400 uppercase">
                             {item.archetype}
                           </span>
                         </div>
 
                         {/* Color Swatch / Skin Thumbnail Representation */}
-                        <div className="relative my-1 flex items-center justify-center">
+                        <div className="relative my-0.5 flex items-center justify-center">
                           <div
-                            className="w-12 h-12 rounded-full border-2 flex items-center justify-center shadow-lg transition-transform"
+                            className="w-9 h-9 rounded-full border-2 flex items-center justify-center shadow-md transition-transform"
                             style={{
                               backgroundColor: item.primaryColor,
                               borderColor: item.accentColor,
-                              boxShadow: `0 0 16px ${item.coreGlow}`,
+                              boxShadow: `0 0 12px ${item.coreGlow}`,
                             }}
                           >
                             <div
-                              className="w-4 h-4 rounded-full border"
+                              className="w-3 h-3 rounded-full border"
                               style={{
                                 backgroundColor: item.secondaryColor,
                                 borderColor: item.eyeColor,
                               }}
                             />
                           </div>
-
-                          {/* Aura shimmer ring */}
-                          <div
-                            className="absolute -inset-1 rounded-full border border-dashed opacity-40 animate-spin-slow pointer-events-none"
-                            style={{ borderColor: item.accentColor }}
-                          />
                         </div>
 
                         {/* Skin Name */}
                         <div className="w-full text-center">
                           <p
-                            className="text-[11px] font-bold truncate leading-tight"
+                            className="text-[10px] font-bold truncate leading-tight"
                             style={{ color: config.color }}
                           >
                             {item.name}
                           </p>
-                          <span className="text-[9px] text-slate-400 font-mono">
-                            {item.badge}
-                          </span>
                         </div>
                       </div>
                     );
@@ -361,23 +352,23 @@ export const CrateOpeningModal: React.FC<CrateOpeningModalProps> = ({
             </div>
 
             {/* Quick Helper Text */}
-            <p className="text-xs text-slate-400 mt-2 text-center">
+            <p className="text-[11px] text-slate-400 mt-1 text-center">
               {isRolling ? (
                 <span className="text-amber-300 font-bold animate-pulse">
                   ⚡ DECELERATING REEL... LOCKING TARGET...
                 </span>
               ) : (
                 <span>
-                  Click <strong className="text-amber-300">OPEN CRATE (1,000 🪙)</strong> to start the roulette roll!
+                  Click <strong className="text-amber-300">OPEN CRATE (1,000 🪙)</strong> to roll!
                 </span>
               )}
             </p>
           </div>
 
           {/* Action Control Panel */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-800">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-2 border-t border-slate-800 shrink-0">
             {/* Options Checkbox: Fast Roll */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
               <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300 hover:text-white select-none">
                 <input
                   type="checkbox"
@@ -386,23 +377,23 @@ export const CrateOpeningModal: React.FC<CrateOpeningModalProps> = ({
                   disabled={isRolling}
                   className="rounded border-slate-700 bg-slate-800 text-amber-500 focus:ring-amber-400 w-4 h-4"
                 />
-                <span>Fast Roll (Skip Reel Animation)</span>
+                <span>Fast Roll</span>
               </label>
 
               <button
                 onClick={() => setShowCatalogModal(true)}
-                className="text-xs text-amber-400/80 hover:text-amber-300 underline font-medium"
+                className="text-xs text-amber-400/90 hover:text-amber-300 underline font-bold"
               >
-                View All 96 Skins
+                View 96 Skins
               </button>
             </div>
 
             {/* Open Crate Button */}
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 disabled={isRolling || coins < CRATE_PRICE}
                 onClick={handleStartRoll}
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-3 px-6 py-3 rounded-xl font-cyber font-black tracking-wider text-sm sm:text-base uppercase shadow-lg transition-all duration-200 ${
+                className={`w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl font-cyber font-black tracking-wider text-sm sm:text-base uppercase shadow-lg transition-all duration-200 ${
                   coins >= CRATE_PRICE
                     ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-slate-950 hover:brightness-110 hover:shadow-[0_0_25px_rgba(245,158,11,0.5)] active:scale-95'
                     : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
@@ -410,7 +401,7 @@ export const CrateOpeningModal: React.FC<CrateOpeningModalProps> = ({
               >
                 <Package className="w-5 h-5" />
                 <span>
-                  {coins >= CRATE_PRICE ? `OPEN CRATE (1,000 🪙)` : 'INSUFFICIENT COINS'}
+                  {coins >= CRATE_PRICE ? `OPEN CRATE (1,000 🪙)` : 'NEED 1,000 🪙'}
                 </span>
               </button>
             </div>
@@ -421,9 +412,9 @@ export const CrateOpeningModal: React.FC<CrateOpeningModalProps> = ({
         {/* REVEAL DIALOG POPUP WHEN WINNER IS LANDED */}
         {/* ============================================================== */}
         {showWinReveal && winnerSkin && (
-          <div className="absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 animate-in zoom-in-95 duration-200">
+          <div className="absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-in zoom-in-95 duration-200">
             <div
-              className={`relative w-full max-w-md rounded-2xl p-5 sm:p-6 border-2 shadow-2xl flex flex-col items-center text-center ${
+              className={`relative w-full max-w-md max-h-[92vh] overflow-y-auto rounded-2xl p-4 sm:p-5 border-2 shadow-2xl flex flex-col items-center text-center ${
                 RARITY_CONFIG[winnerSkin.rarity || 'common'].borderColor
               } ${RARITY_CONFIG[winnerSkin.rarity || 'common'].bgColor}`}
               style={{
@@ -433,32 +424,32 @@ export const CrateOpeningModal: React.FC<CrateOpeningModalProps> = ({
               }}
             >
               {/* Confetti & Glow Sparks */}
-              <div className="absolute -top-3 px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase border shadow-md flex items-center gap-1.5 bg-slate-950">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin-slow" />
+              <div className="absolute top-2 right-2 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase border shadow-md flex items-center gap-1 bg-slate-950">
+                <Sparkles className="w-3 h-3 text-amber-400 animate-spin-slow" />
                 <span
                   style={{
                     color: RARITY_CONFIG[winnerSkin.rarity || 'common'].color,
                   }}
                 >
-                  {RARITY_CONFIG[winnerSkin.rarity || 'common'].label} REVEALED!
+                  {RARITY_CONFIG[winnerSkin.rarity || 'common'].label}
                 </span>
               </div>
 
               {/* Slithering Snake Preview Canvas */}
-              <div className="w-full flex items-center justify-center my-2">
+              <div className="w-full flex items-center justify-center my-1.5">
                 <div className="rounded-xl overflow-hidden border border-slate-700/80 shadow-2xl bg-slate-950">
                   <SnakePreviewCanvas
                     skin={winnerSkin}
                     weaponType="ar"
-                    width={260}
-                    height={150}
+                    width={240}
+                    height={120}
                   />
                 </div>
               </div>
 
               {/* Skin Title & Archetype Badge */}
               <h3
-                className="font-cyber text-xl sm:text-2xl font-black mt-2 tracking-wide"
+                className="font-cyber text-lg sm:text-xl font-black mt-1 tracking-wide"
                 style={{
                   color: RARITY_CONFIG[winnerSkin.rarity || 'common'].color,
                 }}
@@ -466,52 +457,51 @@ export const CrateOpeningModal: React.FC<CrateOpeningModalProps> = ({
                 {winnerSkin.name}
               </h3>
 
-              <div className="flex items-center gap-2 mt-1">
-                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-900 border border-slate-700 text-slate-300 uppercase">
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 border border-slate-700 text-slate-300 uppercase">
                   {winnerSkin.archetype} ARCHETYPE
                 </span>
-                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500/20 border border-amber-400/40 text-amber-300">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 border border-amber-400/40 text-amber-300">
                   {winnerSkin.badge}
                 </span>
               </div>
 
               {/* Lore / Description */}
-              <p className="text-xs text-slate-300 mt-2 px-2 leading-relaxed">
+              <p className="text-[11px] text-slate-300 mt-1 px-2 leading-relaxed line-clamp-2">
                 {winnerSkin.description}
               </p>
 
               {/* Special Aura Readout */}
               {winnerSkin.specialAura && (
-                <div className="mt-2 text-[11px] font-semibold text-cyan-300 bg-cyan-950/60 border border-cyan-800/60 px-3 py-1 rounded-full flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-cyan-400" />
+                <div className="mt-1.5 text-[10px] font-semibold text-cyan-300 bg-cyan-950/60 border border-cyan-800/60 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
                   <span>Aura: {winnerSkin.specialAura}</span>
                 </div>
               )}
 
               {/* Duplicate Handling Note */}
               {duplicateCashback !== null ? (
-                <div className="mt-3 px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-400/50 text-amber-300 text-xs font-bold flex items-center gap-2">
-                  <Coins className="w-4 h-4 text-amber-400" />
+                <div className="mt-2 px-2.5 py-1 rounded-xl bg-amber-500/20 border border-amber-400/50 text-amber-300 text-xs font-bold flex items-center gap-1.5">
+                  <Coins className="w-3.5 h-3.5 text-amber-400" />
                   <span>
-                    DUPLICATE FOUND! Converted to +{duplicateCashback.toLocaleString()}{' '}
-                    Coins Cashback!
+                    DUPLICATE! +{duplicateCashback.toLocaleString()} Coins Cashback!
                   </span>
                 </div>
               ) : (
-                <div className="mt-3 px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-bold flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-400" />
-                  <span>★ NEW SKIN UNLOCKED IN YOUR ARMORY! ★</span>
+                <div className="mt-2 px-2.5 py-1 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-bold flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>★ NEW SKIN UNLOCKED! ★</span>
                 </div>
               )}
 
               {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-3 w-full mt-4">
+              <div className="grid grid-cols-2 gap-2 w-full mt-3">
                 <button
                   onClick={() => {
                     onEquipSkin(winnerSkin.id);
                     setShowWinReveal(false);
                   }}
-                  className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-cyber font-bold text-xs uppercase bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md transition-all active:scale-95"
+                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-cyber font-bold text-xs uppercase bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md transition-all active:scale-95"
                 >
                   <Check className="w-4 h-4" />
                   <span>
@@ -525,23 +515,23 @@ export const CrateOpeningModal: React.FC<CrateOpeningModalProps> = ({
                     setShowWinReveal(false);
                     handleStartRoll();
                   }}
-                  className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-cyber font-bold text-xs uppercase shadow-md transition-all active:scale-95 ${
+                  className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-cyber font-bold text-xs uppercase shadow-md transition-all active:scale-95 ${
                     coins >= CRATE_PRICE
                       ? 'bg-amber-500 hover:bg-amber-400 text-slate-950'
                       : 'bg-slate-800 text-slate-500 cursor-not-allowed'
                   }`}
                 >
-                  <RotateCcw className="w-4 h-4" />
-                  <span>ROLL AGAIN (1,000 🪙)</span>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>ROLL AGAIN (1k)</span>
                 </button>
               </div>
 
               {/* Dismiss button */}
               <button
                 onClick={() => setShowWinReveal(false)}
-                className="mt-3 text-xs text-slate-400 hover:text-white underline"
+                className="mt-2 text-xs text-slate-400 hover:text-white underline py-1"
               >
-                Continue Browsing
+                Close & Return
               </button>
             </div>
           </div>

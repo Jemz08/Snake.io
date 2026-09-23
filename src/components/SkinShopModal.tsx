@@ -336,12 +336,12 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
               </div>
 
               {/* Skin Inspection & Preview Panel */}
-              <div className="md:col-span-5 flex flex-col justify-between bg-slate-950/70 border border-slate-800 rounded-xl p-4">
+              <div className="md:col-span-5 flex flex-col justify-between bg-slate-950/70 border border-slate-800 rounded-xl p-3 sm:p-4">
                 <div>
-                  <div className="mb-2.5">
+                  <div className="mb-2">
                     <div className="flex items-center justify-between">
                       <h3
-                        className="font-cyber text-base sm:text-lg font-black"
+                        className="font-cyber text-sm sm:text-base font-black"
                         style={{
                           color: RARITY_CONFIG[inspectingSkin.rarity || 'common'].color,
                         }}
@@ -350,7 +350,7 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                       </h3>
                       <div className="flex items-center gap-1">
                         <span
-                          className="text-[10px] font-cyber px-2 py-0.5 rounded uppercase font-black"
+                          className="text-[9px] font-cyber px-1.5 py-0.5 rounded uppercase font-black"
                           style={{
                             backgroundColor: `${RARITY_CONFIG[inspectingSkin.rarity || 'common'].color}25`,
                             color: RARITY_CONFIG[inspectingSkin.rarity || 'common'].color,
@@ -358,14 +358,14 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                         >
                           {RARITY_CONFIG[inspectingSkin.rarity || 'common'].label}
                         </span>
-                        <span className="text-[10px] font-cyber px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 uppercase font-black">
+                        <span className="text-[9px] font-cyber px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 uppercase font-black">
                           {inspectingSkin.badge || inspectingSkin.archetype}
                         </span>
                       </div>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">{inspectingSkin.description}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-2">{inspectingSkin.description}</p>
                     {inspectingSkin.specialAura && (
-                      <p className="text-[11px] font-cyber text-amber-300 mt-1">
+                      <p className="text-[10px] font-cyber text-amber-300 mt-0.5">
                         ✨ Aura: {inspectingSkin.specialAura}
                       </p>
                     )}
@@ -376,11 +376,11 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                       const trait = ARCHETYPE_TRAITS[arch];
                       if (!trait) return null;
                       return (
-                        <div className={`mt-2 p-2 rounded-lg border text-[11px] font-cyber ${trait.color}`}>
-                          <span className="font-black block uppercase tracking-wider mb-0.5">
+                        <div className={`mt-1.5 p-1.5 rounded-lg border text-[10px] font-cyber ${trait.color}`}>
+                          <span className="font-black block uppercase tracking-wider">
                             ROLE: {trait.role}
                           </span>
-                          <span className="text-[10px] text-slate-300 leading-tight block">
+                          <span className="text-[9px] text-slate-300 leading-tight block">
                             {trait.combat}
                           </span>
                         </div>
@@ -389,17 +389,17 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                   </div>
 
                   {/* Animated 3D/Isometric Snake Preview */}
-                  <div className="my-2">
-                    <SnakePreviewCanvas skin={inspectingSkin} />
+                  <div className="my-1 flex justify-center">
+                    <SnakePreviewCanvas skin={inspectingSkin} width={240} height={120} />
                   </div>
                 </div>
 
               {/* Action Buttons */}
-              <div className="mt-3 pt-3 border-t border-slate-800/80 space-y-2">
+              <div className="mt-2 pt-2 border-t border-slate-800/80 space-y-1.5 shrink-0">
                 {isSkinEquipped ? (
                   <button
                     disabled
-                    className="w-full py-2.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-400 font-cyber font-bold text-xs tracking-wider uppercase cursor-default flex items-center justify-center gap-2"
+                    className="w-full py-2 rounded-xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-400 font-cyber font-bold text-xs tracking-wider uppercase cursor-default flex items-center justify-center gap-2"
                   >
                     <Check className="w-4 h-4" /> CURRENTLY EQUIPPED
                   </button>
@@ -413,27 +413,27 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                     EQUIP SKIN
                   </button>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <button
                       id="btn-buy-skin"
                       type="button"
                       disabled={!canAffordSkin}
                       onClick={() => onBuySkin(inspectingSkin)}
-                      className={`w-full py-2.5 rounded-xl font-cyber font-black text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
+                      className={`w-full py-2 rounded-xl font-cyber font-black text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
                         canAffordSkin
                           ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.4)] active:scale-95'
                           : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                       }`}
                     >
                       <Coins className="w-4 h-4" />
-                      <span>DIRECT UNLOCK FOR ${inspectingSkin.price} CASH</span>
+                      <span>DIRECT UNLOCK (${inspectingSkin.price} CASH)</span>
                     </button>
 
                     {onOpenCrate && (
                       <button
                         type="button"
                         onClick={onOpenCrate}
-                        className="w-full py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/50 text-amber-300 font-cyber font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all"
+                        className="w-full py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/50 text-amber-300 font-cyber font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all"
                       >
                         <Package className="w-3.5 h-3.5 text-amber-400" />
                         <span>ROLL FROM CRATE (1,000 🪙)</span>
@@ -512,30 +512,30 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
             </div>
 
             {/* Death Effect Inspection & Simulator Panel */}
-            <div className="md:col-span-5 flex flex-col justify-between bg-slate-950/70 border border-slate-800 rounded-xl p-4">
+            <div className="md:col-span-5 flex flex-col justify-between bg-slate-950/70 border border-slate-800 rounded-xl p-3 sm:p-4">
               <div>
-                <div className="mb-2.5">
+                <div className="mb-2">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-cyber text-base sm:text-lg font-black text-white">{inspectingEffect.name}</h3>
+                    <h3 className="font-cyber text-sm sm:text-base font-black text-white">{inspectingEffect.name}</h3>
                     <span className="text-[10px] font-cyber font-bold px-2 py-0.5 rounded bg-rose-950/80 text-rose-300 border border-rose-500/40 uppercase">
                       {inspectingEffect.badge}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">{inspectingEffect.description}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">{inspectingEffect.description}</p>
                 </div>
 
                 {/* Interactive Particle Simulator */}
-                <div className="my-2">
+                <div className="my-1 flex justify-center">
                   <DeathEffectPreviewCanvas effect={inspectingEffect} />
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="mt-3 pt-3 border-t border-slate-800/80">
+              <div className="mt-2 pt-2 border-t border-slate-800/80 shrink-0">
                 {isEffectEquipped ? (
                   <button
                     disabled
-                    className="w-full py-2.5 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-400 font-cyber font-bold text-xs tracking-wider uppercase cursor-default flex items-center justify-center gap-2"
+                    className="w-full py-2 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-400 font-cyber font-bold text-xs tracking-wider uppercase cursor-default flex items-center justify-center gap-2"
                   >
                     <Check className="w-4 h-4" /> CURRENTLY EQUIPPED
                   </button>
@@ -554,14 +554,14 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                     type="button"
                     disabled={!canAffordEffect}
                     onClick={() => onBuyDeathEffect(inspectingEffect)}
-                    className={`w-full py-2.5 rounded-xl font-cyber font-black text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
+                    className={`w-full py-2 rounded-xl font-cyber font-black text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
                       canAffordEffect
                         ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.4)] active:scale-95'
                         : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                     }`}
                   >
                     <Coins className="w-4 h-4" />
-                    <span>UNLOCK FOR ${inspectingEffect.price} CASH</span>
+                    <span>UNLOCK (${inspectingEffect.price} CASH)</span>
                   </button>
                 )}
               </div>

@@ -3,6 +3,7 @@ import { GameEngine } from '../game/GameEngine';
 import { GameRenderer } from '../game/GameRenderer';
 import { GameHud } from './GameHud';
 import { Snake, LootItem, KillNotification, WeaponType, MapObstacle, ShieldPowerup } from '../types';
+import { recordRenderFrame } from '../utils/fpsDetector';
 
 interface GameCanvasProps {
   engine: GameEngine;
@@ -63,6 +64,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     }
 
     const loop = (currentTime: number) => {
+      // Record frame timestamp for hardware-accurate FPS detection (supports 120Hz/144Hz)
+      recordRenderFrame(currentTime);
+
       // Delta time calculation with safety clamp to prevent physics jumps or frame skips
       const dt = lastTime > 0 ? (currentTime - lastTime) / 1000 : 0.016;
       lastTime = currentTime;
@@ -81,15 +85,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const cameraX = player && !player.isDead ? player.x : engine.worldSize / 2;
       const cameraY = player && !player.isDead ? player.y : engine.worldSize / 2;
 
+      // Mobile portrait auto-fit: slightly zoom out camera so horizontal vision is not compromised
+      const isPortrait = width < height;
+      const cameraZoom = isPortrait ? 0.86 : 1.0;
+
       // Update renderer viewport for ultra-fast frustum culling (vital for 120Hz/144Hz!)
-      renderer.setViewport(cameraX, cameraY, width, height);
+      renderer.setViewport(cameraX, cameraY, width / cameraZoom, height / cameraZoom);
 
       renderer.clear(canvas.width, canvas.height);
 
       ctx.save();
       ctx.scale(dpr, dpr);
-      // Translate camera to center on player
-      ctx.translate(width / 2 - cameraX, height / 2 - cameraY);
+      // Translate camera to center on player with auto-fit zoom
+      ctx.translate(width / 2, height / 2);
+      ctx.scale(cameraZoom, cameraZoom);
+      ctx.translate(-cameraX, -cameraY);
 
       // Draw Grid & Perimeter
       renderer.drawGrid(cameraX, cameraY, width, height, engine.worldSize);

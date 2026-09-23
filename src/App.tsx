@@ -8,6 +8,9 @@ import { LeaderboardModal } from './components/LeaderboardModal';
 import { DailyMissionsModal } from './components/DailyMissionsModal';
 import { ExportModal } from './components/ExportModal';
 import { HudCustomizerModal } from './components/HudCustomizerModal';
+import { CrateOpeningModal } from './components/CrateOpeningModal';
+import { SettingsModal } from './components/SettingsModal';
+import { getSettings, saveSettings, GameSettings } from './utils/settings';
 import { loadHudLayout, saveHudLayout } from './utils/hudLayout';
 import { PlayerProfile, SkinDef, DeathEffectDef, DeathEffectType, HudLayoutConfig } from './types';
 import { SKINS } from './utils/skins';
@@ -17,7 +20,7 @@ const STORAGE_KEY = 'snake2_armed_profile_v2';
 
 const DEFAULT_PROFILE: PlayerProfile = {
   name: 'Viper²',
-  coins: 150, // Starter cash
+  coins: 1000, // Starter cash allows immediate crate rolling test!
   highScore: 0,
   maxKills: 0,
   selectedSkinId: 'angel-seraph',
@@ -53,11 +56,14 @@ export default function App() {
   const [screen, setScreen] = useState<'lobby' | 'playing'>('lobby');
   const [isShopOpen, setIsShopOpen] = useState(false);
   const [shopTab, setShopTab] = useState<'skins' | 'death-effects'>('skins');
+  const [isCrateOpen, setIsCrateOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isMissionsOpen, setIsMissionsOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isHudCustomizerOpen, setIsHudCustomizerOpen] = useState(false);
   const [hudLayout, setHudLayout] = useState<HudLayoutConfig>(loadHudLayout);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<GameSettings>(getSettings);
   const [isLandscape, setIsLandscape] = useState(true);
   const [gameOverData, setGameOverData] = useState<{
     score: number;
@@ -66,6 +72,18 @@ export default function App() {
     length: number;
     isHighScore: boolean;
   } | null>(null);
+
+  const handleUpdateSettings = useCallback((partial: Partial<GameSettings>) => {
+    setSettings((prev) => {
+      const updated = { ...prev, ...partial };
+      saveSettings(updated);
+      return updated;
+    });
+  }, []);
+
+  const handleUpdatePlayerName = useCallback((newName: string) => {
+    setProfile((prev) => ({ ...prev, name: newName }));
+  }, []);
 
   const handleClaimMissionReward = useCallback((cash: number) => {
     setProfile((prev) => ({
@@ -195,22 +213,34 @@ export default function App() {
     [profile.coins, profile.unlockedDeathEffectIds, updateProfile]
   );
 
+  const handleDeductCoins = useCallback(
+    (amount: number): boolean => {
+      if (profile.coins < amount) return false;
+      updateProfile({ coins: profile.coins - amount });
+      return true;
+    },
+    [profile.coins, updateProfile]
+  );
+
+  const handleUnlockSkinFromCrate = useCallback(
+    (skinId: string, cashbackCoins?: number) => {
+      if (cashbackCoins) {
+        updateProfile({ coins: profile.coins + cashbackCoins });
+      } else {
+        const nextUnlocked = profile.unlockedSkinIds.includes(skinId)
+          ? profile.unlockedSkinIds
+          : [...profile.unlockedSkinIds, skinId];
+        updateProfile({ unlockedSkinIds: nextUnlocked });
+      }
+    },
+    [profile.coins, profile.unlockedSkinIds, updateProfile]
+  );
+
   return (
     <div
       id="app-root"
       className="fixed inset-0 w-full h-full h-[100dvh] w-[100dvw] overflow-hidden bg-slate-950 font-cyber text-white select-none"
     >
-      {/* Landscape Advisor Banner */}
-      {!isLandscape && (
-        <div
-          id="landscape-advisor-banner"
-          className="absolute top-2 left-1/2 -translate-x-1/2 z-50 bg-cyan-950/90 border border-cyan-400/80 px-3 py-1.5 rounded-full shadow-2xl flex items-center gap-2 text-xs font-cyber text-cyan-300 backdrop-blur-md animate-pulse pointer-events-none"
-        >
-          <Smartphone className="w-4 h-4 rotate-90 text-cyan-400" />
-          <span>Rotate to Landscape for optimal battle view</span>
-        </div>
-      )}
-
       {/* Main Screens */}
       {screen === 'lobby' && (
         <LobbyView
@@ -218,10 +248,12 @@ export default function App() {
           onUpdateProfile={updateProfile}
           onStartGame={handleStartGame}
           onOpenShop={handleOpenShop}
+          onOpenCrate={() => setIsCrateOpen(true)}
           onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
           onOpenMissions={() => setIsMissionsOpen(true)}
           onOpenExport={() => setIsExportOpen(true)}
           onOpenHudCustomizer={() => setIsHudCustomizerOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
         />
       )}
 
@@ -247,7 +279,23 @@ export default function App() {
         onBuySkin={handleBuySkin}
         onSelectDeathEffect={handleSelectDeathEffect}
         onBuyDeathEffect={handleBuyDeathEffect}
+        onOpenCrate={() => {
+          setIsShopOpen(false);
+          setIsCrateOpen(true);
+        }}
         initialTab={shopTab}
+      />
+
+      {/* Cyber Supply Crate Opening Roulette Modal */}
+      <CrateOpeningModal
+        isOpen={isCrateOpen}
+        onClose={() => setIsCrateOpen(false)}
+        coins={profile.coins}
+        unlockedSkinIds={profile.unlockedSkinIds}
+        selectedSkinId={profile.selectedSkinId}
+        onUnlockSkin={handleUnlockSkinFromCrate}
+        onEquipSkin={handleSelectSkin}
+        onDeductCoins={handleDeductCoins}
       />
 
       {/* Daily Missions Modal */}
@@ -281,6 +329,16 @@ export default function App() {
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
         profile={profile}
+      />
+
+      {/* Settings Modal (FPS, Audio Levels, Pilot Name, Mechanics) */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settings}
+        onUpdateSettings={handleUpdateSettings}
+        playerName={profile.name}
+        onUpdatePlayerName={handleUpdatePlayerName}
       />
 
       {/* Game Over Modal */}

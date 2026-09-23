@@ -1,14 +1,39 @@
 import { WeaponType, DeathEffectType } from '../types';
 
 let audioCtx: AudioContext | null = null;
+let masterGain: GainNode | null = null;
+let sfxGain: GainNode | null = null;
 let isMuted = false;
+let masterVolume = 0.8; // 0 to 1.0
+let sfxVolume = 0.8; // 0 to 1.0
 
 export function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
   if (!audioCtx) {
-    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (AudioContextClass) {
       audioCtx = new AudioContextClass();
+
+      // Master bus
+      masterGain = audioCtx.createGain();
+      masterGain.gain.setValueAtTime(isMuted ? 0 : masterVolume, audioCtx.currentTime);
+      masterGain.connect(audioCtx.destination);
+
+      // SFX bus
+      sfxGain = audioCtx.createGain();
+      sfxGain.gain.setValueAtTime(sfxVolume, audioCtx.currentTime);
+      sfxGain.connect(masterGain);
+
+      // Route all node connects destined for audioCtx.destination into sfxGain
+      const origConnect = AudioNode.prototype.connect as any;
+      (AudioNode.prototype as any).connect = function (this: AudioNode, dest: any, ...args: any[]) {
+        if (dest === audioCtx?.destination && sfxGain && this !== (masterGain as any) && this !== (sfxGain as any)) {
+          return origConnect.apply(this, [sfxGain, ...args]);
+        }
+        return origConnect.apply(this, [dest, ...args]);
+      };
     }
   }
   if (audioCtx && audioCtx.state === 'suspended') {
@@ -19,10 +44,53 @@ export function getAudioContext(): AudioContext | null {
 
 export function setSoundMuted(muted: boolean) {
   isMuted = muted;
+  if (masterGain && audioCtx) {
+    masterGain.gain.setValueAtTime(isMuted ? 0 : masterVolume, audioCtx.currentTime);
+  }
 }
 
 export function getSoundMuted(): boolean {
   return isMuted;
+}
+
+export function setMasterVolume(vol: number) {
+  masterVolume = Math.max(0, Math.min(1, vol));
+  if (masterGain && audioCtx) {
+    masterGain.gain.setValueAtTime(isMuted ? 0 : masterVolume, audioCtx.currentTime);
+  }
+}
+
+export function getMasterVolume(): number {
+  return masterVolume;
+}
+
+export function setSfxVolume(vol: number) {
+  sfxVolume = Math.max(0, Math.min(1, vol));
+  if (sfxGain && audioCtx) {
+    sfxGain.gain.setValueAtTime(sfxVolume, audioCtx.currentTime);
+  }
+}
+
+export function getSfxVolume(): number {
+  return sfxVolume;
+}
+
+export function playTestSound() {
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(587.33, now); // D5
+  osc.frequency.exponentialRampToValueAtTime(880, now + 0.12); // A5
+  gain.gain.setValueAtTime(0.2, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.25);
 }
 
 export function playShootSound(type: WeaponType) {
