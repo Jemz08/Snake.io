@@ -1,12 +1,30 @@
-import { setMasterVolume, setSfxVolume, setSoundMuted, getSoundMuted, getMasterVolume, getSfxVolume } from './audio';
+import {
+  setMasterVolume,
+  setMusicVolume,
+  setSfxVolume,
+  setSoundMuted,
+  setMusicMuted,
+  setRetroSfxMode,
+  getSoundMuted,
+  getMusicMuted,
+  getMasterVolume,
+  getMusicVolume,
+  getSfxVolume,
+  startLobbyMusic,
+  stopLobbyMusic,
+  isLobbyMusicPlaying,
+} from './audio';
 
 export type TargetFpsOption = 60 | 90 | 120 | 144 | 'unlimited';
 
 export interface GameSettings {
   targetFps: TargetFpsOption;
   masterVolume: number; // 0-100
+  musicVolume: number; // 0-100
   sfxVolume: number; // 0-100
   soundMuted: boolean;
+  musicMuted: boolean;
+  retroSfxMode: boolean;
   highPerformanceMode: boolean; // lowers DPR on high-DPI screens for smooth 120Hz/144Hz
   screenShake: boolean;
   graphicsQuality: 'performance' | 'balanced' | 'high';
@@ -17,8 +35,11 @@ const SETTINGS_KEY = 'cyber_snake_game_settings_v1';
 export const DEFAULT_SETTINGS: GameSettings = {
   targetFps: 120, // Default to 120 FPS for high-refresh devices like Dimensity 8350 Ultimate!
   masterVolume: 80,
+  musicVolume: 70,
   sfxVolume: 80,
   soundMuted: false,
+  musicMuted: false,
+  retroSfxMode: true,
   highPerformanceMode: false,
   screenShake: true,
   graphicsQuality: 'balanced',
@@ -41,8 +62,11 @@ export function loadGameSettings(): GameSettings {
 
   // Sync with audio subsystem
   setMasterVolume(currentSettings.masterVolume / 100);
+  setMusicVolume(currentSettings.musicVolume / 100);
   setSfxVolume(currentSettings.sfxVolume / 100);
   setSoundMuted(currentSettings.soundMuted);
+  setMusicMuted(currentSettings.musicMuted);
+  setRetroSfxMode(currentSettings.retroSfxMode);
 
   return currentSettings;
 }
@@ -68,11 +92,20 @@ export function saveGameSettings(settings: Partial<GameSettings>): GameSettings 
   if (settings.masterVolume !== undefined) {
     setMasterVolume(settings.masterVolume / 100);
   }
+  if (settings.musicVolume !== undefined) {
+    setMusicVolume(settings.musicVolume / 100);
+  }
   if (settings.sfxVolume !== undefined) {
     setSfxVolume(settings.sfxVolume / 100);
   }
   if (settings.soundMuted !== undefined) {
     setSoundMuted(settings.soundMuted);
+  }
+  if (settings.musicMuted !== undefined) {
+    setMusicMuted(settings.musicMuted);
+  }
+  if (settings.retroSfxMode !== undefined) {
+    setRetroSfxMode(settings.retroSfxMode);
   }
 
   // Notify listeners

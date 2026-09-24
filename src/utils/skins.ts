@@ -473,7 +473,7 @@ export const SKINS: SkinDef[] = [
     pattern: 'mecha',
     headDetail: 'mecha-visor-antennas',
     specialAura: 'High-Voltage Discharge',
-    description: 'Military-grade cybernetic warframe armed with hydraulic comms antennas and sweeping laser visor.',
+    description: 'Military-grade cybernetic CyberSnake armed with hydraulic comms antennas and sweeping laser visor.',
   },
   {
     id: 'robot-dreadnought',
@@ -508,7 +508,7 @@ export const SKINS: SkinDef[] = [
     pattern: 'glitch',
     headDetail: 'mecha-visor-antennas',
     specialAura: 'Nuclear Core Meltdown',
-    description: 'ULTRA SECRET: Experimental rogue warframe operating beyond thermal safeguards at 900% power.',
+    description: 'ULTRA SECRET: Experimental rogue CyberSnake operating beyond thermal safeguards at 900% power.',
   },
 
   // ==========================================

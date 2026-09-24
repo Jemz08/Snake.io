@@ -270,7 +270,7 @@ export const GameHud: React.FC<GameHudProps> = ({
               className="w-full flex items-center justify-between text-left"
             >
               <span className="font-cyber text-[10px] sm:text-[11px] font-black text-amber-400 flex items-center gap-1">
-                <Trophy className="w-3 h-3 text-amber-400" /> TOP SNAKES²
+                <Trophy className="w-3 h-3 text-amber-400" /> TOP CYBER SNAKES
               </span>
               <span className="text-slate-400 flex items-center text-[10px] font-cyber">
                 {showLeaderboard ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}

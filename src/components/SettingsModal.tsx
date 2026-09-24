@@ -15,9 +15,20 @@ import {
   Check,
   Smartphone,
   Cpu,
+  Music,
+  Radio,
 } from 'lucide-react';
 import { GameSettings, TargetFpsOption, saveGameSettings } from '../utils/settings';
-import { playTestSound } from '../utils/audio';
+import {
+  playTestSound,
+  startLobbyMusic,
+  stopLobbyMusic,
+  isLobbyMusicPlaying,
+  playRetroCoinSound,
+  playRetroLaserSound,
+  playRetroPowerupSound,
+  playRetroVictoryFanfare,
+} from '../utils/audio';
 import { FpsInfo, useFpsDetector } from '../utils/fpsDetector';
 
 interface SettingsModalProps {
@@ -238,9 +249,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: SOUND LEVELS */}
+          {/* TAB 2: SOUND LEVELS & MUSIC */}
           {activeTab === 'audio' && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {/* Mute Toggle */}
               <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -249,7 +260,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <div>
                     <span className="font-bold text-sm text-white block">Mute All Audio</span>
-                    <span className="text-xs text-slate-400">Silences weapons, explosions, ability chimes, and crate roulette</span>
+                    <span className="text-xs text-slate-400">Silences weapons, explosions, music, and crate roulette</span>
                   </div>
                 </div>
                 <button
@@ -268,7 +279,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Master Volume Slider */}
-              <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-2">
+              <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 space-y-1.5">
                 <div className="flex items-center justify-between text-xs font-black">
                   <span className="text-slate-300 uppercase">MASTER VOLUME</span>
                   <span className="text-cyan-400 font-mono text-sm">{settings.masterVolume}%</span>
@@ -284,8 +295,80 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
               </div>
 
-              {/* SFX Volume Slider */}
-              <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-2">
+              {/* LOBBY MUSIC SECTION */}
+              <div className="bg-slate-950/60 border border-cyan-500/20 rounded-xl p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400">
+                      <Music className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-sm text-cyan-300 block">Lobby Chiptune Music</span>
+                      <span className="text-[11px] text-slate-400">Retro 8-bit / 16-bit cyber arcade lobby soundtrack</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newMuted = !settings.musicMuted;
+                      onUpdateSettings({ musicMuted: newMuted });
+                      if (newMuted) {
+                        stopLobbyMusic(0.2);
+                      } else {
+                        startLobbyMusic();
+                      }
+                    }}
+                    className={`w-12 h-6 rounded-full transition-colors relative shrink-0 ${
+                      !settings.musicMuted ? 'bg-cyan-500' : 'bg-slate-700'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full bg-white transition-transform absolute top-0.5 left-0.5 ${
+                        !settings.musicMuted ? 'translate-x-6' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Music Volume */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs font-black">
+                    <span className="text-slate-400 uppercase text-[11px]">MUSIC VOLUME</span>
+                    <span className="text-cyan-400 font-mono text-xs">{settings.musicVolume ?? 70}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={settings.musicVolume ?? 70}
+                    onChange={(e) => onUpdateSettings({ musicVolume: Number(e.target.value) })}
+                    className="w-full accent-cyan-400 h-2 bg-slate-800 rounded-lg cursor-pointer"
+                    disabled={settings.soundMuted || settings.musicMuted}
+                  />
+                </div>
+
+                {/* Music Action button */}
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[11px] text-slate-400">Plays automatically in the war room</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isLobbyMusicPlaying()) {
+                        stopLobbyMusic(0.2);
+                      } else {
+                        startLobbyMusic();
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-bold flex items-center gap-1.5 transition-all"
+                  >
+                    <Music className="w-3.5 h-3.5" />
+                    {isLobbyMusicPlaying() ? 'PAUSE BGM' : 'PLAY BGM'}
+                  </button>
+                </div>
+              </div>
+
+              {/* SFX & WEAPONS VOLUME */}
+              <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 space-y-1.5">
                 <div className="flex items-center justify-between text-xs font-black">
                   <span className="text-slate-300 uppercase">SFX & WEAPONS VOLUME</span>
                   <span className="text-cyan-400 font-mono text-sm">{settings.sfxVolume}%</span>
@@ -301,16 +384,66 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
               </div>
 
-              {/* Test Audio Button */}
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={playTestSound}
-                  className="px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400 text-cyan-300 text-xs font-bold flex items-center gap-2 transition-all active:scale-95"
-                >
-                  <Volume2 className="w-4 h-4 text-cyan-400" />
-                  TEST SOUND LEVEL
-                </button>
+              {/* RETRO 8-BIT SOUND EFFECTS MODE */}
+              <div className="bg-slate-950/60 border border-amber-500/20 rounded-xl p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-sm text-amber-300 block flex items-center gap-1.5">
+                      <span>👾 Retro Game Sound Effects</span>
+                    </span>
+                    <span className="text-[11px] text-slate-400 block">
+                      Authentic Pixabay/arcade-style 8-bit audio: dual-chime coins, laser blaster, powerups, roulette ticks
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateSettings({ retroSfxMode: !settings.retroSfxMode })}
+                    className={`w-12 h-6 rounded-full transition-colors relative shrink-0 ml-3 ${
+                      settings.retroSfxMode ? 'bg-amber-500' : 'bg-slate-700'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full bg-white transition-transform absolute top-0.5 left-0.5 ${
+                        settings.retroSfxMode ? 'translate-x-6' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Test Sound Effect Samples */}
+                <div className="pt-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1.5">Test Retro Sound Effects</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={playRetroCoinSound}
+                      className="px-2 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center justify-center gap-1 transition-all active:scale-95"
+                    >
+                      🪙 Coin Pickup
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => playRetroLaserSound('ar')}
+                      className="px-2 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-semibold flex items-center justify-center gap-1 transition-all active:scale-95"
+                    >
+                      ⚡ 8-Bit Laser
+                    </button>
+                    <button
+                      type="button"
+                      onClick={playRetroPowerupSound}
+                      className="px-2 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1 transition-all active:scale-95"
+                    >
+                      🌟 Powerup Arp
+                    </button>
+                    <button
+                      type="button"
+                      onClick={playRetroVictoryFanfare}
+                      className="px-2 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-semibold flex items-center justify-center gap-1 transition-all active:scale-95"
+                    >
+                      🏆 Victory Fanfare
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -411,13 +544,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </p>
               </div>
 
-              {/* 4. Warframe Archetypes & Abilities */}
+              {/* 4. CyberSnake Archetypes & Abilities */}
               <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-1.5">
                 <h3 className="text-sm font-black text-purple-400 uppercase flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" /> 4. 16 SNAKE WARFRAME ARCHETYPES
+                  <Sparkles className="w-4 h-4" /> 4. 16 CYBER SNAKE ARCHETYPES
                 </h3>
                 <p className="text-slate-300 leading-relaxed">
-                  Every snake type features unique active and passive abilities:
+                  Every cyber snake features unique active and passive abilities:
                   <strong> Angel</strong> (Divine Shield), <strong>Devil</strong> (Hellfire ring), <strong>Void</strong> (Gravity vortex), 
                   <strong> Robot</strong> (Defense barrier), <strong>Dragon</strong> (Inferno blast), <strong>Cyber</strong> (EMP overload), 
                   <strong> Phoenix</strong> (Fire trail revival), <strong>Frost</strong> (Freeze aura), <strong>Venom</strong> (Acid spray), 

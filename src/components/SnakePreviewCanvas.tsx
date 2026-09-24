@@ -109,9 +109,15 @@ export const SnakePreviewCanvas: React.FC<SnakePreviewCanvasProps> = ({
   }, [skin, weaponType, width, height]);
 
   return (
-    <div className="relative rounded-xl overflow-hidden border border-slate-700/80 shadow-inner">
-      <canvas ref={canvasRef} width={width} height={height} className="block w-full h-full" />
-      <div className="absolute bottom-2 right-2.5 bg-slate-900/80 px-2 py-0.5 rounded text-[10px] font-cyber font-bold text-cyan-400 border border-cyan-500/30">
+    <div className="relative rounded-xl overflow-hidden border border-slate-700/80 shadow-inner max-w-full w-full flex items-center justify-center">
+      <canvas
+        ref={canvasRef}
+        width={width}
+        height={height}
+        className="block max-w-full h-auto"
+        style={{ aspectRatio: `${width}/${height}`, maxHeight: `${height}px` }}
+      />
+      <div className="absolute bottom-2 right-2.5 bg-slate-900/80 px-2 py-0.5 rounded text-[10px] font-cyber font-bold text-cyan-400 border border-cyan-500/30 backdrop-blur-sm pointer-events-none">
         PREVIEW
       </div>
     </div>

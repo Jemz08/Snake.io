@@ -14,6 +14,8 @@ import { getSettings, saveSettings, GameSettings } from './utils/settings';
 import { loadHudLayout, saveHudLayout } from './utils/hudLayout';
 import { PlayerProfile, SkinDef, DeathEffectDef, DeathEffectType, HudLayoutConfig } from './types';
 import { SKINS } from './utils/skins';
+import { normalizeDeathEffectId } from './utils/deathEffects';
+import { startLobbyMusic, stopLobbyMusic, playRetroGameOverSound } from './utils/audio';
 import { Smartphone } from 'lucide-react';
 
 const STORAGE_KEY = 'snake2_armed_profile_v2';
@@ -25,8 +27,8 @@ const DEFAULT_PROFILE: PlayerProfile = {
   maxKills: 0,
   selectedSkinId: 'angel-seraph',
   unlockedSkinIds: ['angel-seraph', 'devil-infernal', 'blackhole-void', 'robot-titan', 'cyber-viper'],
-  selectedDeathEffectId: 'cyber-matrix',
-  unlockedDeathEffectIds: ['cyber-matrix'],
+  selectedDeathEffectId: 'retro-pixel-kaboom',
+  unlockedDeathEffectIds: ['retro-pixel-kaboom'],
 };
 
 export default function App() {
@@ -39,12 +41,23 @@ export default function App() {
         const existingUnlocked = Array.isArray(parsed.unlockedSkinIds) ? parsed.unlockedSkinIds : ['cyber-viper'];
         const mergedSkins = Array.from(new Set([...starterSkins, ...existingUnlocked]));
 
+        // Normalize death effects for backwards compatibility
+        const normSelected = normalizeDeathEffectId(parsed.selectedDeathEffectId);
+        const normUnlocked = Array.from(
+          new Set([
+            'retro-pixel-kaboom' as DeathEffectType,
+            ...(Array.isArray(parsed.unlockedDeathEffectIds)
+              ? parsed.unlockedDeathEffectIds.map((id: string) => normalizeDeathEffectId(id))
+              : []),
+          ])
+        );
+
         return {
           ...DEFAULT_PROFILE,
           ...parsed,
           unlockedSkinIds: mergedSkins,
-          selectedDeathEffectId: parsed.selectedDeathEffectId || 'cyber-matrix',
-          unlockedDeathEffectIds: parsed.unlockedDeathEffectIds || ['cyber-matrix'],
+          selectedDeathEffectId: normSelected,
+          unlockedDeathEffectIds: normUnlocked,
         };
       }
     } catch {
@@ -126,6 +139,8 @@ export default function App() {
     engine.onPlayerDeath = (stats) => {
       const isHighScore = stats.score > profile.highScore;
 
+      playRetroGameOverSound();
+
       setProfile((prev) => ({
         ...prev,
         coins: prev.coins + stats.coins,
@@ -148,6 +163,7 @@ export default function App() {
   }, []);
 
   const handleStartGame = useCallback(() => {
+    stopLobbyMusic(0.3);
     setGameOverData(null);
     engine.start(
       profile.name,
@@ -158,6 +174,7 @@ export default function App() {
   }, [engine, profile.name, profile.selectedSkinId, profile.selectedDeathEffectId]);
 
   const handlePlayAgain = useCallback(() => {
+    stopLobbyMusic(0.3);
     handleStartGame();
   }, [handleStartGame]);
 
@@ -165,6 +182,7 @@ export default function App() {
     engine.stop();
     setGameOverData(null);
     setScreen('lobby');
+    startLobbyMusic();
   }, [engine]);
 
   const handleOpenShop = useCallback((tab: 'skins' | 'death-effects' = 'skins') => {

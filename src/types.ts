@@ -199,7 +199,24 @@ export interface ExplosionEffect {
   alpha: number;
   duration: number;
   elapsed: number;
-  style?: 'standard' | 'supernova' | 'void' | 'plasma' | 'skull' | 'cash' | 'bat-swarm';
+  style?:
+    | 'standard'
+    | 'supernova'
+    | 'void'
+    | 'plasma'
+    | 'skull'
+    | 'cash'
+    | 'bat-swarm'
+    | 'retro-pixel-puff'
+    | 'retro-crt-glitch'
+    | 'retro-comic-pow'
+    | 'retro-arcade-ghost'
+    | 'retro-coin-shower'
+    | 'retro-pixel-skull'
+    | 'retro-synth-vector'
+    | 'retro-voxel-shatter'
+    | 'retro-slime-splat'
+    | 'retro-black-hole';
 }
 
 export interface Particle {
@@ -224,11 +241,21 @@ export interface Particle {
     | 'snowflake'
     | 'gear'
     | 'fire-trail'
-    | 'acid';
+    | 'acid'
+    | 'retro-coin'
+    | 'retro-ghost'
+    | 'retro-voxel'
+    | 'retro-slime'
+    | 'retro-vector'
+    | 'retro-comic'
+    | 'retro-glitch-bar'
+    | 'retro-skull'
+    | 'retro-flame-pixel';
   alpha?: number;
   text?: string;
   rotation?: number;
   vRot?: number;
+  secondaryColor?: string;
 }
 
 export interface DamagePopup {
@@ -334,6 +361,16 @@ export interface SkinDef {
 }
 
 export type DeathEffectType =
+  | 'retro-pixel-kaboom'
+  | 'retro-crt-glitch'
+  | 'retro-comic-boom'
+  | 'retro-arcade-ghost'
+  | 'retro-coin-jackpot'
+  | 'retro-pixel-skull'
+  | 'retro-synth-vector'
+  | 'retro-voxel-shatter'
+  | 'retro-slime-splat'
+  | 'retro-black-hole'
   | 'cyber-matrix'
   | 'nuclear-supernova'
   | 'neon-skull'
@@ -353,6 +390,7 @@ export interface DeathEffectDef {
   secondaryColor: string;
   icon: string;
   particleCount: number;
+  style?: string;
 }
 
 export interface PlayerProfile {

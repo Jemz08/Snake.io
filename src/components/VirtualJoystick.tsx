@@ -169,17 +169,6 @@ export const VirtualJoystick: React.FC<VirtualJoystickProps> = ({
             </div>
           </div>
         )}
-
-        {/* Subtle resting guide hint when inactive */}
-        {!active && (
-          <div
-            className="pointer-events-none select-none flex items-center gap-1 text-[10px] font-cyber text-cyan-400/50 uppercase tracking-widest pl-3 pb-2"
-            style={{ opacity: 0.7 }}
-          >
-            <span className="w-2 h-2 rounded-full border border-cyan-400/60 animate-ping inline-block mr-1" />
-            FLOATING JOYSTICK ACTIVE (TOUCH ANYWHERE ON LEFT)
-          </div>
-        )}
       </>
     );
   }

@@ -87,70 +87,72 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
     >
       <div className="relative w-full max-w-4xl bg-slate-900/95 border-2 border-cyan-500/40 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.25)] flex flex-col max-h-[96vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3.5 border-b border-slate-800 bg-slate-950/70">
+        <div className="flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3.5 border-b border-slate-800 bg-slate-950/80 shrink-0">
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-cyan-400 shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-cyan-400 shrink-0 shadow-sm">
               <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <h2 className="font-cyber text-base sm:text-lg font-black text-white tracking-wider uppercase">
+              <h2 className="font-cyber text-sm sm:text-lg font-black text-white tracking-wider uppercase">
                 CYBER ARMORY & EFFECTS
               </h2>
               <p className="text-[10px] sm:text-xs text-slate-400 hidden sm:block">
-                Equip skins, open supply crates, and unlock lethal death effects
+                Equip skins, roll supply crates, and test retro death effects
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Open Crate Quick Action */}
             {onOpenCrate && (
               <button
                 type="button"
                 onClick={onOpenCrate}
-                className="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400 px-3 py-1.5 rounded-xl text-amber-300 font-cyber font-black text-xs transition-all shadow-[0_0_12px_rgba(245,158,11,0.3)] animate-pulse"
+                className="hidden sm:flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/35 hover:to-yellow-500/35 border border-amber-400 px-3 py-1.5 rounded-xl text-amber-300 font-cyber font-black text-xs transition-all shadow-[0_0_12px_rgba(245,158,11,0.3)]"
               >
                 <Package className="w-4 h-4 text-amber-400" />
-                <span>ROLL CRATE (1,000 🪙)</span>
+                <span>ROLL CRATE (1k 🪙)</span>
               </button>
             )}
 
             {/* Cash / Coins indicator */}
-            <div className="flex items-center gap-1.5 sm:gap-2 bg-amber-500/15 border border-amber-500/50 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl text-amber-400 font-cyber font-bold shadow-[0_0_12px_rgba(245,158,11,0.2)]">
+            <div className="flex items-center gap-1.5 sm:gap-2 bg-amber-500/15 border border-amber-500/50 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl text-amber-400 font-cyber font-bold shadow-[0_0_12px_rgba(245,158,11,0.2)] shrink-0">
               <Coins className="w-4 h-4 animate-pulse text-amber-300" />
-              <span className="text-xs sm:text-sm tracking-wide font-black">${coins.toLocaleString()} CASH</span>
+              <span className="text-xs sm:text-sm tracking-wide font-black">${coins.toLocaleString()}</span>
             </div>
 
+            {/* Generous touch target Close Button */}
             <button
               id="btn-close-shop"
               type="button"
               onClick={onClose}
-              className="p-1 sm:p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+              className="p-1.5 sm:p-2 w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-800 hover:bg-rose-500 text-slate-300 hover:text-white border border-slate-700 hover:border-rose-400 transition-all flex items-center justify-center shrink-0 shadow-md active:scale-95"
+              title="Close Armory"
             >
-              <X className="w-5 h-5 sm:w-6 sm:h-6" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center gap-2 px-3 sm:px-6 py-2 border-b border-slate-800 bg-slate-900/60">
+        <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 border-b border-slate-800 bg-slate-900/60 shrink-0 overflow-x-auto scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveTab('skins')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-cyber text-xs sm:text-sm font-bold uppercase transition-all ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl font-cyber text-xs sm:text-sm font-bold uppercase transition-all shrink-0 ${
               activeTab === 'skins'
                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
-            <span>SNAKE² SKINS ({unlockedSkinIds.length}/{SKINS.length})</span>
+            <span>CYBER SKINS ({unlockedSkinIds.length}/{SKINS.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('death-effects')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-cyber text-xs sm:text-sm font-bold uppercase transition-all ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl font-cyber text-xs sm:text-sm font-bold uppercase transition-all shrink-0 ${
               activeTab === 'death-effects'
                 ? 'bg-rose-500/20 text-rose-300 border border-rose-400/60 shadow-[0_0_12px_rgba(244,63,94,0.3)]'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
@@ -164,7 +166,7 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
             <button
               type="button"
               onClick={onOpenCrate}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-cyber text-xs sm:text-sm font-bold uppercase transition-all text-amber-300 hover:bg-amber-500/20 border border-amber-500/40 bg-amber-500/10 ml-auto"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl font-cyber text-xs sm:text-sm font-bold uppercase transition-all text-amber-300 hover:bg-amber-500/25 border border-amber-500/50 bg-amber-500/10 ml-auto shrink-0"
             >
               <Package className="w-3.5 h-3.5 text-amber-400" />
               <span>SUPPLY CRATE</span>
@@ -177,8 +179,11 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
           <div className="flex-1 flex flex-col p-3 sm:p-5 overflow-hidden">
             {/* Archetype Quick Filter Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
+              <span className="text-[10px] text-cyan-400 font-bold uppercase shrink-0 font-cyber">
+                SNAKES:
+              </span>
               {[
-                { id: 'all', label: 'All Warframes', icon: '⚡' },
+                { id: 'all', label: 'All CyberSnakes', icon: '⚡' },
                 { id: 'angel', label: 'Angel', icon: '🪽' },
                 { id: 'devil', label: 'Devil', icon: '😈' },
                 { id: 'blackhole', label: 'Blackhole', icon: '🌌' },
@@ -214,7 +219,7 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
 
             {/* Rarity Quick Filter Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-2.5 mb-1 scrollbar-none border-b border-slate-800">
-              <span className="text-[10px] text-slate-400 font-bold uppercase shrink-0">
+              <span className="text-[10px] text-slate-400 font-bold uppercase shrink-0 font-cyber">
                 TIER:
               </span>
               {[
@@ -246,8 +251,8 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
             </div>
 
             <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-6 overflow-y-auto">
-              {/* Skins Grid List */}
-              <div className="md:col-span-7 grid grid-cols-2 gap-2.5 max-h-[48vh] md:max-h-none overflow-y-auto pr-1">
+              {/* Skins Grid List - Responsive & Collision-Free */}
+              <div className="md:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 max-h-[46vh] md:max-h-[58vh] overflow-y-auto pr-1">
                 {filteredSkins.map((skin) => {
                   const unlocked = unlockedSkinIds.includes(skin.id);
                   const isCurrent = inspectingSkinId === skin.id;
@@ -261,7 +266,7 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                       id={`skin-item-${skin.id}`}
                       type="button"
                       onClick={() => setInspectingSkinId(skin.id)}
-                      className={`relative p-2.5 sm:p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                      className={`relative p-2.5 sm:p-3 rounded-xl border text-left flex flex-col justify-between transition-all min-w-0 ${
                         isCurrent
                           ? 'bg-cyan-950/60 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.4)] ring-1 ring-cyan-400'
                           : 'bg-slate-800/60 border-slate-700/80 hover:border-slate-500 hover:bg-slate-800'
@@ -270,9 +275,9 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                         borderColor: isCurrent ? undefined : `${rConfig.color}40`,
                       }}
                     >
-                      <div className="flex items-center justify-between mb-1.5 gap-1">
+                      <div className="flex items-start justify-between mb-1 gap-1.5">
                         <span
-                          className="font-cyber text-xs sm:text-sm font-bold truncate"
+                          className="font-cyber text-xs sm:text-sm font-bold truncate flex-1 min-w-0"
                           style={{ color: isCurrent ? '#38bdf8' : rConfig.color }}
                         >
                           {skin.name}
@@ -282,20 +287,20 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                             EQUIPPED
                           </span>
                         ) : unlocked ? (
-                          <span className="text-emerald-400 text-[10px] flex items-center gap-0.5 font-cyber shrink-0">
+                          <span className="text-emerald-400 text-[10px] flex items-center gap-0.5 font-cyber shrink-0 font-bold">
                             <Check className="w-3 h-3" /> OWNED
                           </span>
                         ) : (
                           <span className="text-amber-400 text-[10px] flex items-center gap-0.5 font-cyber font-bold shrink-0">
-                            <Lock className="w-3 h-3" /> ${skin.price}
+                            <Lock className="w-3 h-3" /> ${skin.price.toLocaleString()}
                           </span>
                         )}
                       </div>
 
-                      {/* Rarity & Archetype Tags */}
-                      <div className="flex items-center justify-between my-1">
+                      {/* Rarity & Archetype Tags (Flex wrap prevents text collision) */}
+                      <div className="flex items-center flex-wrap gap-1 my-1">
                         <span
-                          className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded font-cyber"
+                          className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded font-cyber shrink-0"
                           style={{
                             backgroundColor: `${rConfig.color}20`,
                             color: rConfig.color,
@@ -303,7 +308,7 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                         >
                           {rConfig.label}
                         </span>
-                        <span className="text-[9px] font-cyber px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300 uppercase">
+                        <span className="text-[9px] font-cyber px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-cyan-300 uppercase font-mono shrink-0">
                           {skin.badge || skin.archetype}
                         </span>
                       </div>
@@ -311,20 +316,20 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                       {/* Color Swatch Preview */}
                       <div className="flex items-center gap-1.5 my-1">
                         <div
-                          className="w-4 h-4 rounded border border-white/20 shadow-sm"
+                          className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm shrink-0"
                           style={{ backgroundColor: skin.primaryColor }}
                         />
                         <div
-                          className="w-4 h-4 rounded border border-white/20 shadow-sm"
+                          className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm shrink-0"
                           style={{ backgroundColor: skin.secondaryColor }}
                         />
                         <div
-                          className="w-4 h-4 rounded border border-white/20 shadow-sm"
+                          className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm shrink-0"
                           style={{ backgroundColor: skin.accentColor }}
                         />
                         {skin.crateExclusive && (
-                          <span className="text-[8px] font-bold text-amber-300/80 uppercase font-mono ml-auto">
-                            ★ Crate Exclusive
+                          <span className="text-[8px] font-bold text-amber-300/90 uppercase font-mono ml-auto truncate">
+                            ★ Crate Only
                           </span>
                         )}
                       </div>
@@ -394,58 +399,117 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                   </div>
                 </div>
 
-              {/* Action Buttons */}
-              <div className="mt-2 pt-2 border-t border-slate-800/80 space-y-1.5 shrink-0">
-                {isSkinEquipped ? (
-                  <button
-                    disabled
-                    className="w-full py-2 rounded-xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-400 font-cyber font-bold text-xs tracking-wider uppercase cursor-default flex items-center justify-center gap-2"
+                {/* Action Buttons (Desktop Panel) */}
+                <div className="mt-2 pt-2 border-t border-slate-800/80 space-y-1.5 shrink-0">
+                  {isSkinEquipped ? (
+                    <button
+                      disabled
+                      className="w-full py-2.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-400 font-cyber font-bold text-xs tracking-wider uppercase cursor-default flex items-center justify-center gap-2"
+                    >
+                      <Check className="w-4 h-4" /> CURRENTLY EQUIPPED
+                    </button>
+                  ) : isSkinUnlocked ? (
+                    <button
+                      id="btn-equip-skin"
+                      type="button"
+                      onClick={() => onSelectSkin(inspectingSkin.id)}
+                      className="w-full py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-cyber font-black text-xs tracking-wider uppercase transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      EQUIP SKIN
+                    </button>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <button
+                        id="btn-buy-skin"
+                        type="button"
+                        disabled={!canAffordSkin}
+                        onClick={() => onBuySkin(inspectingSkin)}
+                        className={`w-full py-2.5 rounded-xl font-cyber font-black text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
+                          canAffordSkin
+                            ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.4)] active:scale-95'
+                            : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                        }`}
+                      >
+                        <Coins className="w-4 h-4" />
+                        <span>DIRECT UNLOCK (${inspectingSkin.price} CASH)</span>
+                      </button>
+
+                      {onOpenCrate && (
+                        <button
+                          type="button"
+                          onClick={onOpenCrate}
+                          className="w-full py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/50 text-amber-300 font-cyber font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all"
+                        >
+                          <Package className="w-3.5 h-3.5 text-amber-400" />
+                          <span>ROLL FROM CRATE (1,000 🪙)</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile Sticky Action Bar - Always visible regardless of scroll position! */}
+            <div className="md:hidden sticky bottom-0 left-0 right-0 z-20 bg-slate-950/95 border-t border-cyan-500/30 p-2.5 backdrop-blur-md shadow-2xl flex items-center justify-between gap-2 mt-2 -mx-3 -mb-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className="w-8 h-8 rounded-full border-2 shrink-0 flex items-center justify-center shadow-md"
+                  style={{
+                    backgroundColor: inspectingSkin.primaryColor,
+                    borderColor: inspectingSkin.accentColor,
+                  }}
+                >
+                  <div
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: inspectingSkin.secondaryColor }}
+                  />
+                </div>
+                <div className="truncate">
+                  <span
+                    className="text-xs font-black block truncate"
+                    style={{ color: RARITY_CONFIG[inspectingSkin.rarity || 'common'].color }}
                   >
-                    <Check className="w-4 h-4" /> CURRENTLY EQUIPPED
-                  </button>
+                    {inspectingSkin.name}
+                  </span>
+                  <span className="text-[9px] text-slate-400 font-mono uppercase block">
+                    {inspectingSkin.archetype}
+                  </span>
+                </div>
+              </div>
+
+              <div className="shrink-0 flex items-center gap-1.5">
+                {isSkinEquipped ? (
+                  <span className="px-3 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 font-black text-xs">
+                    EQUIPPED
+                  </span>
                 ) : isSkinUnlocked ? (
                   <button
-                    id="btn-equip-skin"
                     type="button"
                     onClick={() => onSelectSkin(inspectingSkin.id)}
-                    className="w-full py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-cyber font-black text-xs tracking-wider uppercase transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center justify-center gap-2 active:scale-95"
+                    className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg active:scale-95"
                   >
-                    EQUIP SKIN
+                    EQUIP
                   </button>
                 ) : (
-                  <div className="space-y-1.5">
-                    <button
-                      id="btn-buy-skin"
-                      type="button"
-                      disabled={!canAffordSkin}
-                      onClick={() => onBuySkin(inspectingSkin)}
-                      className={`w-full py-2 rounded-xl font-cyber font-black text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
-                        canAffordSkin
-                          ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.4)] active:scale-95'
-                          : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                      }`}
-                    >
-                      <Coins className="w-4 h-4" />
-                      <span>DIRECT UNLOCK (${inspectingSkin.price} CASH)</span>
-                    </button>
-
-                    {onOpenCrate && (
-                      <button
-                        type="button"
-                        onClick={onOpenCrate}
-                        className="w-full py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/50 text-amber-300 font-cyber font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all"
-                      >
-                        <Package className="w-3.5 h-3.5 text-amber-400" />
-                        <span>ROLL FROM CRATE (1,000 🪙)</span>
-                      </button>
-                    )}
-                  </div>
+                  <button
+                    type="button"
+                    disabled={!canAffordSkin}
+                    onClick={() => onBuySkin(inspectingSkin)}
+                    className={`px-3 py-2 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1 shadow-lg active:scale-95 ${
+                      canAffordSkin
+                        ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                        : 'bg-slate-800 text-slate-500 border border-slate-700'
+                    }`}
+                  >
+                    <Coins className="w-3.5 h-3.5" />
+                    <span>BUY ${inspectingSkin.price}</span>
+                  </button>
                 )}
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
         {/* Content Body: Death Effects Tab */}
         {activeTab === 'death-effects' && (
@@ -530,12 +594,12 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                 </div>
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons (Desktop Panel) */}
               <div className="mt-2 pt-2 border-t border-slate-800/80 shrink-0">
                 {isEffectEquipped ? (
                   <button
                     disabled
-                    className="w-full py-2 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-400 font-cyber font-bold text-xs tracking-wider uppercase cursor-default flex items-center justify-center gap-2"
+                    className="w-full py-2.5 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-400 font-cyber font-bold text-xs tracking-wider uppercase cursor-default flex items-center justify-center gap-2"
                   >
                     <Check className="w-4 h-4" /> CURRENTLY EQUIPPED
                   </button>
@@ -554,7 +618,7 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                     type="button"
                     disabled={!canAffordEffect}
                     onClick={() => onBuyDeathEffect(inspectingEffect)}
-                    className={`w-full py-2 rounded-xl font-cyber font-black text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
+                    className={`w-full py-2.5 rounded-xl font-cyber font-black text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
                       canAffordEffect
                         ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.4)] active:scale-95'
                         : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
@@ -562,6 +626,59 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                   >
                     <Coins className="w-4 h-4" />
                     <span>UNLOCK (${inspectingEffect.price} CASH)</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Mobile Sticky Action Bar for Death Effects */}
+            <div className="md:hidden sticky bottom-0 left-0 right-0 z-20 bg-slate-950/95 border-t border-rose-500/30 p-2.5 backdrop-blur-md shadow-2xl flex items-center justify-between gap-2 mt-2 -mx-3 -mb-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className="w-8 h-8 rounded-full border-2 shrink-0 flex items-center justify-center shadow-md"
+                  style={{
+                    backgroundColor: inspectingEffect.primaryColor,
+                    borderColor: inspectingEffect.secondaryColor,
+                  }}
+                >
+                  <Flame className="w-4 h-4 text-white" />
+                </div>
+                <div className="truncate">
+                  <span className="text-xs font-black block truncate text-white">
+                    {inspectingEffect.name}
+                  </span>
+                  <span className="text-[9px] text-rose-300 font-mono uppercase block">
+                    {inspectingEffect.badge}
+                  </span>
+                </div>
+              </div>
+
+              <div className="shrink-0 flex items-center gap-1.5">
+                {isEffectEquipped ? (
+                  <span className="px-3 py-1.5 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-300 font-black text-xs">
+                    EQUIPPED
+                  </span>
+                ) : isEffectUnlocked ? (
+                  <button
+                    type="button"
+                    onClick={() => onSelectDeathEffect(inspectingEffect.id)}
+                    className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg active:scale-95"
+                  >
+                    EQUIP
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!canAffordEffect}
+                    onClick={() => onBuyDeathEffect(inspectingEffect)}
+                    className={`px-3 py-2 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1 shadow-lg active:scale-95 ${
+                      canAffordEffect
+                        ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                        : 'bg-slate-800 text-slate-500 border border-slate-700'
+                    }`}
+                  >
+                    <Coins className="w-3.5 h-3.5" />
+                    <span>UNLOCK ${inspectingEffect.price}</span>
                   </button>
                 )}
               </div>

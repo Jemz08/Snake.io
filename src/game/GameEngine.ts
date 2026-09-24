@@ -2280,9 +2280,9 @@ export class GameEngine {
 
     // Trigger Custom Death Effect!
     const effectType: DeathEffectType =
-      victim.archetype === 'vampire' || victim.deathEffectId === 'bat-swarm'
-        ? 'bat-swarm'
-        : killer?.deathEffectId || victim.deathEffectId || 'cyber-matrix';
+      victim.archetype === 'vampire'
+        ? 'retro-arcade-ghost'
+        : killer?.deathEffectId || victim.deathEffectId || 'retro-pixel-kaboom';
     this.triggerDeathEffect(effectType, victim.segments[0].x, victim.segments[0].y, victim.color);
 
     if (victim.isPlayer) {
@@ -2301,162 +2301,232 @@ export class GameEngine {
   private triggerDeathEffect(type: DeathEffectType, x: number, y: number, fallbackColor: string) {
     playDeathEffectSound(type);
 
-    if (type === 'nuclear-supernova') {
-      this.explosions.push({
-        id: this.nextEntityId++,
-        x,
-        y,
-        radius: 30,
-        maxRadius: 140,
-        color: '#f97316',
-        alpha: 1,
-        duration: 650,
-        elapsed: 0,
-        style: 'supernova',
-      });
-      for (let i = 0; i < 55; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 11 + 3;
-        this.particles.push({
-          x,
-          y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          color: Math.random() > 0.4 ? '#ef4444' : '#facc15',
-          size: Math.random() * 7 + 4,
-          life: Math.floor(Math.random() * 25 + 25),
-          maxLife: 50,
-          shape: 'square',
-        });
-      }
-    } else if (type === 'neon-skull') {
-      this.explosions.push({
-        id: this.nextEntityId++,
-        x,
-        y,
-        radius: 25,
-        maxRadius: 120,
-        color: '#06b6d4',
-        alpha: 1,
-        duration: 600,
-        elapsed: 0,
-        style: 'skull',
-      });
-      for (let i = 0; i < 40; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 8 + 2;
-        this.particles.push({
-          x,
-          y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          color: Math.random() > 0.5 ? '#22d3ee' : '#f43f5e',
-          size: Math.random() * 6 + 3,
-          life: 35,
-          maxLife: 35,
-          shape: 'square',
-        });
-      }
-    } else if (type === 'void-singularity') {
-      this.explosions.push({
-        id: this.nextEntityId++,
-        x,
-        y,
-        radius: 15,
-        maxRadius: 110,
-        color: '#a855f7',
-        alpha: 1,
-        duration: 750,
-        elapsed: 0,
-        style: 'void',
-      });
-      for (let i = 0; i < 50; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 9 + 2;
-        this.particles.push({
-          x,
-          y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          color: Math.random() > 0.5 ? '#c084fc' : '#e9d5ff',
-          size: Math.random() * 5 + 3,
-          life: 40,
-          maxLife: 40,
-          shape: 'circle',
-        });
-      }
-    } else if (type === 'golden-cash-storm') {
+    if (type === 'retro-pixel-kaboom' || type === 'nuclear-supernova' || type === 'cyber-matrix') {
       this.explosions.push({
         id: this.nextEntityId++,
         x,
         y,
         radius: 20,
-        maxRadius: 95,
-        color: '#facc15',
+        maxRadius: 115,
+        color: '#f97316',
         alpha: 1,
         duration: 550,
         elapsed: 0,
-        style: 'cash',
+        style: 'retro-pixel-puff',
       });
-      for (let i = 0; i < 45; i++) {
+      // Fire, spark, and smoke pixels
+      for (let i = 0; i < 48; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = Math.random() * 8 + 2;
+        const isSmoke = Math.random() < 0.25;
         this.particles.push({
           x,
           y,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
-          color: Math.random() > 0.4 ? '#facc15' : '#fbbf24',
+          color: isSmoke ? '#64748b' : Math.random() > 0.4 ? '#f97316' : '#facc15',
           size: Math.random() * 6 + 4,
           life: Math.floor(Math.random() * 20 + 25),
           maxLife: 45,
-          shape: 'dollar',
+          shape: 'retro-flame-pixel',
           rotation: Math.random() * Math.PI,
-          vRot: (Math.random() - 0.5) * 0.2,
+          vRot: (Math.random() - 0.5) * 0.1,
         });
       }
-    } else if (type === 'plasma-storm') {
+    } else if (type === 'retro-crt-glitch') {
+      this.explosions.push({
+        id: this.nextEntityId++,
+        x,
+        y,
+        radius: 25,
+        maxRadius: 125,
+        color: '#22c55e',
+        alpha: 1,
+        duration: 580,
+        elapsed: 0,
+        style: 'retro-crt-glitch',
+      });
+      const glitchWords = ['0x00', 'ERR!', 'FATAL', 'NULL', '404', 'FAIL'];
+      for (let i = 0; i < 52; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 7 + 2;
+        this.particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed * 0.5,
+          color: Math.random() > 0.5 ? '#22c55e' : Math.random() > 0.5 ? '#ec4899' : '#06b6d4',
+          size: Math.random() * 6 + 3,
+          life: 38,
+          maxLife: 38,
+          shape: i % 2 === 0 ? 'retro-glitch-bar' : 'binary',
+          text: glitchWords[i % glitchWords.length],
+        });
+      }
+    } else if (type === 'retro-comic-boom' || type === 'laser-fireworks') {
+      this.explosions.push({
+        id: this.nextEntityId++,
+        x,
+        y,
+        radius: 20,
+        maxRadius: 120,
+        color: '#f43f5e',
+        alpha: 1,
+        duration: 600,
+        elapsed: 0,
+        style: 'retro-comic-pow',
+      });
+      const comicWords = ['POW!', 'BOOM!', 'KABOOM!', 'BAM!', 'CRASH!'];
+      for (let i = 0; i < 50; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 9 + 2;
+        const isBadge = i < 5;
+        this.particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          color: isBadge ? '#fbbf24' : Math.random() > 0.5 ? '#f43f5e' : '#fbbf24',
+          size: isBadge ? 14 : Math.random() * 6 + 3,
+          life: 45,
+          maxLife: 45,
+          shape: isBadge ? 'retro-comic' : 'star',
+          text: isBadge ? comicWords[i % comicWords.length] : undefined,
+          rotation: Math.random() * Math.PI,
+          vRot: (Math.random() - 0.5) * 0.15,
+        });
+      }
+    } else if (type === 'retro-arcade-ghost' || type === 'bat-swarm') {
       this.explosions.push({
         id: this.nextEntityId++,
         x,
         y,
         radius: 20,
         maxRadius: 105,
-        color: '#c084fc',
+        color: '#38bdf8',
         alpha: 1,
-        duration: 500,
+        duration: 650,
         elapsed: 0,
-        style: 'plasma',
+        style: 'retro-arcade-ghost',
       });
-      for (let i = 0; i < 40; i++) {
+      // 3 ascending ghosts
+      for (let g = 0; g < 3; g++) {
+        this.particles.push({
+          x: x + (g - 1) * 22,
+          y: y,
+          vx: (Math.random() - 0.5) * 1.5,
+          vy: -Math.random() * 2.5 - 2,
+          color: '#38bdf8',
+          secondaryColor: '#ffffff',
+          size: 14,
+          life: 55,
+          maxLife: 55,
+          shape: 'retro-ghost',
+        });
+      }
+      // Floating sparkles and soul dust
+      for (let i = 0; i < 35; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 10 + 3;
+        const speed = Math.random() * 5 + 1.5;
+        this.particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1,
+          color: Math.random() > 0.4 ? '#38bdf8' : '#c084fc',
+          size: Math.random() * 5 + 3,
+          life: 40,
+          maxLife: 40,
+          shape: 'star',
+        });
+      }
+    } else if (type === 'retro-coin-jackpot' || type === 'golden-cash-storm') {
+      this.explosions.push({
+        id: this.nextEntityId++,
+        x,
+        y,
+        radius: 22,
+        maxRadius: 110,
+        color: '#fbbf24',
+        alpha: 1,
+        duration: 550,
+        elapsed: 0,
+        style: 'retro-coin-shower',
+      });
+      for (let i = 0; i < 55; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 8 + 2;
+        this.particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1.5,
+          color: Math.random() > 0.4 ? '#fbbf24' : '#f59e0b',
+          size: Math.random() * 6 + 5,
+          life: Math.floor(Math.random() * 25 + 25),
+          maxLife: 50,
+          shape: i % 4 === 0 ? 'dollar' : 'retro-coin',
+          text: '777',
+          rotation: Math.random() * Math.PI,
+          vRot: (Math.random() - 0.5) * 0.25,
+        });
+      }
+    } else if (type === 'retro-pixel-skull' || type === 'neon-skull') {
+      this.explosions.push({
+        id: this.nextEntityId++,
+        x,
+        y,
+        radius: 25,
+        maxRadius: 125,
+        color: '#ef4444',
+        alpha: 1,
+        duration: 620,
+        elapsed: 0,
+        style: 'retro-pixel-skull',
+      });
+      this.particles.push({
+        x,
+        y,
+        vx: 0,
+        vy: -0.8,
+        color: '#ef4444',
+        secondaryColor: '#ffffff',
+        size: 24,
+        life: 50,
+        maxLife: 50,
+        shape: 'retro-skull',
+      });
+      for (let i = 0; i < 46; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 8 + 2;
         this.particles.push({
           x,
           y,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
-          color: Math.random() > 0.5 ? '#a855f7' : '#ec4899',
-          size: Math.random() * 8 + 4,
-          life: 25,
-          maxLife: 25,
-          shape: 'lightning',
+          color: Math.random() > 0.5 ? '#ef4444' : Math.random() > 0.5 ? '#f97316' : '#f8fafc',
+          size: Math.random() * 6 + 3,
+          life: 40,
+          maxLife: 40,
+          shape: 'square',
+          rotation: Math.random() * Math.PI,
+          vRot: (Math.random() - 0.5) * 0.2,
         });
       }
-    } else if (type === 'laser-fireworks') {
+    } else if (type === 'retro-synth-vector' || type === 'plasma-storm') {
       this.explosions.push({
         id: this.nextEntityId++,
         x,
         y,
-        radius: 15,
-        maxRadius: 100,
-        color: '#38bdf8',
+        radius: 20,
+        maxRadius: 120,
+        color: '#06b6d4',
         alpha: 1,
-        duration: 500,
+        duration: 520,
         elapsed: 0,
+        style: 'retro-synth-vector',
       });
-      const starColors = ['#38bdf8', '#fbbf24', '#f43f5e', '#a855f7', '#4ade80'];
-      for (let i = 0; i < 50; i++) {
+      for (let i = 0; i < 48; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = Math.random() * 9 + 3;
         this.particles.push({
@@ -2464,57 +2534,118 @@ export class GameEngine {
           y,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
-          color: starColors[Math.floor(Math.random() * starColors.length)],
+          color: Math.random() > 0.5 ? '#06b6d4' : '#f43f5e',
           size: Math.random() * 7 + 4,
-          life: Math.floor(Math.random() * 20 + 20),
-          maxLife: 40,
-          shape: 'star',
-          rotation: Math.random() * Math.PI,
-          vRot: (Math.random() - 0.5) * 0.15,
+          life: 30,
+          maxLife: 30,
+          shape: 'retro-vector',
+          rotation: angle,
+          vRot: (Math.random() - 0.5) * 0.3,
         });
       }
-    } else if (type === 'bat-swarm') {
+    } else if (type === 'retro-voxel-shatter') {
       this.explosions.push({
         id: this.nextEntityId++,
         x,
         y,
         radius: 20,
-        maxRadius: 130,
-        color: '#dc2626',
+        maxRadius: 100,
+        color: '#3b82f6',
         alpha: 1,
-        duration: 650,
+        duration: 600,
         elapsed: 0,
-        style: 'bat-swarm',
+        style: 'retro-voxel-shatter',
       });
-      for (let i = 0; i < 35; i++) {
+      const voxelColors = ['#3b82f6', '#60a5fa', '#1d4ed8', '#93c5fd', '#2563eb'];
+      for (let i = 0; i < 52; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 8 + 3;
+        const speed = Math.random() * 7 + 2;
+        const baseCol = voxelColors[i % voxelColors.length];
+        this.particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1.5,
+          color: baseCol,
+          size: Math.random() * 6 + 6,
+          life: Math.floor(Math.random() * 20 + 35),
+          maxLife: 55,
+          shape: 'retro-voxel',
+          rotation: Math.random() * Math.PI,
+          vRot: (Math.random() - 0.5) * 0.2,
+        });
+      }
+    } else if (type === 'retro-slime-splat') {
+      this.explosions.push({
+        id: this.nextEntityId++,
+        x,
+        y,
+        radius: 25,
+        maxRadius: 110,
+        color: '#84cc16',
+        alpha: 1,
+        duration: 580,
+        elapsed: 0,
+        style: 'retro-slime-splat',
+      });
+      for (let i = 0; i < 46; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 6.5 + 1.5;
         this.particles.push({
           x,
           y,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
-          color: Math.random() > 0.4 ? '#ef4444' : '#18181b',
-          size: Math.random() * 6 + 5,
-          life: Math.floor(Math.random() * 25 + 25),
-          maxLife: 50,
-          shape: 'bat',
-          rotation: angle,
-          vRot: (Math.random() - 0.5) * 0.2,
+          color: Math.random() > 0.4 ? '#84cc16' : '#10b981',
+          size: Math.random() * 8 + 4,
+          life: Math.floor(Math.random() * 20 + 25),
+          maxLife: 45,
+          shape: 'retro-slime',
+          rotation: Math.random() * Math.PI,
+          vRot: (Math.random() - 0.5) * 0.1,
         });
       }
-    } else {
-      // Default: cyber-matrix
+    } else if (type === 'retro-black-hole' || type === 'void-singularity') {
       this.explosions.push({
         id: this.nextEntityId++,
         x,
         y,
         radius: 15,
-        maxRadius: 85,
-        color: '#22c55e',
+        maxRadius: 125,
+        color: '#8b5cf6',
         alpha: 1,
-        duration: 450,
+        duration: 720,
         elapsed: 0,
+        style: 'retro-black-hole',
+      });
+      for (let i = 0; i < 58; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 8 + 2;
+        this.particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          color: Math.random() > 0.5 ? '#8b5cf6' : '#c084fc',
+          size: Math.random() * 5 + 3,
+          life: 42,
+          maxLife: 42,
+          shape: 'circle',
+        });
+      }
+    } else {
+      // Default fallback: retro pixel puff
+      this.explosions.push({
+        id: this.nextEntityId++,
+        x,
+        y,
+        radius: 20,
+        maxRadius: 100,
+        color: '#f97316',
+        alpha: 1,
+        duration: 500,
+        elapsed: 0,
+        style: 'retro-pixel-puff',
       });
       for (let i = 0; i < 35; i++) {
         const angle = Math.random() * Math.PI * 2;
@@ -2524,12 +2655,11 @@ export class GameEngine {
           y,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
-          color: Math.random() > 0.5 ? '#22c55e' : '#86efac',
-          size: Math.random() * 5 + 3,
+          color: '#f97316',
+          size: 5,
           life: 30,
           maxLife: 30,
-          shape: 'binary',
-          text: Math.random() > 0.5 ? '1' : '0',
+          shape: 'retro-flame-pixel',
         });
       }
     }
@@ -3613,6 +3743,20 @@ export class GameEngine {
       p.y += p.vy;
       p.vx *= 0.98;
       p.vy *= 0.98;
+
+      if (p.shape === 'retro-ghost') {
+        p.vy -= 0.04;
+        p.vx += Math.sin(p.life * 0.25) * 0.06;
+      } else if (p.shape === 'retro-coin' || p.shape === 'dollar') {
+        p.vy += 0.06;
+      } else if (p.shape === 'retro-voxel') {
+        p.vy += 0.08;
+      } else if (p.shape === 'retro-flame-pixel') {
+        p.vy -= 0.03;
+      } else if (p.shape === 'retro-slime') {
+        p.vy += 0.04;
+      }
+
       if (p.rotation !== undefined && p.vRot !== undefined) {
         p.rotation += p.vRot;
       }

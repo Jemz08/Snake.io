@@ -706,8 +706,139 @@ export class GameRenderer {
       ctx.save();
       ctx.translate(exp.x, exp.y);
 
-      if (exp.style === 'skull') {
-        // Neon Skull Hologram Explosion
+      if (exp.style === 'retro-pixel-puff') {
+        // 8-Bit Arcade Kaboom: Expanding stepped chunky pixel fire clouds
+        ctx.globalAlpha = alpha;
+        const puffCount = 8;
+        for (let i = 0; i < puffCount; i++) {
+          const ang = (i * Math.PI * 2) / puffCount + progress;
+          const dist = currentRadius * 0.55 * progress;
+          const px = Math.cos(ang) * dist;
+          const py = Math.sin(ang) * dist;
+          const puffSize = Math.max(6, (currentRadius * 0.45) * (1 - progress * 0.5));
+          
+          // Stepped pixel fire square cluster
+          ctx.fillStyle = i % 2 === 0 ? '#f97316' : '#facc15';
+          ctx.fillRect(px - puffSize / 2, py - puffSize / 2, puffSize, puffSize);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(px - puffSize * 0.3, py - puffSize * 0.3, puffSize * 0.6, puffSize * 0.6);
+        }
+        // Stepped shockwave square ring
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = Math.max(2, 6 * (1 - progress));
+        ctx.strokeRect(-currentRadius * 0.6, -currentRadius * 0.6, currentRadius * 1.2, currentRadius * 1.2);
+
+        ctx.restore();
+        continue;
+      }
+
+      if (exp.style === 'retro-crt-glitch') {
+        // CRT Fatal Glitch: Horizontal tear scanlines & chromatic aberration
+        ctx.globalAlpha = alpha;
+        const lineCount = 7;
+        for (let i = -lineCount; i <= lineCount; i++) {
+          const yOff = (i / lineCount) * currentRadius * 0.8;
+          const barW = currentRadius * (1.2 + Math.sin(i * 3 + progress * 10) * 0.3);
+          const xShift = Math.sin(i * 5 + progress * 15) * 14;
+
+          // Green / Cyan phosphor bar
+          ctx.fillStyle = 'rgba(34, 197, 94, 0.4)';
+          ctx.fillRect(xShift - barW / 2, yOff - 2, barW, 4);
+
+          // Chromatic magenta offset
+          ctx.fillStyle = 'rgba(236, 72, 153, 0.35)';
+          ctx.fillRect(xShift - barW / 2 + 5, yOff - 1, barW, 3);
+        }
+        // Phosphor frame box
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 3 * (1 - progress);
+        ctx.strokeRect(-currentRadius * 0.7, -currentRadius * 0.5, currentRadius * 1.4, currentRadius);
+
+        ctx.restore();
+        continue;
+      }
+
+      if (exp.style === 'retro-comic-pow') {
+        // Comic POP Starburst
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#fbbf24';
+        ctx.strokeStyle = '#1e1b4b';
+        ctx.lineWidth = 3;
+
+        const points = 12;
+        ctx.beginPath();
+        for (let i = 0; i < points * 2; i++) {
+          const r = i % 2 === 0 ? currentRadius * 0.8 : currentRadius * 0.45;
+          const a = (i * Math.PI) / points;
+          const px = Math.cos(a) * r;
+          const py = Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Halftone dots
+        ctx.fillStyle = '#f43f5e';
+        for (let d = 0; d < 8; d++) {
+          const da = (d * Math.PI * 2) / 8;
+          const dr = currentRadius * 0.6;
+          ctx.beginPath();
+          ctx.arc(Math.cos(da) * dr, Math.sin(da) * dr, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+        continue;
+      }
+
+      if (exp.style === 'retro-arcade-ghost') {
+        // 8-Bit Ghost Ethereal Halo
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 4 * (1 - progress);
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.ellipse(0, -currentRadius * 0.2, currentRadius * 0.6, currentRadius * 0.35, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#a855f7';
+        ctx.beginPath();
+        ctx.arc(0, 0, currentRadius * 0.75, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.restore();
+        continue;
+      }
+
+      if (exp.style === 'retro-coin-shower') {
+        // Arcade Jackpot 777: Sparkling radial payout shockwave
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 5 * (1 - progress);
+        ctx.shadowColor = '#fbbf24';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(0, 0, currentRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Radiating 8-bit star lines
+        for (let s = 0; s < 8; s++) {
+          const sang = (s * Math.PI * 2) / 8 + progress;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(sang) * currentRadius * 0.3, Math.sin(sang) * currentRadius * 0.3);
+          ctx.lineTo(Math.cos(sang) * currentRadius * 0.9, Math.sin(sang) * currentRadius * 0.9);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+        continue;
+      }
+
+      if (exp.style === 'retro-pixel-skull' || exp.style === 'skull') {
+        // 16-Bit Demon Skull Hologram / Explosion
         ctx.strokeStyle = exp.color;
         ctx.lineWidth = 4 * (1 - progress);
         ctx.globalAlpha = alpha;
@@ -730,7 +861,7 @@ export class GameRenderer {
         ctx.fill();
 
         // Shockwave ring
-        ctx.strokeStyle = '#22d3ee';
+        ctx.strokeStyle = '#ef4444';
         ctx.beginPath();
         ctx.arc(0, 0, currentRadius, 0, Math.PI * 2);
         ctx.stroke();
@@ -739,11 +870,80 @@ export class GameRenderer {
         continue;
       }
 
-      if (exp.style === 'void') {
-        // Void Singularity Black Hole Vortex
+      if (exp.style === 'retro-synth-vector') {
+        // 80s Neon Vector Wireframe polygon
         ctx.globalAlpha = alpha;
-        // Outer gravitational accretion disk
-        ctx.strokeStyle = '#a855f7';
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 3 * (1 - progress);
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 20;
+
+        // Rotating hexagon wireframe
+        ctx.rotate(progress * 2);
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = (i * Math.PI * 2) / 6;
+          const x = Math.cos(a) * currentRadius * 0.7;
+          const y = Math.sin(a) * currentRadius * 0.7;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+
+        // Inner magenta diamond
+        ctx.strokeStyle = '#f43f5e';
+        ctx.beginPath();
+        for (let i = 0; i < 4; i++) {
+          const a = (i * Math.PI * 2) / 4 - progress * 3;
+          const x = Math.cos(a) * currentRadius * 0.4;
+          const y = Math.sin(a) * currentRadius * 0.4;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.restore();
+        continue;
+      }
+
+      if (exp.style === 'retro-voxel-shatter') {
+        // 3D Voxel Grid Shatter shockwave
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 3 * (1 - progress);
+        ctx.strokeRect(-currentRadius * 0.65, -currentRadius * 0.65, currentRadius * 1.3, currentRadius * 1.3);
+
+        ctx.strokeStyle = '#60a5fa';
+        ctx.strokeRect(-currentRadius * 0.35, -currentRadius * 0.35, currentRadius * 0.7, currentRadius * 0.7);
+
+        ctx.restore();
+        continue;
+      }
+
+      if (exp.style === 'retro-slime-splat') {
+        // Toxic Slime puddle splatter
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = 'rgba(132, 204, 22, 0.3)';
+        ctx.beginPath();
+        ctx.arc(0, 0, currentRadius * 0.65, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#84cc16';
+        ctx.lineWidth = 4 * (1 - progress);
+        ctx.beginPath();
+        ctx.arc(0, 0, currentRadius * 0.85, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.restore();
+        continue;
+      }
+
+      if (exp.style === 'retro-black-hole' || exp.style === 'void') {
+        // 16-Bit Gravitational Rift Singularity
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = '#8b5cf6';
         ctx.lineWidth = 5 * (1 - progress);
         ctx.shadowColor = '#c084fc';
         ctx.shadowBlur = 30;
@@ -769,7 +969,7 @@ export class GameRenderer {
         continue;
       }
 
-      // Standard / Supernova / Plasma / Cash Shockwave
+      // Standard / Supernova Shockwave fallback
       ctx.strokeStyle = exp.color;
       ctx.lineWidth = (exp.style === 'supernova' ? 10 : 6) * (1 - progress);
       ctx.globalAlpha = alpha;
@@ -778,15 +978,6 @@ export class GameRenderer {
       ctx.beginPath();
       ctx.arc(0, 0, currentRadius, 0, Math.PI * 2);
       ctx.stroke();
-
-      if (exp.style === 'supernova') {
-        // Double blast ring
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 4 * (1 - progress);
-        ctx.beginPath();
-        ctx.arc(0, 0, currentRadius * 0.8, 0, Math.PI * 2);
-        ctx.stroke();
-      }
 
       // Inner explosive flash core
       const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, currentRadius * 0.75);
@@ -800,22 +991,11 @@ export class GameRenderer {
       ctx.arc(0, 0, currentRadius * 0.75, 0, Math.PI * 2);
       ctx.fill();
 
-      // Cyber fragmentation squares flying out
-      ctx.fillStyle = exp.color;
-      const count = exp.style === 'supernova' ? 14 : 8;
-      for (let i = 0; i < count; i++) {
-        const angle = (i * Math.PI * 2) / count + progress * 2;
-        const dist = currentRadius * 0.85;
-        const fx = Math.cos(angle) * dist;
-        const fy = Math.sin(angle) * dist;
-        ctx.fillRect(fx - 4, fy - 4, 8, 8);
-      }
-
       ctx.restore();
     }
   }
 
-  // Draw floating particles with rich shapes (dollar, skull, binary, lightning, star)
+  // Draw floating particles with rich shapes (retro-coin, retro-ghost, retro-voxel, retro-slime, retro-vector, retro-comic, etc.)
   public drawParticles(particles: Particle[]) {
     const ctx = this.ctx;
     for (const p of particles) {
@@ -831,7 +1011,153 @@ export class GameRenderer {
       ctx.shadowColor = p.color;
       ctx.shadowBlur = 8;
 
-      if (p.shape === 'dollar') {
+      if (p.shape === 'retro-coin') {
+        // 8-Bit Golden Pixel Coin
+        const s = p.size;
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.arc(0, 0, s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#b45309';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // Inner coin rim & shine
+        ctx.fillStyle = '#fef08a';
+        ctx.beginPath();
+        ctx.arc(-s * 0.25, -s * 0.25, s * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (p.shape === 'retro-ghost') {
+        // 8-Bit Arcade Ghost (Pac-Man style soul)
+        const s = p.size;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        // Rounded head
+        ctx.arc(0, -s * 0.2, s * 0.7, Math.PI, 0);
+        // Body sides down to wavy skirt
+        ctx.lineTo(s * 0.7, s * 0.6);
+        ctx.lineTo(s * 0.35, s * 0.35);
+        ctx.lineTo(0, s * 0.6);
+        ctx.lineTo(-s * 0.35, s * 0.35);
+        ctx.lineTo(-s * 0.7, s * 0.6);
+        ctx.closePath();
+        ctx.fill();
+
+        // Big white pixel eyes
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-s * 0.5, -s * 0.35, s * 0.35, s * 0.45);
+        ctx.fillRect(s * 0.15, -s * 0.35, s * 0.35, s * 0.45);
+        // Blue pupils looking up
+        ctx.fillStyle = '#0284c7';
+        ctx.fillRect(-s * 0.45, -s * 0.3, s * 0.2, s * 0.25);
+        ctx.fillRect(s * 0.2, -s * 0.3, s * 0.2, s * 0.25);
+      } else if (p.shape === 'retro-voxel') {
+        // 3D Isometric Voxel Cube
+        const s = p.size;
+        // Top Face (lightest)
+        ctx.fillStyle = '#93c5fd';
+        ctx.beginPath();
+        ctx.moveTo(0, -s);
+        ctx.lineTo(s * 0.86, -s * 0.5);
+        ctx.lineTo(0, 0);
+        ctx.lineTo(-s * 0.86, -s * 0.5);
+        ctx.closePath();
+        ctx.fill();
+
+        // Left Face (medium)
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.86, -s * 0.5);
+        ctx.lineTo(0, 0);
+        ctx.lineTo(0, s);
+        ctx.lineTo(-s * 0.86, s * 0.5);
+        ctx.closePath();
+        ctx.fill();
+
+        // Right Face (shadow)
+        ctx.fillStyle = '#1e3a8a';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(s * 0.86, -s * 0.5);
+        ctx.lineTo(s * 0.86, s * 0.5);
+        ctx.lineTo(0, s);
+        ctx.closePath();
+        ctx.fill();
+      } else if (p.shape === 'retro-comic') {
+        // Comic POW! Badge
+        ctx.fillStyle = '#fbbf24';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1.5;
+        const s = p.size;
+        ctx.beginPath();
+        for (let i = 0; i < 16; i++) {
+          const r = i % 2 === 0 ? s : s * 0.65;
+          const a = (i * Math.PI) / 8;
+          const x = Math.cos(a) * r;
+          const y = Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = '900 9px Impact, Chakra Petch, sans-serif';
+        ctx.fillStyle = '#dc2626';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(p.text || 'POW!', 0, 0);
+      } else if (p.shape === 'retro-glitch-bar') {
+        // CRT Glitch Tear Bar
+        const w = p.size * 3;
+        const h = p.size * 0.8;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-w / 2, -h / 2, w, h);
+        // Chromatic edge offset
+        ctx.fillStyle = '#ec4899';
+        ctx.fillRect(-w / 2 + 3, -h / 2 + 1, w * 0.6, h * 0.6);
+      } else if (p.shape === 'retro-vector') {
+        // Glowing Neon Vector Wireframe
+        const s = p.size;
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, -s);
+        ctx.lineTo(s, 0);
+        ctx.lineTo(0, s);
+        ctx.lineTo(-s, 0);
+        ctx.closePath();
+        ctx.stroke();
+      } else if (p.shape === 'retro-slime') {
+        // Juicy Toxic Slime Drop
+        const s = p.size;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(-s * 0.3, -s * 0.3, s * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (p.shape === 'retro-skull' || p.shape === 'skull') {
+        // 16-Bit Pixel Skull
+        const s = p.size;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(0, -s * 0.15, s * 0.65, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(-s * 0.4, s * 0.15, s * 0.8, s * 0.45);
+        // Eye sockets
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-s * 0.35, -s * 0.25, s * 0.25, s * 0.3);
+        ctx.fillRect(s * 0.1, -s * 0.25, s * 0.25, s * 0.3);
+      } else if (p.shape === 'retro-flame-pixel') {
+        // Chunky 8-bit Fire Pixel
+        const s = p.size;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-s / 2, -s / 2, s, s);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-s * 0.2, -s * 0.2, s * 0.4, s * 0.4);
+      } else if (p.shape === 'dollar') {
         // Gold Cash Symbol
         ctx.font = `bold ${Math.max(12, Math.floor(p.size * 2.2))}px Chakra Petch, sans-serif`;
         ctx.textAlign = 'center';
