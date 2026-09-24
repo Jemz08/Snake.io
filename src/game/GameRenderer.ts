@@ -1238,6 +1238,19 @@ export class GameRenderer {
         ctx.beginPath();
         ctx.arc(-s * 0.3, -s * 0.3, s * 0.35, 0, Math.PI * 2);
         ctx.fill();
+      } else if (p.shape === 'bubble') {
+        const s = p.size;
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 1.6;
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.18)';
+        ctx.beginPath();
+        ctx.arc(0, 0, s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(-s * 0.35, -s * 0.35, s * 0.28, 0, Math.PI * 2);
+        ctx.fill();
       } else {
         ctx.beginPath();
         ctx.arc(0, 0, p.size, 0, Math.PI * 2);
@@ -3287,14 +3300,6 @@ export class GameRenderer {
           ctx.lineTo(0, 22);
           ctx.stroke();
           ctx.restore();
-
-          // Floating target lock banner
-          ctx.fillStyle = '#ef4444';
-          ctx.shadowColor = '#000000';
-          ctx.shadowBlur = 6;
-          ctx.font = 'bold 11px Chakra Petch, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('⚡ AUTO-SHOOTING TARGET', endX, endY - 26);
         } else {
           // Ready scan laser beam (weapon colored / cyan dotted)
           ctx.strokeStyle = weaponCfg.color;
@@ -3579,9 +3584,55 @@ export class GameRenderer {
       const weaponCfg = WEAPONS[snake.weapon];
       if (weaponCfg) {
         ctx.fillStyle = weaponCfg.color;
-        ctx.font = 'bold 10px Chakra Petch, sans-serif';
-        ctx.fillText(`⚡ ${weaponCfg.name.toUpperCase()} (${snake.ammo})`, 0, -22);
+        ctx.font = 'bold 9px Chakra Petch, sans-serif';
+        const cleanName = weaponCfg.badge || weaponCfg.name.replace('TACTICAL ', '');
+        ctx.fillText(`[${cleanName} ${snake.ammo}]`, 0, -22);
       }
+    }
+
+    // Active Taunt Emote Hologram Badge
+    if (snake.activeEmote && snake.activeEmote.timer > 0) {
+      const emote = snake.activeEmote;
+      const progress = emote.timer / emote.maxTimer;
+      const emoteAlpha = Math.min(1, Math.sin(progress * Math.PI) * 1.4);
+      const floatY = (snake.weapon ? -38 : -26) - Math.sin(Date.now() * 0.007) * 3;
+
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, emoteAlpha);
+      ctx.translate(0, floatY);
+
+      ctx.font = 'bold 11px Chakra Petch, sans-serif';
+      const textWidth = ctx.measureText(emote.text).width;
+      const badgeW = textWidth + 18;
+      const badgeH = 22;
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+      ctx.strokeStyle = emote.color;
+      ctx.lineWidth = 1.6;
+      ctx.shadowColor = emote.color;
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.roundRect(-badgeW / 2, -badgeH / 2, badgeW, badgeH, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      // Tail pointer
+      ctx.fillStyle = emote.color;
+      ctx.beginPath();
+      ctx.moveTo(-4, badgeH / 2);
+      ctx.lineTo(4, badgeH / 2);
+      ctx.lineTo(0, badgeH / 2 + 4);
+      ctx.closePath();
+      ctx.fill();
+
+      // Text label
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowBlur = 0;
+      ctx.fillText(emote.text, 0, 0);
+
+      ctx.restore();
     }
 
     ctx.restore();

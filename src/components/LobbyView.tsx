@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { PlayerProfile, SkinDef, SnakeArchetype } from '../types';
+import { PlayerProfile, SkinDef, SnakeArchetype, GameMode, BotDifficulty, TrailType } from '../types';
 import { SKINS, getSkinById } from '../utils/skins';
 import { WEAPONS } from '../utils/weapons';
 import { getArchetypeAbility } from '../utils/archetypeAbilities';
 import { SnakePreviewCanvas } from './SnakePreviewCanvas';
 import { DynamicCyberBackground } from './DynamicCyberBackground';
+import { TrailsModal } from './TrailsModal';
+import { BattlePassModal } from './BattlePassModal';
+import { MasteryModal } from './MasteryModal';
+import { getBattlePassLevel, evaluateMasteryBadges } from '../utils/progression';
+import { getTrailById } from '../utils/trails';
+import { GAME_MODES, BOT_DIFFICULTIES } from '../utils/gameModes';
 import {
   Play,
   ShoppingBag,
@@ -31,6 +37,9 @@ import {
   Settings as SettingsIcon,
   Music,
   Radio,
+  Smartphone,
+  RotateCcw,
+  Award,
 } from 'lucide-react';
 import {
   getSoundMuted,
@@ -43,6 +52,7 @@ import {
   playRetroButtonClick,
 } from '../utils/audio';
 import { getGameSettings } from '../utils/settings';
+import { useScreenOrientation } from '../utils/orientation';
 import { RARITY_CONFIG } from '../utils/skins';
 
 interface LobbyViewProps {
@@ -213,6 +223,17 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   const [previewWeaponIndex, setPreviewWeaponIndex] = useState(1);
   const [muted, setMuted] = useState(getSoundMuted());
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showTrailsModal, setShowTrailsModal] = useState(false);
+  const [showBattlePassModal, setShowBattlePassModal] = useState(false);
+  const [showMasteryModal, setShowMasteryModal] = useState(false);
+
+  const selectedMode = profile.selectedGameMode || 'battle_royale';
+  const selectedDifficulty = profile.botDifficulty || 'tactical';
+  const selectedBotCount = profile.botCount || 24;
+  const passLevel = getBattlePassLevel(profile.battlePassXp || 0);
+  const masteredCount = evaluateMasteryBadges(profile).filter((b) => b.unlocked).length;
+  const activeTrail = getTrailById(profile.selectedTrailId || 'none');
+  const activeModeDef = GAME_MODES.find((m) => m.id === selectedMode) || GAME_MODES[0];
 
   const previewWeapons: Array<'grenade' | 'pistol' | 'ar' | 'sniper'> = ['grenade', 'pistol', 'ar', 'sniper'];
 
@@ -284,6 +305,9 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     const next = !muted;
     setSoundMuted(next);
     setMuted(next);
+    if (!next) {
+      playRetroButtonClick();
+    }
   };
 
   const toggleFullscreen = () => {
@@ -298,16 +322,27 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     }
   };
 
+  const screenDim = useScreenOrientation();
   const currentAbility = getArchetypeAbility(inspectingSkin.archetype);
   const currentRarity = inspectingSkin.rarity || 'common';
   const rarityConfig = RARITY_CONFIG[currentRarity];
 
+  // Dynamic preview canvas sizing based on orientation and viewport dimensions
+  const canvasHeight = screenDim.isShortScreen
+    ? 85
+    : screenDim.isPortrait
+    ? Math.min(140, Math.max(90, Math.round(screenDim.height * 0.16)))
+    : Math.min(120, Math.max(85, Math.round(screenDim.height * 0.22)));
+
+  const canvasWidth = Math.min(360, Math.max(260, Math.round(screenDim.width - (screenDim.isNarrowScreen ? 32 : 48))));
+
   return (
     <div
-      className="relative w-full min-h-[100dvh] bg-slate-950 text-white font-cyber flex flex-col justify-between overflow-x-hidden overflow-y-auto px-2 sm:px-4 py-1.5 sm:py-3 select-none"
+      id="lobby-view-container"
+      className="relative w-full h-[100dvh] min-h-[100dvh] max-h-[100dvh] bg-slate-950 text-white font-cyber flex flex-col justify-between overflow-x-hidden overflow-y-auto px-2 sm:px-4 py-1.5 sm:py-2 select-none"
       style={{
         paddingTop: 'max(6px, env(safe-area-inset-top, 6px))',
-        paddingBottom: 'max(14px, env(safe-area-inset-bottom, 14px))',
+        paddingBottom: 'max(10px, env(safe-area-inset-bottom, 10px))',
         paddingLeft: 'max(6px, env(safe-area-inset-left, 6px))',
         paddingRight: 'max(6px, env(safe-area-inset-right, 6px))',
       }}
@@ -315,79 +350,59 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
       {/* Dynamic Cyber Background Aura */}
       <DynamicCyberBackground archetype={inspectingSkin.archetype} />
 
-      {/* Top Bar Navigation */}
-      <header className="flex items-center justify-between z-10 w-full max-w-5xl mx-auto gap-2 mb-1.5 sm:mb-2 shrink-0">
+      {/* Top Bar Navigation (Anchored to Top Edge) */}
+      <header id="lobby-header-anchor" className="flex items-center justify-between z-10 w-full max-w-4xl mx-auto gap-2 mb-1.5 shrink-0">
         {/* Brand / Title: Cyber Snake */}
         <div className="flex items-center gap-2 sm:gap-2.5">
-          <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.4)] shrink-0">
-            <Swords className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.35)] shrink-0">
+            <Swords className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
           </div>
           <div>
-            <h1 className="font-cyber text-sm sm:text-xl md:text-2xl font-black text-white tracking-widest uppercase flex items-center gap-1.5 leading-none">
+            <h1 className="font-cyber text-sm sm:text-lg md:text-xl font-black text-white tracking-widest uppercase flex items-center gap-1 leading-none">
               <span>CYBER</span>
               <span className="text-cyan-400">SNAKE</span>
             </h1>
-            <p className="text-[8px] sm:text-[10px] text-slate-400 font-cyber tracking-wider hidden xs:block mt-0.5">
+            <p className="text-[8px] sm:text-[9.5px] text-slate-400 font-cyber tracking-wider hidden xs:block mt-0.5">
               TACTICAL BATTLE ROYALE
             </p>
           </div>
         </div>
 
-        {/* Right Top Bar Actions (Settings, Crate, Cash, Controls) */}
-        <div className="flex items-center gap-1 sm:gap-2">
-          {/* Settings Button (Opens Settings Modal) */}
-          {onOpenSettings && (
-            <button
-              id="btn-lobby-settings"
-              type="button"
-              onClick={onOpenSettings}
-              className="p-1.5 sm:p-2 rounded-xl bg-slate-900/90 border border-slate-700 hover:border-cyan-400 text-slate-300 hover:text-cyan-400 transition-all shadow-sm flex items-center gap-1"
-              title="Settings (FPS, Sound, Name, Mechanics)"
-            >
-              <SettingsIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-[11px] font-bold hidden md:inline">SETTINGS</span>
-            </button>
-          )}
-
-          {/* Supply Crate Button */}
-          {onOpenCrate && (
-            <button
-              id="btn-lobby-crate"
-              type="button"
-              onClick={onOpenCrate}
-              className="flex items-center gap-1 sm:gap-1.5 bg-gradient-to-r from-amber-500/20 via-amber-400/25 to-yellow-500/20 hover:from-amber-500/35 hover:to-yellow-500/35 border border-amber-400 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-amber-300 font-cyber font-black text-[10px] sm:text-xs shadow-[0_0_15px_rgba(245,158,11,0.25)] transition-all animate-pulse"
-              title="Open Supply Crate (1,000 Coins) - Chance for SECRET skins!"
-            >
-              <Package className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
-              <span>CRATE</span>
-              <span className="text-[9px] sm:text-[10px] text-amber-200/90 font-mono hidden xs:inline">(1k🪙)</span>
-            </button>
-          )}
-
+        {/* Right Top Bar Actions: Clean, well-spaced, clear UI */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Cash / Coins Display */}
           <button
             id="lobby-coins-display"
             type="button"
             onClick={() => onOpenShop('skins')}
-            className="flex items-center gap-1 sm:gap-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-amber-400 font-cyber font-bold text-xs sm:text-sm shadow-sm transition-all"
+            className="flex items-center gap-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/50 px-2.5 py-1.5 rounded-xl text-amber-400 font-cyber font-bold text-xs shadow-sm transition-all"
             title="Kill enemies to earn cash! Click to open armory"
           >
-            <Coins className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-pulse text-amber-300" />
+            <Coins className="w-3.5 h-3.5 text-amber-300" />
             <span className="font-black">${profile.coins.toLocaleString()}</span>
           </button>
 
-          {/* Sound Toggle */}
+          {/* Sound Toggle Button */}
           <button
             id="btn-toggle-sound"
             type="button"
-            onClick={toggleSound}
-            className="p-1.5 sm:p-2 rounded-xl bg-slate-900/80 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 transition-colors"
-            title={muted ? 'Unmute Sound' : 'Mute Sound'}
+            onClick={() => {
+              toggleSound();
+            }}
+            className={`px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5 font-cyber text-xs transition-all ${
+              muted
+                ? 'bg-rose-950/40 border-rose-500/60 text-rose-400 hover:bg-rose-900/50'
+                : 'bg-cyan-950/40 border-cyan-400/80 text-cyan-300 hover:bg-cyan-900/50'
+            }`}
+            title={muted ? 'Unmute Game Sounds' : 'Mute Game Sounds'}
           >
-            {muted ? <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400" /> : <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" />}
+            {muted ? <VolumeX className="w-3.5 h-3.5 text-rose-400 shrink-0" /> : <Volume2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
+            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase hidden xs:inline">
+              {muted ? 'MUTED' : 'SOUND'}
+            </span>
           </button>
 
-          {/* Lobby Music (BGM) Toggle */}
+          {/* Lobby Music (BGM) Toggle Button */}
           <button
             id="btn-toggle-bgm"
             type="button"
@@ -395,26 +410,29 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               playRetroButtonClick();
               toggleLobbyMusic();
             }}
-            className={`p-1.5 sm:p-2 rounded-xl border transition-all flex items-center gap-1.5 ${
+            className={`px-2.5 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 font-cyber text-xs ${
               bgmPlaying
-                ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.35)]'
+                ? 'bg-purple-950/40 border-purple-400 text-purple-300 shadow-[0_0_10px_rgba(192,132,252,0.3)]'
                 : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-slate-200'
             }`}
-            title={bgmPlaying ? 'Pause Lobby BGM' : 'Play Lobby BGM'}
+            title={bgmPlaying ? 'Pause Lobby Music' : 'Play Lobby Music'}
           >
-            <Music className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${bgmPlaying ? 'animate-pulse text-cyan-400' : ''}`} />
+            <Music className={`w-3.5 h-3.5 ${bgmPlaying ? 'animate-pulse text-purple-400' : 'text-slate-400'} shrink-0`} />
+            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase hidden xs:inline">
+              {bgmPlaying ? 'BGM' : 'OFF'}
+            </span>
           </button>
 
-          {/* HUD Customizer */}
-          {onOpenHudCustomizer && (
+          {/* Settings Button */}
+          {onOpenSettings && (
             <button
-              id="btn-lobby-hud-layout"
+              id="btn-lobby-settings"
               type="button"
-              onClick={onOpenHudCustomizer}
-              className="p-1.5 sm:p-2 rounded-xl bg-slate-900/80 border border-slate-700 text-slate-300 hover:text-cyan-400 hover:border-cyan-500/60 transition-colors"
-              title="Customize Controls & HUD Layout"
+              onClick={onOpenSettings}
+              className="p-1.5 sm:p-2 rounded-xl bg-slate-900/90 border border-slate-700 hover:border-cyan-400 text-slate-300 hover:text-cyan-400 transition-all shadow-sm"
+              title="Settings (FPS, Sound, Name, Mechanics)"
             >
-              <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" />
+              <SettingsIcon className="w-4 h-4" />
             </button>
           )}
 
@@ -423,32 +441,38 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             id="btn-lobby-fullscreen"
             type="button"
             onClick={toggleFullscreen}
-            className="p-1.5 sm:p-2 rounded-xl bg-slate-900/80 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 transition-colors hidden sm:block"
+            className="p-1.5 sm:p-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 transition-colors hidden sm:block"
             title="Toggle Fullscreen"
           >
-            {isFullscreen ? <Minimize className="w-4 h-4 text-cyan-400" /> : <Maximize className="w-4 h-4 text-slate-300" />}
+            {isFullscreen ? <Minimize className="w-4 h-4 text-cyan-400" /> : <Maximize className="w-4 h-4" />}
           </button>
 
-          {/* Export / Download */}
-          {onOpenExport && (
-            <button
-              id="btn-lobby-export"
-              type="button"
-              onClick={onOpenExport}
-              className="p-1.5 sm:p-2 rounded-xl bg-slate-900/80 border border-slate-700 text-slate-300 hover:text-cyan-400 hover:border-cyan-500/60 transition-colors hidden sm:block"
-              title="Download File / Export Project"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-          )}
+          {/* Orientation Mode Toggle */}
+          <button
+            id="btn-lobby-orientation"
+            type="button"
+            onClick={toggleFullscreen}
+            className={`p-1.5 sm:p-2 rounded-xl border flex items-center justify-center transition-all ${
+              screenDim.isPortrait
+                ? 'bg-amber-950/30 border-amber-500/50 text-amber-300'
+                : 'bg-cyan-950/30 border-cyan-500/50 text-cyan-300'
+            }`}
+            title={`Device in ${screenDim.orientation.toUpperCase()} mode. Tap to toggle fullscreen.`}
+          >
+            {screenDim.isPortrait ? (
+              <Smartphone className="w-4 h-4 text-amber-400" />
+            ) : (
+              <RotateCcw className="w-4 h-4 text-cyan-400" />
+            )}
+          </button>
         </div>
       </header>
 
-      {/* Main Center Stage (Auto-fit to Mobile Portrait & Landscape) */}
-      <main className="w-full max-w-xl sm:max-w-2xl mx-auto flex-1 flex flex-col justify-between gap-1.5 sm:gap-2.5 z-10 my-auto">
+      {/* Main Center Stage: Clean, perfectly proportioned, no cramped or loose spacing */}
+      <main className="w-full max-w-lg sm:max-w-xl md:max-w-2xl mx-auto flex-1 flex flex-col justify-between gap-2 sm:gap-2.5 z-10 my-auto">
         {/* Pilot Callsign Bar */}
-        <div className="w-full bg-slate-900/90 border border-slate-800 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 shadow-lg backdrop-blur-md shrink-0">
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+        <div className="w-full bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 flex items-center justify-between gap-2.5 shadow-lg backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             <span className="font-cyber text-[10px] sm:text-xs font-bold text-cyan-400 uppercase tracking-wider shrink-0">
               PILOT:
             </span>
@@ -458,32 +482,92 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               value={playerName}
               onChange={handleNameChange}
               placeholder="Enter callsign..."
-              className="w-full bg-transparent border-b border-slate-700 focus:border-cyan-400 px-1 py-0.5 font-cyber text-xs sm:text-sm font-black text-white tracking-wider outline-none transition-colors"
+              className="w-full bg-transparent border-b border-slate-700 focus:border-cyan-400 px-1.5 py-0.5 font-cyber text-xs sm:text-sm font-black text-white tracking-wider outline-none transition-colors"
             />
           </div>
           <div className="flex items-center gap-2 text-[10px] font-cyber text-slate-400 shrink-0">
-            <span className="bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-              🏆 BEST: <strong className="text-yellow-400">{profile.highScore}</strong>
+            <span className="bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+              🏆 BEST: <strong className="text-yellow-400 font-mono">{profile.highScore}</strong>
             </span>
-            <span className="bg-slate-950 px-2 py-0.5 rounded border border-slate-800 hidden xs:inline">
-              💀 KILLS: <strong className="text-rose-400">{profile.maxKills}</strong>
+            <span className="bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 hidden xs:inline">
+              💀 KILLS: <strong className="text-rose-400 font-mono">{profile.maxKills}</strong>
             </span>
           </div>
         </div>
 
-        {/* Snake Archetype Quick Selector */}
-        <div className="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-1.5 sm:p-2 shadow-lg backdrop-blur-md shrink-0">
-          <div className="flex items-center justify-between px-1 mb-1">
-            <span className="font-cyber text-[10px] font-bold text-cyan-400 tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-cyan-400" /> SELECT CYBER SNAKES ({ARCHETYPES.length})
+        {/* Progression & Customization Hub Bar: Clean, well-spaced, clear UI */}
+        <div className="w-full grid grid-cols-3 gap-1.5 sm:gap-2 shrink-0 font-cyber">
+          {/* Cyber Pass */}
+          <button
+            type="button"
+            onClick={() => {
+              playRetroButtonClick();
+              setShowBattlePassModal(true);
+            }}
+            className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-950/40 to-slate-900/90 border border-amber-500/40 hover:border-amber-400 text-amber-300 transition-all shadow-sm active:scale-95"
+            title="Open Season 1: Cyber Protocol Pass"
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="text-[10px] sm:text-xs font-bold truncate">PASS</span>
+            </div>
+            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-[9px] sm:text-[10px] font-black border border-amber-500/40 shrink-0">
+              TIER {passLevel.currentTier}
             </span>
-            <span className="text-[10px] text-slate-400 uppercase font-cyber font-bold flex items-center gap-1">
-              <span>{inspectingSkin.archetype}</span>
-              {!isSkinUnlocked && <Lock className="w-2.5 h-2.5 text-amber-400" />}
+          </button>
+
+          {/* Tail Trails Locker */}
+          <button
+            type="button"
+            onClick={() => {
+              playRetroButtonClick();
+              setShowTrailsModal(true);
+            }}
+            className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-950/40 to-slate-900/90 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 transition-all shadow-sm active:scale-95"
+            title="Open Serpent Tail Trails Locker"
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span className="text-[10px] sm:text-xs font-bold truncate">TRAILS</span>
+            </div>
+            <span className="text-xs shrink-0">{activeTrail.icon}</span>
+          </button>
+
+          {/* Pilot Mastery */}
+          <button
+            type="button"
+            onClick={() => {
+              playRetroButtonClick();
+              setShowMasteryModal(true);
+            }}
+            className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-950/40 to-slate-900/90 border border-purple-500/40 hover:border-purple-400 text-purple-300 transition-all shadow-sm active:scale-95"
+            title="Open Pilot Mastery Badges"
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Award className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              <span className="text-[10px] sm:text-xs font-bold truncate">MASTERY</span>
+            </div>
+            <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono text-[9px] sm:text-[10px] font-black border border-purple-500/40 shrink-0">
+              {masteredCount}/6
+            </span>
+          </button>
+        </div>
+
+        {/* Snake Archetype Selector: Clean, comfortable, breathable carousel */}
+        <div className="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-2 sm:p-2.5 shadow-lg backdrop-blur-md shrink-0">
+          <div className="flex items-center justify-between px-1 mb-1.5">
+            <span className="font-cyber text-[11px] font-bold text-cyan-400 tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+              <span>SELECT CYBER SNAKES</span>
+              <span className="text-slate-500 font-normal">({ARCHETYPES.length})</span>
+            </span>
+            <span className="text-[10px] text-slate-400 uppercase font-cyber font-bold flex items-center gap-1.5">
+              <span className="text-cyan-300 font-black">{inspectingSkin.archetype}</span>
+              {!isSkinUnlocked && <Lock className="w-3 h-3 text-amber-400" />}
             </span>
           </div>
 
-          <div className="grid grid-cols-8 gap-1">
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none py-1 px-0.5">
             {ARCHETYPES.map((arch) => {
               const isActive = inspectingSkin.archetype === arch.id;
               const archSkins = SKINS.filter((s) => s.archetype === arch.id);
@@ -495,15 +579,17 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   id={`btn-archetype-${arch.id}`}
                   type="button"
                   onClick={() => handleSelectArchetype(arch)}
-                  className={`relative py-1 px-0.5 rounded-lg border font-cyber text-[9px] font-black flex flex-col items-center justify-center transition-all ${
+                  className={`relative shrink-0 min-w-[70px] sm:min-w-[78px] py-1.5 px-2 rounded-xl border font-cyber flex flex-col items-center justify-center transition-all ${
                     isActive ? arch.activeBorder : `${arch.colorClass} hover:brightness-125`
                   }`}
                   title={`Select ${arch.label} Cyber Snake ${hasUnlocked ? '(Unlocked)' : '(Locked)'}`}
                 >
-                  <span className="text-xs sm:text-sm">{arch.icon}</span>
-                  <span className="text-[7.5px] sm:text-[8.5px] leading-tight truncate mt-0.5">{arch.label}</span>
+                  <span className="text-base sm:text-lg leading-none">{arch.icon}</span>
+                  <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider mt-1 truncate max-w-full">
+                    {arch.label}
+                  </span>
                   {!hasUnlocked && (
-                    <span className="absolute top-0.5 right-0.5 text-[8px] leading-none">
+                    <span className="absolute top-1 right-1 text-[8px] leading-none">
                       🔒
                     </span>
                   )}
@@ -514,12 +600,12 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         </div>
 
         {/* ============================================================== */}
-        {/* SNAKE PREVIEW CARD (DIRECTLY ABOVE "DEPLOY TO WAR") */}
+        {/* SNAKE PREVIEW CARD (DIRECTLY ABOVE "DEPLOY TO WAR")             */}
         {/* ============================================================== */}
-        <div className="relative w-full rounded-xl sm:rounded-2xl bg-slate-900/95 border-2 border-slate-800 shadow-2xl backdrop-blur-md p-2 sm:p-3 flex flex-col items-center shrink-0">
+        <div className="relative w-full rounded-2xl bg-slate-900/95 border border-slate-800 shadow-2xl backdrop-blur-md p-2.5 sm:p-3.5 flex flex-col items-center shrink-0">
           {/* Top Bar inside Card */}
           <div className="w-full flex items-center justify-between px-1 mb-1 font-cyber">
-            <div className="flex items-center gap-1.5 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
               <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping shrink-0" />
               <span
                 className="text-xs sm:text-sm font-black tracking-wider truncate"
@@ -529,9 +615,9 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               </span>
             </div>
 
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <span
-                className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded font-cyber"
+                className="text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded font-cyber"
                 style={{
                   backgroundColor: `${rarityConfig.color}25`,
                   color: rarityConfig.color,
@@ -540,36 +626,39 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               >
                 {rarityConfig.label}
               </span>
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-950 border border-slate-700 text-cyan-300 uppercase font-black">
+              <span className="text-[9px] sm:text-[10px] font-mono px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-cyan-300 uppercase font-black">
                 {inspectingSkin.badge || inspectingSkin.archetype}
               </span>
             </div>
           </div>
 
           {/* Interactive Snake Canvas with Lock Overlay if Locked */}
-          <div className="relative w-full flex items-center justify-center py-0.5">
+          <div className="relative w-full flex items-center justify-center my-1">
             <button
               id="btn-prev-skin"
               type="button"
               onClick={handlePrevSkin}
-              className="absolute left-1 z-30 p-1.5 sm:p-2 rounded-full bg-slate-950/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 hover:border-cyan-400 shadow-lg transition-all active:scale-95"
+              className="absolute left-1 z-30 p-2 rounded-full bg-slate-950/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 hover:border-cyan-400 shadow-lg transition-all active:scale-95"
               title="Previous skin"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            <div className="relative rounded-xl overflow-hidden border border-slate-700/80 shadow-2xl bg-slate-950/90 w-full flex items-center justify-center max-h-[120px] sm:max-h-[145px]">
+            <div
+              className="relative rounded-xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950/90 w-full flex items-center justify-center transition-all"
+              style={{ maxHeight: `${canvasHeight + 10}px` }}
+            >
               <SnakePreviewCanvas
                 skin={inspectingSkin}
                 weaponType={previewWeapons[previewWeaponIndex]}
-                width={340}
-                height={115}
+                width={canvasWidth}
+                height={canvasHeight}
               />
 
               {/* LOCK OVERLAY IF NOT YET UNLOCKED */}
               {!isSkinUnlocked && (
                 <div className="absolute inset-0 z-20 bg-slate-950/75 backdrop-blur-[2px] rounded-xl flex flex-col items-center justify-center pointer-events-none p-2 text-center select-none">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/20 border border-amber-400/80 flex items-center justify-center text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.5)] mb-1">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500/20 border border-amber-400/80 flex items-center justify-center text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.5)] mb-1">
                     <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300 animate-pulse" />
                   </div>
                   <span className="font-cyber font-black text-xs sm:text-sm text-amber-300 tracking-wider">
@@ -588,7 +677,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               id="btn-next-skin"
               type="button"
               onClick={handleNextSkin}
-              className="absolute right-1 z-30 p-1.5 sm:p-2 rounded-full bg-slate-950/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 hover:border-cyan-400 shadow-lg transition-all active:scale-95"
+              className="absolute right-1 z-30 p-2 rounded-full bg-slate-950/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 hover:border-cyan-400 shadow-lg transition-all active:scale-95"
               title="Next skin"
             >
               <ChevronRight className="w-4 h-4" />
@@ -597,28 +686,28 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
           {/* Skin Ownership & Weapon Selection Ribbon */}
           <div className="w-full flex items-center justify-between text-xs font-cyber mt-1 px-1">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               {isSkinEquipped ? (
-                <span className="flex items-center gap-1 text-emerald-400 font-black text-[10px] sm:text-[11px]">
-                  <Check className="w-3.5 h-3.5" /> CURRENTLY EQUIPPED
+                <span className="flex items-center gap-1.5 text-emerald-400 font-black text-xs">
+                  <Check className="w-4 h-4" /> CURRENTLY EQUIPPED
                 </span>
               ) : isSkinUnlocked ? (
                 <button
                   type="button"
                   onClick={() => onUpdateProfile({ selectedSkinId: inspectingSkin.id })}
-                  className="px-2.5 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-[10px] tracking-wider uppercase transition-all shadow-[0_0_12px_rgba(6,182,212,0.4)] active:scale-95"
+                  className="px-3 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs tracking-wider uppercase transition-all shadow-[0_0_12px_rgba(6,182,212,0.4)] active:scale-95"
                 >
                   EQUIP THIS SNAKE
                 </button>
               ) : (
-                <div className="flex items-center gap-1.5">
-                  <span className="flex items-center gap-1 text-amber-400 font-bold text-[10px] sm:text-[11px]">
-                    <Lock className="w-3 h-3" /> LOCKED
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-amber-400 font-bold text-xs">
+                    <Lock className="w-3.5 h-3.5" /> LOCKED
                   </span>
                   <button
                     type="button"
                     onClick={() => onOpenShop('skins')}
-                    className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 font-bold transition-colors"
+                    className="text-xs px-2.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 font-bold transition-colors"
                   >
                     {inspectingSkin.crateExclusive ? 'Crate Only' : `Armory $${inspectingSkin.price.toLocaleString()}`}
                   </button>
@@ -627,29 +716,29 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             </div>
 
             {/* Preview Weapon Held Switcher */}
-            <div className="flex items-center gap-1 text-[10px] text-slate-400">
+            <div className="flex items-center gap-1.5 text-xs text-slate-400">
               <span className="hidden xs:inline">Weapon:</span>
               <button
                 type="button"
                 onClick={() => setPreviewWeaponIndex((prev) => (prev + 1) % previewWeapons.length)}
-                className="px-2 py-0.5 rounded bg-slate-950 border border-slate-700 text-cyan-300 font-bold hover:border-slate-500 transition-colors uppercase font-mono text-[9px] sm:text-[10px]"
+                className="px-2 py-0.5 rounded-lg bg-slate-950 border border-slate-700 text-cyan-300 font-bold hover:border-slate-500 transition-colors uppercase font-mono text-[10px]"
               >
                 {previewWeapons[previewWeaponIndex]} ⇄
               </button>
             </div>
           </div>
 
-          {/* Active & Passive Ability Showcase Strip (Ultra-compact & Informative) */}
-          <div className="w-full mt-1.5 p-1.5 rounded-lg bg-slate-950/80 border border-slate-800 grid grid-cols-1 xs:grid-cols-2 gap-1 text-[10px] sm:text-[11px] font-cyber">
-            <div className="flex items-center gap-1.5 truncate">
+          {/* Active & Passive Ability Showcase Strip */}
+          <div className="w-full mt-2 p-2 rounded-xl bg-slate-950/80 border border-slate-800 grid grid-cols-1 xs:grid-cols-2 gap-1.5 text-xs font-cyber">
+            <div className="flex items-center gap-2 truncate">
               <span className="text-cyan-400 font-bold shrink-0">⚡</span>
               <span className="font-black text-cyan-300 uppercase truncate">
                 ACTIVE: {currentAbility.activeName}
               </span>
-              <span className="text-[9px] text-slate-400 font-mono shrink-0">({currentAbility.activeCooldown}s)</span>
+              <span className="text-[10px] text-slate-400 font-mono shrink-0">({currentAbility.activeCooldown}s)</span>
             </div>
 
-            <div className="flex items-center gap-1.5 truncate">
+            <div className="flex items-center gap-2 truncate">
               <span className="text-amber-400 font-bold shrink-0">✦</span>
               <span className="font-black text-amber-300 uppercase truncate">
                 PASSIVE: {currentAbility.passiveName}
@@ -659,82 +748,189 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         </div>
 
         {/* ============================================================== */}
-        {/* DEPLOY TO WAR BUTTON (DIRECTLY BELOW THE SNAKE PREVIEW) */}
+        {/* BOTTOM ANCHOR: MODE SELECTOR, DEPLOY & QUICK ACTION TABS       */}
         {/* ============================================================== */}
-        <button
-          id="btn-start-game"
-          type="button"
-          onClick={() => {
-            playRetroButtonClick();
-            stopLobbyMusic(0.3);
-            onStartGame();
-          }}
-          className="w-full py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-cyan-500 via-sky-400 to-cyan-500 hover:brightness-110 text-slate-950 font-cyber text-base sm:text-xl font-black tracking-widest uppercase flex items-center justify-center gap-2 sm:gap-3 shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all active:scale-[0.98] border-2 border-cyan-300 shrink-0"
-        >
-          <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
-          <span>DEPLOY TO WAR</span>
-        </button>
+        <div id="lobby-footer-anchor" className="w-full flex flex-col gap-2 shrink-0">
+          {/* Tactical Game Mode & Bot Settings Hub */}
+          <div className="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-2 sm:p-2.5 shadow-lg backdrop-blur-md shrink-0">
+            {/* Mode selection row */}
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="font-cyber text-[10px] sm:text-[11px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1">
+                <span>OPERATION MODE:</span>
+                <span className="text-white font-black">{activeModeDef.name}</span>
+              </span>
+              <span className="text-[9px] sm:text-[10px] text-cyan-300 font-mono">
+                {activeModeDef.multiplierText}
+              </span>
+            </div>
 
-        {/* ============================================================== */}
-        {/* QUICK ACTION TABS (BELOW DEPLOY TO WAR BUTTON) */}
-        {/* ============================================================== */}
-        <div className="w-full grid grid-cols-4 gap-1.5 sm:gap-2 font-cyber shrink-0">
-          {/* Missions Tab */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+              {GAME_MODES.map((mode) => {
+                const isSelected = selectedMode === mode.id;
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => {
+                      playRetroButtonClick();
+                      onUpdateProfile({ selectedGameMode: mode.id });
+                    }}
+                    className={`py-1.5 px-2 rounded-lg border text-left font-cyber flex items-center gap-1.5 transition-all ${
+                      isSelected
+                        ? 'border-cyan-400 bg-cyan-950/40 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
+                        : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="text-sm shrink-0">{mode.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[10px] sm:text-[11px] font-black truncate">{mode.name}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Bot Difficulty & Count Setting (only when not in Horde mode) */}
+            {selectedMode !== 'horde' && (
+              <div className="mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[10px] sm:text-[11px] font-cyber text-slate-300">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-400">BOT AI:</span>
+                  <div className="flex items-center gap-1">
+                    {Object.values(BOT_DIFFICULTIES).map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => {
+                          playRetroButtonClick();
+                          onUpdateProfile({ botDifficulty: d.id });
+                        }}
+                        className={`px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-bold uppercase transition-all ${
+                          selectedDifficulty === d.id
+                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/60'
+                            : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
+                        }`}
+                      >
+                        {d.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-400">BOTS:</span>
+                  <div className="flex items-center gap-1">
+                    {[12, 24, 36].map((count) => (
+                      <button
+                        key={count}
+                        type="button"
+                        onClick={() => {
+                          playRetroButtonClick();
+                          onUpdateProfile({ botCount: count });
+                        }}
+                        className={`px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-mono font-bold transition-all ${
+                          selectedBotCount === count
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-400/60'
+                            : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
+                        }`}
+                      >
+                        {count}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* DEPLOY TO WAR BUTTON (DIRECTLY BELOW THE SNAKE PREVIEW) */}
           <button
-            id="btn-quick-missions"
+            id="btn-start-game"
             type="button"
-            onClick={onOpenMissions}
-            className="py-1.5 sm:py-2.5 px-1 sm:px-2 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/50 text-cyan-300 font-bold text-xs flex flex-col items-center justify-center gap-0.5 sm:gap-1 transition-all shadow-sm active:scale-95"
+            onClick={() => {
+              playRetroButtonClick();
+              stopLobbyMusic(0.3);
+              onStartGame();
+            }}
+            className="w-full py-3 sm:py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 via-sky-400 to-cyan-500 hover:brightness-110 text-slate-950 font-cyber text-base sm:text-lg font-black tracking-widest uppercase flex items-center justify-center gap-2.5 shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all active:scale-[0.98] border border-cyan-300 shrink-0"
           >
-            <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" />
-            <span className="font-black text-[9px] sm:text-xs">MISSIONS</span>
+            <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
+            <span>DEPLOY TO WAR</span>
           </button>
 
-          {/* Leaderboard Tab */}
-          <button
-            id="btn-quick-ranks"
-            type="button"
-            onClick={onOpenLeaderboard}
-            className="py-1.5 sm:py-2.5 px-1 sm:px-2 rounded-xl bg-amber-950/40 hover:bg-amber-900/50 border border-amber-500/50 text-amber-300 font-bold text-xs flex flex-col items-center justify-center gap-0.5 sm:gap-1 transition-all shadow-sm active:scale-95"
-          >
-            <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
-            <span className="font-black text-[9px] sm:text-xs">RANKS</span>
-          </button>
+          {/* QUICK ACTION TABS (BELOW DEPLOY TO WAR BUTTON) */}
+          <div className="w-full grid grid-cols-4 gap-2 font-cyber shrink-0">
+            {/* Missions Tab */}
+            <button
+              id="btn-quick-missions"
+              type="button"
+              onClick={onOpenMissions}
+              className="py-2 px-1.5 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/40 text-cyan-300 font-bold flex flex-col items-center justify-center gap-1 transition-all shadow-sm active:scale-95"
+            >
+              <Target className="w-4 h-4 text-cyan-400" />
+              <span className="font-black text-[10px] sm:text-xs">MISSIONS</span>
+            </button>
 
-          {/* Supply Crate Tab */}
-          <button
-            id="btn-quick-crate"
-            type="button"
-            onClick={onOpenCrate}
-            className="py-1.5 sm:py-2.5 px-1 sm:px-2 rounded-xl bg-gradient-to-b from-amber-500/20 to-yellow-600/20 hover:from-amber-500/35 hover:to-yellow-600/35 border border-amber-400 text-amber-300 font-bold text-xs flex flex-col items-center justify-center gap-0.5 sm:gap-1 shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all active:scale-95"
-          >
-            <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
-            <span className="font-black text-[9px] sm:text-xs">CRATE (1k)</span>
-          </button>
+            {/* Leaderboard Tab */}
+            <button
+              id="btn-quick-ranks"
+              type="button"
+              onClick={onOpenLeaderboard}
+              className="py-2 px-1.5 rounded-xl bg-amber-950/40 hover:bg-amber-900/50 border border-amber-500/40 text-amber-300 font-bold flex flex-col items-center justify-center gap-1 transition-all shadow-sm active:scale-95"
+            >
+              <Trophy className="w-4 h-4 text-amber-400" />
+              <span className="font-black text-[10px] sm:text-xs">RANKS</span>
+            </button>
 
-          {/* Armory Shop Tab */}
-          <button
-            id="btn-quick-shop"
-            type="button"
-            onClick={() => onOpenShop('skins')}
-            className="py-1.5 sm:py-2.5 px-1 sm:px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-slate-500 text-slate-200 font-bold text-xs flex flex-col items-center justify-center gap-0.5 sm:gap-1 transition-all active:scale-95"
-          >
-            <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400" />
-            <span className="font-black text-[9px] sm:text-xs">ARMORY</span>
-          </button>
-        </div>
+            {/* Supply Crate Tab */}
+            <button
+              id="btn-quick-crate"
+              type="button"
+              onClick={onOpenCrate}
+              className="py-2 px-1.5 rounded-xl bg-gradient-to-b from-amber-500/20 to-yellow-600/20 hover:from-amber-500/35 hover:to-yellow-600/35 border border-amber-400 text-amber-300 font-bold flex flex-col items-center justify-center gap-1 shadow-[0_0_12px_rgba(245,158,11,0.2)] transition-all active:scale-95"
+            >
+              <Package className="w-4 h-4 text-amber-400" />
+              <span className="font-black text-[10px] sm:text-xs">CRATE (1k)</span>
+            </button>
 
-        {/* Weapons Guide Quick Banner */}
-        <div className="w-full bg-slate-900/60 border border-slate-800/80 rounded-xl py-1 px-2 text-center text-slate-400 text-[9px] sm:text-[10px] font-cyber hidden xs:flex items-center justify-around shrink-0">
-          <span className="text-amber-400 font-bold">💣 GRENADE (1-HIT)</span>
-          <span>•</span>
-          <span className="text-lime-400 font-bold">🔫 PISTOL (28 DMG)</span>
-          <span>•</span>
-          <span className="text-sky-400 font-bold">⚡ AR (32 DMG)</span>
-          <span>•</span>
-          <span className="text-rose-400 font-bold">🎯 SNIPER (75 DMG)</span>
+            {/* Armory Shop Tab */}
+            <button
+              id="btn-quick-shop"
+              type="button"
+              onClick={() => onOpenShop('skins')}
+              className="py-2 px-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-slate-500 text-slate-200 font-bold flex flex-col items-center justify-center gap-1 transition-all active:scale-95"
+            >
+              <ShoppingBag className="w-4 h-4 text-purple-400" />
+              <span className="font-black text-[10px] sm:text-xs">ARMORY</span>
+            </button>
+          </div>
         </div>
       </main>
+
+      {/* Trails Locker Modal */}
+      {showTrailsModal && (
+        <TrailsModal
+          profile={profile}
+          onUpdateProfile={onUpdateProfile}
+          onClose={() => setShowTrailsModal(false)}
+        />
+      )}
+
+      {/* Battle Pass Modal */}
+      {showBattlePassModal && (
+        <BattlePassModal
+          profile={profile}
+          onUpdateProfile={onUpdateProfile}
+          onClose={() => setShowBattlePassModal(false)}
+        />
+      )}
+
+      {/* Pilot Mastery Modal */}
+      {showMasteryModal && (
+        <MasteryModal
+          profile={profile}
+          onClose={() => setShowMasteryModal(false)}
+        />
+      )}
     </div>
   );
 };

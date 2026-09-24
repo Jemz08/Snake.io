@@ -12,6 +12,12 @@ import {
   WeaponType,
   DeathEffectType,
   TrailHazard,
+  TrailType,
+  EmoteType,
+  GameMode,
+  BotDifficulty,
+  BossRaidInfo,
+  BountyInfo,
 } from '../types';
 import { WEAPONS, getWeaponConfig } from '../utils/weapons';
 import {
@@ -26,12 +32,22 @@ import {
   playShieldDeflectSound,
   playObstacleHitSound,
   playAbilitySound,
+  playBossAlarmSound,
+  playBossLaserSweepSound,
+  playBossVortexSound,
+  playBossDefeatedSound,
+  playBountyTargetAlertSound,
+  playBountyClaimedSound,
+  playBountySurvivalSound,
 } from '../utils/audio';
 import { ARCHETYPE_ABILITIES, getArchetypeAbility } from '../utils/archetypeAbilities';
 import { SKINS, getSkinById } from '../utils/skins';
 import { DEATH_EFFECTS } from '../utils/deathEffects';
 import { updateMissionProgress } from '../utils/missions';
 import { recordPlayerScore } from '../utils/leaderboard';
+import { getTrailById } from '../utils/trails';
+import { getEmoteById } from '../utils/emotes';
+import { BOT_DIFFICULTIES } from '../utils/gameModes';
 
 const WORLD_SIZE = 5600;
 const MAX_FOOD = 300;
@@ -83,6 +99,18 @@ export class GameEngine {
   public damagePopups: DamagePopup[] = [];
   public killFeed: KillNotification[] = [];
   public trailHazards: TrailHazard[] = [];
+
+  // Features 3, 4, 5 Properties
+  public gameMode: GameMode = 'battle_royale';
+  public botDifficulty: BotDifficulty = 'tactical';
+  public botCountSetting: number = 24;
+  public currentWave: number = 1;
+  public waveEnemiesRemaining: number = 0;
+  public waveAnnouncement: string | null = null;
+  public waveAnnouncementTimer: number = 0;
+  public pelletRushTimer: number = 90;
+  public onWaveCleared?: (wave: number) => void;
+  public onEmoteTriggered?: (snakeId: string, emote: EmoteType) => void;
 
   private nextEntityId = 1;
   public playerSnake: Snake | null = null;
@@ -381,7 +409,22 @@ export class GameEngine {
     }
   }
 
-  public start(playerName: string, playerSkinId: string, playerDeathEffectId: DeathEffectType = 'cyber-matrix') {
+  public start(
+    playerName: string,
+    playerSkinId: string,
+    playerDeathEffectId: DeathEffectType = 'cyber-matrix',
+    playerTrailId: TrailType = 'none',
+    gameMode: GameMode = 'battle_royale',
+    botDifficulty: BotDifficulty = 'tactical',
+    botCount: number = 24
+  ) {
+    this.gameMode = gameMode;
+    this.botDifficulty = botDifficulty;
+    this.botCountSetting = botCount;
+    this.currentWave = 1;
+    this.pelletRushTimer = 90;
+    this.waveAnnouncement = null;
+    this.waveAnnouncementTimer = 0;
     this.initWorld();
     this.snakes = [];
 
@@ -398,13 +441,26 @@ export class GameEngine {
       startX,
       startY,
       startAngle,
-      playerDeathEffectId
+      playerDeathEffectId,
+      playerTrailId
     );
     this.snakes.push(this.playerSnake);
 
-    // Create Initial Bots
-    for (let i = 0; i < BOT_COUNT; i++) {
-      this.spawnBot(i);
+    if (this.gameMode === 'horde') {
+      this.initHordeWave(1);
+    } else {
+      // Create Initial Bots based on botCount
+      const count = Math.max(8, Math.min(40, botCount));
+      for (let i = 0; i < count; i++) {
+        this.spawnBot(i);
+      }
+    }
+
+    if (this.gameMode === 'pellet_rush') {
+      // Spawn extra high-value pellets across map
+      for (let i = 0; i < 120; i++) {
+        this.spawnFood(undefined, undefined, true, undefined, 3);
+      }
     }
 
     this.isRunning = true;
@@ -412,6 +468,112 @@ export class GameEngine {
 
     // Track daily missions for deploying into arena
     updateMissionProgress('play_games', 1);
+  }
+
+  public initHordeWave(wave: number) {
+    this.currentWave = wave;
+    const isBossWave = wave % 5 === 0;
+    this.waveAnnouncement = isBossWave
+      ? `☠️ DREADNOUGHT BOSS INCOMING! WAVE ${wave} ☠️`
+      : `👾 WAVE ${wave} INCOMING! 👾`;
+    this.waveAnnouncementTimer = 3.2;
+
+    // Drop defensive supply crates near player
+    if (this.playerSnake) {
+      const px = this.playerSnake.x;
+      const py = this.playerSnake.y;
+      this.spawnLoot(px + 120, py + 120);
+      this.spawnShield(px - 100, py + 100);
+    }
+
+    const droneCount = 4 + wave * 2;
+    this.waveEnemiesRemaining = droneCount;
+
+    for (let i = 0; i < droneCount; i++) {
+      this.spawnHordeDrone(i, wave);
+    }
+  }
+
+  private spawnHordeDrone(index: number, wave: number) {
+    const isBoss = wave % 5 === 0 && index === 0;
+    const name = isBoss ? `☠️ DREADNOUGHT BOSS ☠️` : `Rogue-Drone-${index + 1}`;
+    const skinId = isBoss ? 'robot-titan' : (wave >= 3 ? 'devil-infernal' : 'alien-xenomorph');
+    const margin = 500;
+    const px = this.playerSnake?.x || WORLD_SIZE / 2;
+    const py = this.playerSnake?.y || WORLD_SIZE / 2;
+    const spawnAngle = (index / (4 + wave * 2)) * Math.PI * 2;
+    const spawnDist = 800 + Math.random() * 400;
+    const x = Math.max(margin, Math.min(WORLD_SIZE - margin, px + Math.cos(spawnAngle) * spawnDist));
+    const y = Math.max(margin, Math.min(WORLD_SIZE - margin, py + Math.sin(spawnAngle) * spawnDist));
+
+    const drone = this.createSnake(
+      `horde_${this.nextEntityId++}`,
+      name,
+      false,
+      skinId,
+      x,
+      y,
+      spawnAngle + Math.PI,
+      'nuclear-supernova',
+      isBoss ? 'fire' : (wave > 2 ? 'lightning' : 'none')
+    );
+
+    if (isBoss) {
+      drone.maxHp = 350;
+      drone.hp = 350;
+      drone.length = 45;
+      drone.targetLength = 45;
+      drone.weapon = 'ar';
+      drone.ammo = 80;
+    } else {
+      drone.maxHp = 70 + wave * 12;
+      drone.hp = drone.maxHp;
+      drone.length = 12 + wave * 2;
+      drone.targetLength = drone.length;
+      if (Math.random() < 0.35 + wave * 0.08) {
+        drone.weapon = Math.random() < 0.5 ? 'pistol' : 'ar';
+        drone.ammo = 30;
+      }
+    }
+    this.snakes.push(drone);
+  }
+
+  public triggerEmote(snakeId: string, emoteId: EmoteType) {
+    const snake = this.snakes.find((s) => s.id === snakeId);
+    if (!snake || snake.isDead) return;
+
+    const def = getEmoteById(emoteId);
+    snake.activeEmote = {
+      id: emoteId,
+      text: def.badgeText,
+      icon: def.icon,
+      color: def.color,
+      timer: 2.8,
+      maxTimer: 2.8,
+    };
+
+    if (snake.isPlayer) {
+      playAbilitySound('robot');
+    }
+
+    const head = snake.segments[0];
+    for (let k = 0; k < 6; k++) {
+      this.particles.push({
+        x: head.x + (Math.random() - 0.5) * 20,
+        y: head.y - 35 + (Math.random() - 0.5) * 10,
+        vx: (Math.random() - 0.5) * 2,
+        vy: -Math.random() * 2 - 1,
+        color: def.color,
+        size: 3.5,
+        life: 18,
+        maxLife: 18,
+        shape: 'star',
+      });
+    }
+
+    if (this.onEmoteTriggered) {
+      this.onEmoteTriggered(snakeId, emoteId);
+    }
   }
 
   public stop() {
@@ -430,7 +592,8 @@ export class GameEngine {
     x: number,
     y: number,
     angle: number,
-    deathEffectId: DeathEffectType = 'cyber-matrix'
+    deathEffectId: DeathEffectType = 'cyber-matrix',
+    trailId: TrailType = 'none'
   ): Snake {
     const skin = getSkinById(skinId);
     const initialLen = 12;
@@ -457,6 +620,8 @@ export class GameEngine {
       skinId,
       archetype: arch,
       deathEffectId,
+      trailId,
+      activeEmote: null,
       x,
       y,
       angle,
@@ -1524,6 +1689,31 @@ export class GameEngine {
   public update(deltaTime: number) {
     if (!this.isRunning) return;
 
+    // Mode-specific timers
+    if (this.gameMode === 'pellet_rush') {
+      this.pelletRushTimer -= deltaTime || 1 / 60;
+      if (this.pelletRushTimer <= 0) {
+        this.pelletRushTimer = 0;
+        this.isRunning = false;
+        if (this.playerSnake && this.onPlayerDeath) {
+          this.onPlayerDeath({
+            score: this.playerSnake.score,
+            kills: this.playerSnake.kills,
+            coins: Math.floor(this.playerSnake.score / 10) + this.playerSnake.kills * 25,
+            length: Math.floor(this.playerSnake.length),
+          });
+        }
+        return;
+      }
+    }
+
+    if (this.waveAnnouncementTimer > 0) {
+      this.waveAnnouncementTimer -= deltaTime || 1 / 60;
+      if (this.waveAnnouncementTimer <= 0) {
+        this.waveAnnouncement = null;
+      }
+    }
+
     // 1. Update Projectiles
     this.updateProjectiles();
 
@@ -1571,11 +1761,14 @@ export class GameEngine {
       }
     }
 
-    // Respawn dead bots
-    const livingBots = this.snakes.filter((s) => !s.isPlayer && !s.isDead);
-    if (livingBots.length < BOT_COUNT) {
-      if (Math.random() < 0.08) {
-        this.spawnBot(Math.floor(Math.random() * BOT_NAMES.length));
+    // Respawn dead bots (Only in non-Horde modes)
+    if (this.gameMode !== 'horde') {
+      const livingBots = this.snakes.filter((s) => !s.isPlayer && !s.isDead);
+      const targetCount = this.botCountSetting || BOT_COUNT;
+      if (livingBots.length < targetCount) {
+        if (Math.random() < 0.08) {
+          this.spawnBot(Math.floor(Math.random() * BOT_NAMES.length));
+        }
       }
     }
   }
@@ -1924,6 +2117,11 @@ export class GameEngine {
   ) {
     const head = snake.segments[0];
 
+    // In Instant Death Mode, all damage is lethal 1-hit kill
+    if (this.gameMode === 'instant_death') {
+      damage = 999;
+    }
+
     // Phantom Archetype: Intangible while Phase Shift is active
     if (snake.archetype === 'phantom' && (snake.abilityActiveTimer || 0) > 0) {
       this.damagePopups.push({
@@ -2237,6 +2435,43 @@ export class GameEngine {
         if (this.onKill) {
           this.onKill(victim.name, weapon, killCash);
         }
+      } else if (Math.random() < 0.45) {
+        // Bot taunt emote on kill
+        const botTaunts: EmoteType[] = ['gg', 'dust', 'target'];
+        this.triggerEmote(killer.id, botTaunts[Math.floor(Math.random() * botTaunts.length)]);
+      }
+    }
+
+    // Horde Mode Wave Progress Check
+    if (this.gameMode === 'horde' && !victim.isPlayer) {
+      const livingDrones = this.snakes.filter((s) => !s.isPlayer && !s.isDead && s.id !== victim.id);
+      this.waveEnemiesRemaining = livingDrones.length;
+      if (this.waveEnemiesRemaining <= 0) {
+        const bonus = 250 * this.currentWave;
+        playCashSound();
+        if (this.playerSnake) {
+          this.playerSnake.score += bonus;
+        }
+        if (this.onCashEarned) {
+          this.onCashEarned(bonus, `Wave ${this.currentWave} Defeated!`);
+        }
+        this.damagePopups.push({
+          id: this.nextEntityId++,
+          x: victim.segments[0].x,
+          y: victim.segments[0].y - 50,
+          text: `🎉 WAVE ${this.currentWave} CLEARED! +$${bonus} BONUS!`,
+          color: '#4ade80',
+          life: 90,
+          maxLife: 90,
+        });
+        if (this.onWaveCleared) {
+          this.onWaveCleared(this.currentWave);
+        }
+        setTimeout(() => {
+          if (this.isRunning && this.gameMode === 'horde') {
+            this.initHordeWave(this.currentWave + 1);
+          }
+        }, 1500);
       }
     }
 
@@ -2839,6 +3074,105 @@ export class GameEngine {
             maxLife: 20,
             shape: 'square',
           });
+        }
+      }
+
+      // Active Emote timer decay
+      if (snake.activeEmote && snake.activeEmote.timer > 0) {
+        snake.activeEmote.timer -= 1 / 60;
+        if (snake.activeEmote.timer <= 0) {
+          snake.activeEmote = null;
+        }
+      }
+
+      // Tail Particle Trail Emission
+      if (snake.trailId && snake.trailId !== 'none' && snake.segments.length > 2) {
+        const tail = snake.segments[snake.segments.length - 1];
+        const prev = snake.segments[snake.segments.length - 2];
+        const trailAngle = Math.atan2(tail.y - prev.y, tail.x - prev.x);
+        const emitChance = snake.isBoosting ? 0.95 : 0.45;
+
+        if (Math.random() < emitChance) {
+          const trailType = snake.trailId;
+          const pAngle = trailAngle + (Math.random() - 0.5) * 0.7;
+          const pSpeed = (snake.isBoosting ? 4.5 : 2.5) + Math.random() * 2;
+
+          if (trailType === 'matrix') {
+            this.particles.push({
+              x: tail.x + (Math.random() - 0.5) * 10,
+              y: tail.y + (Math.random() - 0.5) * 10,
+              vx: Math.cos(pAngle) * pSpeed * 0.4,
+              vy: Math.sin(pAngle) * pSpeed * 0.4 + 1.2,
+              color: '#22c55e',
+              size: 4,
+              life: 20,
+              maxLife: 20,
+              shape: 'binary',
+              text: Math.random() > 0.5 ? '1' : '0',
+            });
+          } else if (trailType === 'lightning') {
+            this.particles.push({
+              x: tail.x + (Math.random() - 0.5) * 10,
+              y: tail.y + (Math.random() - 0.5) * 10,
+              vx: (Math.random() - 0.5) * 4,
+              vy: (Math.random() - 0.5) * 4,
+              color: Math.random() > 0.5 ? '#06b6d4' : '#38bdf8',
+              size: 4,
+              life: 14,
+              maxLife: 14,
+              shape: 'lightning',
+            });
+          } else if (trailType === 'rainbow') {
+            const rainbowColors = ['#f43f5e', '#ec4899', '#a855f7', '#6366f1', '#06b6d4', '#10b981', '#facc15'];
+            const rColor = rainbowColors[Math.floor((Date.now() / 150 + idx) % rainbowColors.length)];
+            this.particles.push({
+              x: tail.x + (Math.random() - 0.5) * 8,
+              y: tail.y + (Math.random() - 0.5) * 8,
+              vx: Math.cos(pAngle) * pSpeed,
+              vy: Math.sin(pAngle) * pSpeed,
+              color: rColor,
+              size: Math.random() * 4 + 3,
+              life: 22,
+              maxLife: 22,
+              shape: 'star',
+            });
+          } else if (trailType === 'fire') {
+            this.particles.push({
+              x: tail.x + (Math.random() - 0.5) * 8,
+              y: tail.y + (Math.random() - 0.5) * 8,
+              vx: Math.cos(pAngle) * pSpeed,
+              vy: Math.sin(pAngle) * pSpeed - 1,
+              color: Math.random() > 0.4 ? '#f97316' : '#ef4444',
+              size: Math.random() * 4 + 3,
+              life: 18,
+              maxLife: 18,
+              shape: 'retro-flame-pixel',
+            });
+          } else if (trailType === 'bubbles') {
+            this.particles.push({
+              x: tail.x + (Math.random() - 0.5) * 12,
+              y: tail.y + (Math.random() - 0.5) * 12,
+              vx: Math.cos(pAngle) * pSpeed * 0.5,
+              vy: Math.sin(pAngle) * pSpeed * 0.5 - 0.8,
+              color: Math.random() > 0.5 ? '#38bdf8' : '#60a5fa',
+              size: Math.random() * 4 + 3,
+              life: 26,
+              maxLife: 26,
+              shape: 'bubble',
+            });
+          } else if (trailType === 'stardust') {
+            this.particles.push({
+              x: tail.x + (Math.random() - 0.5) * 10,
+              y: tail.y + (Math.random() - 0.5) * 10,
+              vx: Math.cos(pAngle) * pSpeed * 0.6,
+              vy: Math.sin(pAngle) * pSpeed * 0.6,
+              color: Math.random() > 0.5 ? '#facc15' : '#c084fc',
+              size: Math.random() * 5 + 3,
+              life: 24,
+              maxLife: 24,
+              shape: 'star',
+            });
+          }
         }
       }
 
@@ -3533,7 +3867,7 @@ export class GameEngine {
       if (bot.weapon) {
         const weaponCfg = WEAPONS[bot.weapon];
         let targetSnake: Snake | null = null;
-        let targetDist = weaponCfg.range * 0.9;
+        let targetDist = weaponCfg.range * (this.botDifficulty === 'nightmare' ? 1.05 : 0.9);
 
         for (const other of this.snakes) {
           if (other.isDead || other.id === bot.id) continue;
@@ -3548,11 +3882,18 @@ export class GameEngine {
           const aimAngle = Math.atan2(targetSnake.y - bot.y, targetSnake.x - bot.x);
           bot.targetAngle = aimAngle;
 
+          // Nightmare bots boost aggressively when hunting
+          if (this.botDifficulty === 'nightmare' && targetDist < 350 && Math.random() < 0.25) {
+            bot.isBoosting = true;
+          }
+
           // Fire if aligned
+          const angleTolerance = this.botDifficulty === 'nightmare' ? 0.45 : this.botDifficulty === 'casual' ? 0.22 : 0.35;
           const angleDiff = Math.abs(bot.angle - aimAngle);
-          if (angleDiff < 0.35 && bot.botFireTimer <= 0) {
+          if (angleDiff < angleTolerance && bot.botFireTimer <= 0) {
             this.fireWeapon(bot);
-            bot.botFireTimer = Math.floor(weaponCfg.fireCooldown / 16) + 4;
+            const cooldownMult = this.botDifficulty === 'nightmare' ? 0.75 : this.botDifficulty === 'casual' ? 1.4 : 1.0;
+            bot.botFireTimer = Math.floor((weaponCfg.fireCooldown / 16) * cooldownMult) + 3;
           }
           return;
         }
@@ -3632,9 +3973,10 @@ export class GameEngine {
             }
             snake.score += 25;
           } else {
-            // Eat regular food
-            snake.length += food.isSpecial ? 0.8 : 0.25;
-            snake.score += food.isSpecial ? 15 : 3;
+            // Eat regular food (3x in Pellet Rush)
+            const mult = this.gameMode === 'pellet_rush' ? 3 : 1;
+            snake.length += (food.isSpecial ? 0.8 : 0.25) * mult;
+            snake.score += (food.isSpecial ? 15 : 3) * mult;
             if (snake.hp < snake.maxHp) {
               snake.hp = Math.min(snake.maxHp, snake.hp + (food.isSpecial ? 6 : 2));
             }

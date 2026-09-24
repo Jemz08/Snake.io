@@ -28,6 +28,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [shields, setShields] = React.useState<ShieldPowerup[]>(engine.shields);
   const [leaderboard, setLeaderboard] = React.useState(engine.getLeaderboard());
   const [killFeed, setKillFeed] = React.useState<KillNotification[]>([]);
+  const [currentWave, setCurrentWave] = React.useState(engine.currentWave);
+  const [waveAnnouncement, setWaveAnnouncement] = React.useState<string | null>(engine.waveAnnouncement);
+  const [pelletRushTimer, setPelletRushTimer] = React.useState(engine.pelletRushTimer);
+  const [waveEnemiesRemaining, setWaveEnemiesRemaining] = React.useState(engine.waveEnemiesRemaining);
 
   // Main Render & Game Loop
   useEffect(() => {
@@ -148,6 +152,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         setShields([...engine.shields]);
         setLeaderboard(engine.getLeaderboard());
         setKillFeed([...engine.killFeed]);
+        setCurrentWave(engine.currentWave);
+        setWaveAnnouncement(engine.waveAnnouncement);
+        setPelletRushTimer(engine.pelletRushTimer);
+        setWaveEnemiesRemaining(engine.waveEnemiesRemaining);
       }
 
       animId = requestAnimationFrame(loop);
@@ -241,6 +249,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         worldSize={engine.worldSize}
         leaderboard={leaderboard}
         killFeed={killFeed}
+        gameMode={engine.gameMode}
+        wave={currentWave}
+        waveAnnouncement={waveAnnouncement}
+        pelletRushTimer={pelletRushTimer}
+        enemiesRemaining={waveEnemiesRemaining}
+        onTriggerEmote={(emoteId) => engine.triggerEmote('player', emoteId)}
         onSteer={handleSteer}
         onAim={handleAim}
         onFire={handleFire}

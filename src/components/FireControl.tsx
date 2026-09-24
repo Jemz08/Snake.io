@@ -203,8 +203,8 @@ export const FireControl: React.FC<FireControlProps> = ({
         >
           <Flame className={`w-5 h-5 sm:w-6 sm:h-6 ${isBoosting ? 'animate-bounce' : ''}`} />
         </button>
-        <span className="text-[8px] sm:text-[9px] font-cyber tracking-wider font-bold text-slate-400 mt-0.5 uppercase">
-          BOOST <span className="hidden sm:inline">[Shift]</span>
+        <span className="text-[8px] sm:text-[9px] font-cyber tracking-wider font-bold text-slate-400 mt-1 uppercase">
+          BOOST
         </span>
       </div>
 
@@ -218,37 +218,28 @@ export const FireControl: React.FC<FireControlProps> = ({
         }}
       >
         {/* Status Badge above Pad */}
-        <div
-          id="laser-aim-status-badge"
-          className={`mb-0.5 px-1.5 py-0.5 rounded-full font-cyber text-[8px] sm:text-[9px] font-black uppercase tracking-wider flex items-center gap-1 border transition-all ${
-            !weapon || ammo <= 0
-              ? 'bg-slate-900/70 border-slate-800 text-slate-500'
-              : targetLocked
-              ? 'bg-rose-950/90 border-rose-400 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.7)] animate-pulse'
-              : isAiming
-              ? 'bg-cyan-950/90 border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.5)]'
-              : 'bg-slate-900/80 border-slate-700 text-slate-400'
-          }`}
-        >
-          {targetLocked ? (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
-              <span>⚡ LOCKED</span>
-            </>
-          ) : isAiming ? (
-            <>
-              <Crosshair className="w-2.5 h-2.5 text-cyan-400" />
-              <span>AIM: {deg}°</span>
-            </>
-          ) : weapon ? (
-            <>
-              <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
-              <span>DRAG TO AIM</span>
-            </>
-          ) : (
-            <span>NO WEAPON</span>
-          )}
-        </div>
+        {weapon && ammo > 0 && (targetLocked || isAiming) && (
+          <div
+            id="laser-aim-status-badge"
+            className={`mb-0.5 px-1.5 py-0.5 rounded-full font-cyber text-[8px] sm:text-[9px] font-black uppercase tracking-wider flex items-center gap-1 border transition-all ${
+              targetLocked
+                ? 'bg-rose-950/90 border-rose-400 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.7)] animate-pulse'
+                : 'bg-cyan-950/90 border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.5)]'
+            }`}
+          >
+            {targetLocked ? (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                <span>LOCKED</span>
+              </>
+            ) : (
+              <>
+                <Crosshair className="w-2.5 h-2.5 text-cyan-400" />
+                <span>{deg}°</span>
+              </>
+            )}
+          </div>
+        )}
 
         {/* The Drag Pad Base */}
         <div
@@ -320,8 +311,8 @@ export const FireControl: React.FC<FireControlProps> = ({
         </div>
 
         {/* Label below pad */}
-        <span className="text-[8px] sm:text-[9px] font-cyber tracking-wider font-bold text-slate-400 mt-0.5 uppercase">
-          LASER AIM <span className="text-cyan-400">[AUTO-FIRE]</span>
+        <span className="text-[8px] sm:text-[9px] font-cyber tracking-wider font-bold text-slate-400 mt-1 uppercase">
+          AIM & FIRE
         </span>
       </div>
     </div>

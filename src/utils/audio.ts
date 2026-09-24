@@ -1468,5 +1468,222 @@ export function playRetroGameOverSound() {
   });
 }
 
+/**
+ * High-Tech Threat Siren Klaxon (Boss Raid & Phase Changes)
+ */
+export function playBossAlarmSound() {
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  for (let i = 0; i < 2; i++) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const start = now + i * 0.28;
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(320, start);
+    osc.frequency.linearRampToValueAtTime(840, start + 0.18);
+    osc.frequency.linearRampToValueAtTime(320, start + 0.26);
+
+    gain.gain.setValueAtTime(0.24, start);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.26);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + 0.26);
+  }
+}
+
+/**
+ * Boss Tri-Laser Beam Charge & Piercing Hum
+ */
+export function playBossLaserSweepSound() {
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  const osc = ctx.createOscillator();
+  const sub = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(120, now);
+  osc.frequency.exponentialRampToValueAtTime(1400, now + 0.6);
+
+  sub.type = 'sine';
+  sub.frequency.setValueAtTime(60, now);
+  sub.frequency.linearRampToValueAtTime(180, now + 0.6);
+
+  gain.gain.setValueAtTime(0.05, now);
+  gain.gain.linearRampToValueAtTime(0.28, now + 0.5);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+
+  osc.connect(gain);
+  sub.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(now);
+  sub.start(now);
+  osc.stop(now + 0.7);
+  sub.stop(now + 0.7);
+}
+
+/**
+ * Boss Singularity Vortex Pulsing Gravity Well
+ */
+export function playBossVortexSound() {
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  const osc = ctx.createOscillator();
+  const filter = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(65, now);
+  osc.frequency.linearRampToValueAtTime(130, now + 0.4);
+
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(200, now);
+  filter.frequency.linearRampToValueAtTime(650, now + 0.4);
+  filter.Q.setValueAtTime(4, now);
+
+  gain.gain.setValueAtTime(0.22, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(now);
+  osc.stop(now + 0.5);
+}
+
+/**
+ * Boss Defeated Victory Stinger
+ */
+export function playBossDefeatedSound() {
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  const chords = [
+    [523.25, 659.25, 783.99], // C5 major
+    [587.33, 739.99, 880.00], // D5 major
+    [659.25, 830.61, 987.77], // E5 major
+    [1046.5, 1318.5, 1567.98], // C6 triumph chord!
+  ];
+
+  chords.forEach((chord, step) => {
+    const start = now + step * 0.16;
+    const dur = step === 3 ? 0.65 : 0.14;
+    chord.forEach((freq) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, start);
+
+      gain.gain.setValueAtTime(0.18, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + dur);
+    });
+  });
+}
+
+/**
+ * Bounty Hunter Lock-On Target Alert (Double Pip)
+ */
+export function playBountyTargetAlertSound() {
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  [1200, 1600].forEach((freq, idx) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const start = now + idx * 0.08;
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, start);
+
+    gain.gain.setValueAtTime(0.16, start);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.07);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + 0.07);
+  });
+}
+
+/**
+ * Bounty Claimed Cash Payout Fanfare
+ */
+export function playBountyClaimedSound() {
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  const notes = [659.25, 783.99, 987.77, 1318.51]; // E5 -> G5 -> B5 -> E6
+  notes.forEach((freq, idx) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const start = now + idx * 0.07;
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, start);
+
+    gain.gain.setValueAtTime(0.22, start);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.28);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + 0.28);
+  });
+}
+
+/**
+ * Bounty Survived 20s Hunt Bonus Sound
+ */
+export function playBountySurvivalSound() {
+  if (isMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  const notes = [440, 554.37, 659.25, 880]; // A4, C#5, E5, A5
+  notes.forEach((freq, idx) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const start = now + idx * 0.09;
+
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(freq, start);
+
+    gain.gain.setValueAtTime(0.14, start);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + 0.22);
+  });
+}
+
+
 
 

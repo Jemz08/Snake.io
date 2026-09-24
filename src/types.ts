@@ -100,6 +100,33 @@ export interface Snake {
   smokeEscapeTimer?: number; // Ninja smoke bomb escape invisibility
   ninjaSlashCooldown?: number; // Ninja melee dash-slash cooldown
   isReflecting?: boolean; // Crystal bullet reflection
+  // Customization & Visual Flair
+  trailId?: TrailType;
+  activeEmote?: ActiveEmote | null;
+  // Boss Raid & Elite attributes
+  isBoss?: boolean;
+  bossPhase?: 1 | 2 | 3;
+  bossAttackTelegraph?: string | null;
+  bossAttackTimer?: number;
+  bossLaserAngle?: number;
+  bossLaserActive?: boolean;
+  bossLaserCharging?: boolean;
+  bossVortexActive?: boolean;
+  bossCores?: Array<{ id: number; hp: number; maxHp: number; segIndex: number; isDestroyed?: boolean }>;
+  // Bounty Hunter attributes
+  isBountyTarget?: boolean;
+  bountyStars?: number; // 1 to 5
+  bountyValue?: number; // Cash bounty
+  bountySurvivalTimer?: number; // Countdown for player surviving as bounty target
+}
+
+export interface ActiveEmote {
+  id: EmoteType;
+  text: string;
+  icon: string;
+  color: string;
+  timer: number;
+  maxTimer: number;
 }
 
 export interface TrailHazard {
@@ -250,7 +277,8 @@ export interface Particle {
     | 'retro-comic'
     | 'retro-glitch-bar'
     | 'retro-skull'
-    | 'retro-flame-pixel';
+    | 'retro-flame-pixel'
+    | 'bubble';
   alpha?: number;
   text?: string;
   rotation?: number;
@@ -393,6 +421,117 @@ export interface DeathEffectDef {
   style?: string;
 }
 
+export type TrailType =
+  | 'none'
+  | 'matrix'
+  | 'lightning'
+  | 'rainbow'
+  | 'fire'
+  | 'bubbles'
+  | 'stardust';
+
+export interface TrailDef {
+  id: TrailType;
+  name: string;
+  price: number;
+  description: string;
+  badge: string;
+  color: string;
+  glowColor: string;
+  primaryColor?: string;
+  previewGradient?: string;
+  rarity?: string;
+  icon: string;
+}
+
+export type EmoteType =
+  | 'target'
+  | 'gg'
+  | 'overload'
+  | 'fire'
+  | 'shield'
+  | 'dust';
+
+export interface EmoteDef {
+  id: EmoteType;
+  label?: string;
+  name?: string;
+  badgeText: string;
+  icon: string;
+  color: string;
+}
+
+export type GameMode =
+  | 'battle_royale'
+  | 'boss_raid'
+  | 'bounty_hunt'
+  | 'horde'
+  | 'instant_death'
+  | 'pellet_rush';
+
+export interface BossRaidInfo {
+  bossId: string;
+  name: string;
+  phase: 1 | 2 | 3;
+  hp: number;
+  maxHp: number;
+  shieldHp: number;
+  maxShieldHp: number;
+  telegraph: string | null;
+  coresRemaining: number;
+  totalCores: number;
+  isEnraged: boolean;
+  laserSweepAngle?: number;
+  laserSweepActive?: boolean;
+  laserSweepCharging?: boolean;
+  vortexActive?: boolean;
+}
+
+export interface BountyInfo {
+  targetId: string;
+  targetName: string;
+  isPlayer: boolean;
+  bountyValue: number;
+  stars: number;
+  distance: number;
+  angleToTarget: number;
+  survivalTimer?: number;
+}
+
+export type BotDifficulty = 'casual' | 'tactical' | 'nightmare';
+
+export interface GameModeDef {
+  id: GameMode;
+  name: string;
+  tagline: string;
+  description: string;
+  icon: string;
+  badge?: string;
+  badgeColor?: string;
+  multiplierText?: string;
+}
+
+export interface MasteryBadge {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  unlocked: boolean;
+  progress: number;
+  maxProgress: number;
+  category: string;
+}
+
+export interface BattlePassTier {
+  tier: number;
+  requiredXp: number;
+  rewardType: 'coins' | 'trail' | 'skin' | 'emote';
+  rewardValue: string | number;
+  rewardName: string;
+  rewardIcon: string;
+  claimed?: boolean;
+}
+
 export interface PlayerProfile {
   name: string;
   coins: number;
@@ -402,6 +541,30 @@ export interface PlayerProfile {
   unlockedSkinIds: string[];
   selectedDeathEffectId: DeathEffectType;
   unlockedDeathEffectIds: DeathEffectType[];
+  // Feature 3: Customization & Visual Flair
+  selectedTrailId?: TrailType;
+  unlockedTrailIds?: TrailType[];
+  unlockedTrails?: TrailType[]; // alias for compatibility
+  // Feature 4: Game Modes
+  selectedGameMode?: GameMode;
+  botDifficulty?: BotDifficulty;
+  botCount?: number;
+  modeHighScores?: Partial<Record<GameMode, number>>;
+  // Feature 5: Progression & Meta-Game
+  battlePassXp?: number;
+  claimedBattlePassTiers?: number[];
+  claimedPassTiers?: number[]; // alias for compatibility
+  selectedMasteryBadge?: string;
+  unlockedMasteryBadges?: string[];
+  totalSniperKills?: number;
+  totalHordeWavesBeaten?: number;
+  totalCoinsEarned?: number;
+  totalGamesPlayed?: number;
+  totalKills?: number;
+  highestWave?: number;
+  totalBossesDefeated?: number;
+  totalBountiesClaimed?: number;
+  totalBountySurvivals?: number;
 }
 
 export type MissionType =

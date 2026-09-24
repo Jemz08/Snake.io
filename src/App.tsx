@@ -12,10 +12,11 @@ import { CrateOpeningModal } from './components/CrateOpeningModal';
 import { SettingsModal } from './components/SettingsModal';
 import { getSettings, saveSettings, GameSettings } from './utils/settings';
 import { loadHudLayout, saveHudLayout } from './utils/hudLayout';
-import { PlayerProfile, SkinDef, DeathEffectDef, DeathEffectType, HudLayoutConfig } from './types';
+import { PlayerProfile, SkinDef, DeathEffectDef, DeathEffectType, HudLayoutConfig, GameMode } from './types';
 import { SKINS } from './utils/skins';
 import { normalizeDeathEffectId } from './utils/deathEffects';
 import { startLobbyMusic, stopLobbyMusic, playRetroGameOverSound } from './utils/audio';
+import { calculateMatchXp } from './utils/progression';
 import { Smartphone } from 'lucide-react';
 
 const STORAGE_KEY = 'snake2_armed_profile_v2';
@@ -29,6 +30,18 @@ const DEFAULT_PROFILE: PlayerProfile = {
   unlockedSkinIds: ['angel-seraph', 'devil-infernal', 'blackhole-void', 'robot-titan', 'cyber-viper'],
   selectedDeathEffectId: 'retro-pixel-kaboom',
   unlockedDeathEffectIds: ['retro-pixel-kaboom'],
+  selectedTrailId: 'matrix',
+  unlockedTrailIds: ['none', 'matrix'],
+  battlePassXp: 120,
+  claimedBattlePassTiers: [1],
+  claimedPassTiers: [1],
+  unlockedMasteryBadges: [],
+  selectedGameMode: 'battle_royale',
+  botDifficulty: 'tactical',
+  botCount: 24,
+  totalGamesPlayed: 0,
+  totalKills: 0,
+  highestWave: 0,
 };
 
 export default function App() {
@@ -84,6 +97,9 @@ export default function App() {
     coins: number;
     length: number;
     isHighScore: boolean;
+    xpEarned?: number;
+    gameMode?: GameMode;
+    waveReached?: number;
   } | null>(null);
 
   const handleUpdateSettings = useCallback((partial: Partial<GameSettings>) => {
@@ -138,6 +154,7 @@ export default function App() {
 
     engine.onPlayerDeath = (stats) => {
       const isHighScore = stats.score > profile.highScore;
+      const xpEarned = calculateMatchXp(stats.score, stats.kills, profile.selectedGameMode || 'battle_royale');
 
       playRetroGameOverSound();
 
@@ -146,6 +163,10 @@ export default function App() {
         coins: prev.coins + stats.coins,
         highScore: Math.max(prev.highScore, stats.score),
         maxKills: Math.max(prev.maxKills, stats.kills),
+        totalGamesPlayed: (prev.totalGamesPlayed || 0) + 1,
+        totalKills: (prev.totalKills || 0) + stats.kills,
+        highestWave: Math.max(prev.highestWave || 0, engine.currentWave || 0),
+        battlePassXp: (prev.battlePassXp || 0) + xpEarned,
       }));
 
       setGameOverData({
@@ -154,9 +175,12 @@ export default function App() {
         coins: stats.coins,
         length: stats.length,
         isHighScore,
+        xpEarned,
+        gameMode: profile.selectedGameMode || 'battle_royale',
+        waveReached: engine.currentWave,
       });
     };
-  }, [engine, profile.highScore]);
+  }, [engine, profile.highScore, profile.selectedGameMode]);
 
   const updateProfile = useCallback((partial: Partial<PlayerProfile>) => {
     setProfile((prev) => ({ ...prev, ...partial }));
@@ -168,10 +192,23 @@ export default function App() {
     engine.start(
       profile.name,
       profile.selectedSkinId,
-      profile.selectedDeathEffectId || 'cyber-matrix'
+      profile.selectedDeathEffectId || 'cyber-matrix',
+      profile.selectedTrailId || 'matrix',
+      profile.selectedGameMode || 'battle_royale',
+      profile.botDifficulty || 'tactical',
+      profile.botCount || 24
     );
     setScreen('playing');
-  }, [engine, profile.name, profile.selectedSkinId, profile.selectedDeathEffectId]);
+  }, [
+    engine,
+    profile.name,
+    profile.selectedSkinId,
+    profile.selectedDeathEffectId,
+    profile.selectedTrailId,
+    profile.selectedGameMode,
+    profile.botDifficulty,
+    profile.botCount,
+  ]);
 
   const handlePlayAgain = useCallback(() => {
     stopLobbyMusic(0.3);
@@ -368,6 +405,9 @@ export default function App() {
           length={gameOverData.length}
           coinsEarned={gameOverData.coins}
           isHighScore={gameOverData.isHighScore}
+          xpEarned={gameOverData.xpEarned}
+          gameMode={gameOverData.gameMode}
+          waveReached={gameOverData.waveReached}
           onPlayAgain={handlePlayAgain}
           onReturnLobby={handleReturnLobby}
           onOpenLeaderboard={() => setIsLeaderboardOpen(true)}

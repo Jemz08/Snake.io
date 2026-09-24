@@ -1,5 +1,6 @@
 import React from 'react';
-import { Trophy, Swords, Coins, RotateCcw, Home, Sparkles } from 'lucide-react';
+import { Trophy, Swords, Coins, RotateCcw, Home, Sparkles, Award } from 'lucide-react';
+import { GameMode } from '../types';
 
 interface GameOverModalProps {
   isOpen: boolean;
@@ -8,6 +9,9 @@ interface GameOverModalProps {
   length: number;
   coinsEarned: number;
   isHighScore: boolean;
+  xpEarned?: number;
+  gameMode?: GameMode;
+  waveReached?: number;
   onPlayAgain: () => void;
   onReturnLobby: () => void;
   onOpenLeaderboard?: () => void;
@@ -20,6 +24,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   length,
   coinsEarned,
   isHighScore,
+  xpEarned,
+  gameMode,
+  waveReached,
   onPlayAgain,
   onReturnLobby,
   onOpenLeaderboard,
@@ -41,6 +48,12 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           YOU GOT KILLED.
         </h2>
 
+        {gameMode === 'horde' && waveReached && (
+          <div className="text-xs font-cyber text-purple-400 font-bold mb-2">
+            👾 HORDE SURVIVAL • WAVE {waveReached}
+          </div>
+        )}
+
         {isHighScore && (
           <div className="w-full mb-3 py-1 px-2.5 rounded-lg bg-amber-500/20 border border-amber-400 text-amber-300 font-cyber text-[10px] sm:text-xs font-black flex items-center justify-center gap-1.5 animate-pulse">
             <Sparkles className="w-3.5 h-3.5" /> NEW ALL-TIME HIGH SCORE!
@@ -48,7 +61,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         )}
 
         {/* Stats Grid */}
-        <div className="w-full grid grid-cols-2 gap-2 font-cyber mb-4 sm:mb-5">
+        <div className="w-full grid grid-cols-2 gap-2 font-cyber mb-3 sm:mb-4">
           <div className="bg-slate-950/80 p-2 sm:p-2.5 rounded-xl border border-slate-800">
             <span className="text-[9px] sm:text-[10px] text-slate-500 block uppercase">FINAL SCORE</span>
             <span className="text-base sm:text-xl font-black text-white">{score}</span>
@@ -71,6 +84,17 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             </span>
           </div>
         </div>
+
+        {/* Battle Pass XP Banner */}
+        {typeof xpEarned === 'number' && xpEarned > 0 && (
+          <div className="w-full mb-4 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500/15 via-purple-500/15 to-amber-500/15 border border-amber-400/50 flex items-center justify-between text-xs font-cyber">
+            <span className="flex items-center gap-1.5 text-amber-300 font-bold">
+              <Award className="w-4 h-4 text-amber-400" />
+              <span>PASS XP REWARD</span>
+            </span>
+            <span className="font-black text-amber-300 font-mono text-sm">+{xpEarned} XP</span>
+          </div>
+        )}
 
         {/* Buttons */}
         <div className="w-full space-y-2">
