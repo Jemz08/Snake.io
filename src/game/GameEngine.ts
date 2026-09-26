@@ -48,6 +48,7 @@ import { recordPlayerScore } from '../utils/leaderboard';
 import { getTrailById } from '../utils/trails';
 import { getEmoteById } from '../utils/emotes';
 import { BOT_DIFFICULTIES } from '../utils/gameModes';
+import { SpatialHashGrid } from './SpatialHashGrid';
 
 const WORLD_SIZE = 5600;
 const MAX_FOOD = 300;
@@ -93,6 +94,11 @@ export class GameEngine {
   public loots: LootItem[] = [];
   public shields: ShieldPowerup[] = [];
   public obstacles: MapObstacle[] = [];
+
+  // High-performance Spatial Hash Grids for O(1) collision & pickup queries
+  public frameCount = 0;
+  public segmentGrid = new SpatialHashGrid<{ id: string; snakeId: string; x: number; y: number; segIndex: number }>(220);
+  public foodGrid = new SpatialHashGrid<{ id: number; food: FoodItem; x: number; y: number }>(220);
   public projectiles: Projectile[] = [];
   public explosions: ExplosionEffect[] = [];
   public particles: Particle[] = [];
@@ -2001,35 +2007,46 @@ export class GameEngine {
     let targetSnake: Snake | null = null;
     let lockPoint: { x: number; y: number } | null = null;
 
-    // Scan all other living snakes in arena
-    for (const other of this.snakes) {
-      if (other.isDead || other.id === snake.id) continue;
+    // Stagger bot laser scans every 3 frames to avoid 24 bots doing heavy raycasts every frame
+    if (!snake.isPlayer) {
+      const botNum = parseInt(snake.id.replace(/\D/g, '') || '0', 10);
+      if ((this.frameCount + botNum) % 3 !== 0) {
+        return;
+      }
+    }
+
+    // Query candidate segments in weapon range via Spatial Hash Grid
+    const candidateSegments = this.segmentGrid.query(mountX, mountY, maxRange);
+
+    for (let i = 0; i < candidateSegments.length; i++) {
+      const segItem = candidateSegments[i];
+      if (segItem.snakeId === snake.id) continue;
+
+      const other = this.snakes.find((s) => s.id === segItem.snakeId);
+      if (!other || other.isDead) continue;
       if (other.invincibleTimer && other.invincibleTimer > 0) continue;
 
-      for (let s = 0; s < other.segments.length; s++) {
-        const seg = other.segments[s];
-        const dx = seg.x - mountX;
-        const dy = seg.y - mountY;
-        const dist = Math.hypot(dx, dy);
+      const dx = segItem.x - mountX;
+      const dy = segItem.y - mountY;
+      const dist = Math.hypot(dx, dy);
 
-        if (dist < closestHitDist && dist > 10) {
-          // Angle from mount to target segment
-          const angleToSeg = Math.atan2(dy, dx);
-          let angleDiff = Math.abs(aimAngle - angleToSeg);
-          while (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+      if (dist < closestHitDist && dist > 10) {
+        // Angle from mount to target segment
+        const angleToSeg = Math.atan2(dy, dx);
+        let angleDiff = Math.abs(aimAngle - angleToSeg);
+        while (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
 
-          // Cross-track distance (perpendicular distance to laser beam line)
-          const perpDist = dist * Math.sin(angleDiff);
-          const alongDist = dist * Math.cos(angleDiff);
+        // Cross-track distance (perpendicular distance to laser beam line)
+        const perpDist = dist * Math.sin(angleDiff);
+        const alongDist = dist * Math.cos(angleDiff);
 
-          // Generous targeting corridor (~32px beam width) for smooth lock-on
-          if (alongDist > 0 && perpDist < 32) {
-            // Defensive Cover Rule: If an obstacle blocks line of sight, cannot target through wall!
-            if (!this.isLineBlockedByObstacle(mountX, mountY, seg.x, seg.y)) {
-              closestHitDist = dist;
-              targetSnake = other;
-              lockPoint = { x: seg.x, y: seg.y };
-            }
+        // Generous targeting corridor (~32px beam width) for smooth lock-on
+        if (alongDist > 0 && perpDist < 32) {
+          // Defensive Cover Rule: If an obstacle blocks line of sight, cannot target through wall!
+          if (!this.isLineBlockedByObstacle(mountX, mountY, segItem.x, segItem.y)) {
+            closestHitDist = dist;
+            targetSnake = other;
+            lockPoint = { x: segItem.x, y: segItem.y };
           }
         }
       }
@@ -2066,9 +2083,45 @@ export class GameEngine {
     }
   }
 
-  // Update loop
+  // Populate fast spatial partitioning grids
+  public rebuildSpatialGrids() {
+    this.segmentGrid.clear();
+    for (let sIdx = 0; sIdx < this.snakes.length; sIdx++) {
+      const snake = this.snakes[sIdx];
+      if (snake.isDead) continue;
+      const segs = snake.segments;
+      const step = segs.length > 60 ? 2 : 1;
+      for (let i = 0; i < segs.length; i += step) {
+        const seg = segs[i];
+        this.segmentGrid.insert({
+          id: `${snake.id}_${i}`,
+          snakeId: snake.id,
+          x: seg.x,
+          y: seg.y,
+          segIndex: i,
+        });
+      }
+    }
+
+    this.foodGrid.clear();
+    for (let i = 0; i < this.foods.length; i++) {
+      const food = this.foods[i];
+      this.foodGrid.insert({
+        id: food.id,
+        food,
+        x: food.x,
+        y: food.y,
+      });
+    }
+  }
+
+  // Update loop (Spatial Partitioned 144Hz Engine Pipeline)
   public update(deltaTime: number) {
     if (!this.isRunning) return;
+    this.frameCount++;
+
+    // Rebuild Spatial Hash Grids for O(1) broadphase collision checks
+    this.rebuildSpatialGrids();
 
     // Mode-specific timers
     if (this.gameMode === 'pellet_rush') {
@@ -2240,11 +2293,27 @@ export class GameEngine {
       }
       if (hitObstacle) continue;
 
-      // Check collision with snakes
+      // Check collision with snakes (Fast Spatial Partitioning Rejection)
       let hit = false;
       let devouredByEventHorizon = false;
 
+      const nearbyCandidates = this.segmentGrid.query(p.x, p.y, p.radius + 32);
+      if (nearbyCandidates.length === 0) {
+        // Max distance reach
+        if (p.distanceTraveled >= p.maxDistance) {
+          if (p.isExplosive) {
+            this.detonateGrenade(p);
+          }
+          this.projectiles.splice(i, 1);
+        }
+        continue;
+      }
+
+      // Gather candidate snake IDs from nearby spatial cells
+      const candidateSnakeIds = new Set(nearbyCandidates.map((c) => c.snakeId));
+
       for (const snake of this.snakes) {
+        if (!candidateSnakeIds.has(snake.id)) continue;
         if (snake.isDead || snake.id === p.ownerId) continue;
 
         const head = snake.segments[0];
@@ -3770,11 +3839,6 @@ export class GameEngine {
         snake.segments.pop();
       }
 
-      // 3.8 Update Laser Targeting & Auto-Shoot mechanic for equipped snakes
-      if (snake.weapon && snake.ammo > 0) {
-        this.updateLaserTargetingAndAutoFire(snake);
-      }
-
       // 3.9 Update Archetype Active & Passive Abilities
       this.updateSnakeAbilities(snake);
 
@@ -3783,8 +3847,17 @@ export class GameEngine {
         updateMissionProgress('reach_length', Math.floor(snake.length), 'max');
         updateMissionProgress('reach_score', snake.score, 'max');
       }
+    }
 
-      // 4. Check Head-to-Body Collision with other snakes (Classic Snake.io kill!)
+    // Refresh segment grid with latest snake movements for accurate broadphase collisions
+    this.rebuildSpatialGrids();
+
+    // Pass 2: Laser targeting & head-to-body collisions on fresh positions
+    for (const snake of this.snakes) {
+      if (snake.isDead) continue;
+      if (snake.weapon && snake.ammo > 0) {
+        this.updateLaserTargetingAndAutoFire(snake);
+      }
       this.checkSnakeCollisions(snake);
     }
   }
@@ -4215,6 +4288,14 @@ export class GameEngine {
       }
     }
 
+    // Active Emote timer decay
+    if (snake.activeEmote && snake.activeEmote.timer > 0) {
+      snake.activeEmote.timer -= dt;
+      if (snake.activeEmote.timer <= 0) {
+        snake.activeEmote = null;
+      }
+    }
+
     // Ninja smoke escape timer decay
     if (snake.smokeEscapeTimer && snake.smokeEscapeTimer > 0) {
       snake.smokeEscapeTimer -= dt;
@@ -4233,6 +4314,7 @@ export class GameEngine {
     }
   }
 
+  // Check Head-to-Body Collision with other snakes using O(1) Spatial Hash Query
   private checkSnakeCollisions(snake: Snake) {
     if (snake.isDead) return;
     if (snake.invincibleTimer && snake.invincibleTimer > 0) return;
@@ -4242,38 +4324,23 @@ export class GameEngine {
     const reach = 14 + 10;
     const reachSq = reach * reach;
 
-    for (let oIdx = 0; oIdx < this.snakes.length; oIdx++) {
-      const other = this.snakes[oIdx];
-      if (other.isDead || other.id === snake.id) continue;
+    const nearbySegments = this.segmentGrid.query(head.x, head.y, reach + 8);
+    for (let i = 0; i < nearbySegments.length; i++) {
+      const segItem = nearbySegments[i];
+      if (segItem.snakeId === snake.id) continue;
+      // Head-to-head collision handled separately or ignored to allow head grazing
+      if (segItem.segIndex === 0) continue;
+
+      const other = this.snakes.find((s) => s.id === segItem.snakeId);
+      if (!other || other.isDead) continue;
       if (other.isPhasing || (other.archetype === 'phantom' && (other.abilityActiveTimer || 0) > 0)) continue;
 
-      // Fast AABB bounding box check - instantly reject entire snake if head is nowhere near
-      if (
-        other.minX !== undefined &&
-        (head.x < other.minX - reach ||
-          head.x > (other.maxX || WORLD_SIZE) + reach ||
-          head.y < (other.minY || 0) - reach ||
-          head.y > (other.maxY || WORLD_SIZE) + reach)
-      ) {
-        continue;
-      }
-
-      // Adaptive segment step for long snakes to eliminate framedrops
-      const segStep = other.segments.length > 50 ? 2 : 1;
-
-      // Check collision with other snake's body segments
-      for (let s = 1; s < other.segments.length; s += segStep) {
-        const seg = other.segments[s];
-        const dx = head.x - seg.x;
-        if (Math.abs(dx) > reach) continue;
-        const dy = head.y - seg.y;
-        if (Math.abs(dy) > reach) continue;
-
-        if (dx * dx + dy * dy < reachSq) {
-          // Crash! snake dies and other snake gets credit!
-          this.killSnake(snake, other.id, null);
-          return;
-        }
+      const dx = head.x - segItem.x;
+      const dy = head.y - segItem.y;
+      if (dx * dx + dy * dy < reachSq) {
+        // Crash! Snake dies and other snake gets credit!
+        this.killSnake(snake, other.id, null);
+        return;
       }
     }
   }
@@ -4422,12 +4489,16 @@ export class GameEngine {
 
     if (eaters.length === 0) return;
 
-    // 2. Check Food & Cash Coin Pickups (Single-pass reverse iteration, 10x faster!)
-    for (let i = this.foods.length - 1; i >= 0; i--) {
-      const food = this.foods[i];
+    // 2. Check Food & Cash Coin Pickups using O(1) Spatial Hash Grid
+    const eatenFoodIds = new Set<number>();
+    for (let eIdx = 0; eIdx < eaters.length; eIdx++) {
+      const { snake, head, reach } = eaters[eIdx];
+      const nearbyFoods = this.foodGrid.query(head.x, head.y, reach + 16);
 
-      for (let eIdx = 0; eIdx < eaters.length; eIdx++) {
-        const { snake, head, reach } = eaters[eIdx];
+      for (let fIdx = 0; fIdx < nearbyFoods.length; fIdx++) {
+        const item = nearbyFoods[fIdx];
+        if (eatenFoodIds.has(item.id)) continue;
+        const food = item.food;
         const totalReach = reach + food.radius;
         const dx = head.x - food.x;
         if (Math.abs(dx) > totalReach) continue;
@@ -4435,6 +4506,7 @@ export class GameEngine {
         if (Math.abs(dy) > totalReach) continue;
 
         if (dx * dx + dy * dy < totalReach * totalReach) {
+          eatenFoodIds.add(item.id);
           if (food.isCashCoin) {
             // Cash coin collected!
             const cash = food.cashValue || 10;
@@ -4468,11 +4540,12 @@ export class GameEngine {
               playEatSound();
             }
           }
-
-          this.foods.splice(i, 1);
-          break; // Food item consumed, move to next food
         }
       }
+    }
+
+    if (eatenFoodIds.size > 0) {
+      this.foods = this.foods.filter((f) => !eatenFoodIds.has(f.id));
     }
 
     // 3. Check Loot Crates & Shields Pickups

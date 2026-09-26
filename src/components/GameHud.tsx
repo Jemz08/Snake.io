@@ -649,6 +649,21 @@ export const GameHud: React.FC<GameHudProps> = ({
         />
       </div>
 
+      {/* 4b. COMBAT TAUNTS BAR: Docked safely above joystick with landscape adaptation */}
+      <div
+        id="hud-anchor-taunts"
+        className="absolute pointer-events-auto select-none z-50 origin-bottom-left"
+        style={{
+          bottom: screenDim.isLandscape
+            ? 'max(105px, calc(env(safe-area-inset-bottom, 0px) + 95px))'
+            : 'max(152px, calc(env(safe-area-inset-bottom, 0px) + 142px))',
+          left: 'max(8px, env(safe-area-inset-left, 8px))',
+          transform: `scale(${adaptiveScale})`,
+        }}
+      >
+        <EmoteBar onTriggerEmote={onTriggerEmote || (() => {})} />
+      </div>
+
       {/* ============================================================== */}
       {/* 5. BOTTOM-RIGHT CORNER ANCHOR: Ability + Fire & Boost Controls */}
       {/* ============================================================== */}

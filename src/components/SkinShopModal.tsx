@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
-import { SkinDef, DeathEffectDef, DeathEffectType, SkinRarity } from '../types';
+import { SkinDef, DeathEffectDef, DeathEffectType, SkinRarity, EmoteType } from '../types';
 import { SKINS, getSkinById, RARITY_CONFIG } from '../utils/skins';
 import { DEATH_EFFECTS, getDeathEffectById } from '../utils/deathEffects';
+import { EMOTES, getEmoteById } from '../utils/emotes';
 import { SnakePreviewCanvas } from './SnakePreviewCanvas';
 import { DeathEffectPreviewCanvas } from './DeathEffectPreviewCanvas';
-import { X, Coins, Check, Lock, Sparkles, Shield, Flame, Zap, Package } from 'lucide-react';
+import { X, Coins, Check, Lock, Sparkles, Shield, Flame, Zap, Package, MessageSquare, Volume2, Radio } from 'lucide-react';
+import {
+  playRetroButtonClick,
+  playAbilitySound,
+  playCashSound,
+  playShieldDeflectSound,
+} from '../utils/audio';
 
 interface SkinShopModalProps {
   isOpen: boolean;
@@ -14,12 +21,14 @@ interface SkinShopModalProps {
   unlockedSkinIds: string[];
   selectedDeathEffectId: DeathEffectType;
   unlockedDeathEffectIds: DeathEffectType[];
+  selectedEmoteId?: EmoteType;
   onSelectSkin: (skinId: string) => void;
   onBuySkin: (skin: SkinDef) => void;
   onSelectDeathEffect: (id: DeathEffectType) => void;
   onBuyDeathEffect: (effect: DeathEffectDef) => void;
+  onSelectEmote?: (emoteId: EmoteType) => void;
   onOpenCrate?: () => void;
-  initialTab?: 'skins' | 'death-effects';
+  initialTab?: 'skins' | 'death-effects' | 'taunts';
 }
 
 const ARCHETYPE_TRAITS: Record<string, { role: string; combat: string; color: string }> = {
@@ -49,18 +58,41 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
   unlockedSkinIds,
   selectedDeathEffectId,
   unlockedDeathEffectIds,
+  selectedEmoteId = 'target',
   onSelectSkin,
   onBuySkin,
   onSelectDeathEffect,
   onBuyDeathEffect,
+  onSelectEmote,
   onOpenCrate,
   initialTab = 'skins',
 }) => {
-  const [activeTab, setActiveTab] = useState<'skins' | 'death-effects'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'skins' | 'death-effects' | 'taunts'>(initialTab);
   const [inspectingSkinId, setInspectingSkinId] = useState<string>(selectedSkinId);
   const [inspectingEffectId, setInspectingEffectId] = useState<DeathEffectType>(selectedDeathEffectId);
+  const [inspectingEmoteId, setInspectingEmoteId] = useState<EmoteType>(selectedEmoteId);
+  const [testedEmote, setTestedEmote] = useState<EmoteType | null>(null);
   const [archetypeFilter, setArchetypeFilter] = useState<string>('all');
   const [rarityFilter, setRarityFilter] = useState<string>('all');
+
+  const playTauntAudio = (emoteId: EmoteType) => {
+    if (emoteId === 'target') playAbilitySound('robot');
+    else if (emoteId === 'gg') playCashSound();
+    else if (emoteId === 'overload') playAbilitySound('storm');
+    else if (emoteId === 'fire') playAbilitySound('devil');
+    else if (emoteId === 'shield') playShieldDeflectSound();
+    else if (emoteId === 'dust') playAbilitySound('phoenix');
+    else playRetroButtonClick();
+  };
+
+  const handleTestTaunt = (emoteId: EmoteType) => {
+    setTestedEmote(emoteId);
+    setInspectingEmoteId(emoteId);
+    playTauntAudio(emoteId);
+    setTimeout(() => {
+      setTestedEmote((prev) => (prev === emoteId ? null : prev));
+    }, 2200);
+  };
 
   if (!isOpen) return null;
 
@@ -160,6 +192,20 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
           >
             <Flame className="w-3.5 h-3.5 text-rose-400" />
             <span>DEATH EFFECTS ({unlockedDeathEffectIds.length}/{DEATH_EFFECTS.length})</span>
+          </button>
+
+          <button
+            type="button"
+            id="tab-shop-taunts"
+            onClick={() => setActiveTab('taunts')}
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl font-cyber text-xs sm:text-sm font-bold uppercase transition-all shrink-0 ${
+              activeTab === 'taunts'
+                ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-400/60 shadow-[0_0_12px_rgba(250,204,21,0.3)]'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-yellow-400" />
+            <span>COMBAT TAUNTS ({EMOTES.length})</span>
           </button>
 
           {onOpenCrate && (
@@ -682,6 +728,130 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Content Body: Combat Taunts Tab */}
+        {activeTab === 'taunts' && (
+          <div className="flex-1 flex flex-col p-3 sm:p-5 overflow-hidden">
+            {/* Live Hologram Broadcast Banner */}
+            <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-xl mb-3 flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-yellow-500/20 border border-yellow-400 flex items-center justify-center text-yellow-300 shrink-0">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs sm:text-sm font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <span>HOLOGRAM TAUNT BROADCASTER</span>
+                    <span className="text-[10px] text-cyan-400 font-mono">[{EMOTES.length} LOADED]</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    Broadcast above your snake during battle to taunt or warn opponents
+                  </p>
+                </div>
+              </div>
+
+              {testedEmote && (
+                <div
+                  className="px-3 py-1 rounded-xl border flex items-center gap-2 text-xs font-black animate-bounce shadow-lg"
+                  style={{
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    borderColor: getEmoteById(testedEmote).color,
+                    color: getEmoteById(testedEmote).color,
+                  }}
+                >
+                  <span>{getEmoteById(testedEmote).icon}</span>
+                  <span>{getEmoteById(testedEmote).badgeText}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Taunts Grid List */}
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3 overflow-y-auto pr-1">
+              {EMOTES.map((emote, idx) => {
+                const isEquipped = selectedEmoteId === emote.id;
+                const isTesting = testedEmote === emote.id;
+
+                return (
+                  <div
+                    key={emote.id}
+                    onClick={() => handleTestTaunt(emote.id)}
+                    className={`relative p-3 rounded-xl border text-left flex flex-col justify-between gap-2.5 transition-all cursor-pointer select-none active:scale-[0.99] group ${
+                      isEquipped
+                        ? 'border-yellow-400 bg-yellow-950/30 shadow-[0_0_15px_rgba(250,204,21,0.25)] ring-1 ring-yellow-400'
+                        : isTesting
+                        ? 'border-cyan-400 bg-cyan-950/40'
+                        : 'bg-slate-800/60 border-slate-700/80 hover:border-slate-500 hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl group-hover:scale-110 transition-transform">
+                          {emote.icon}
+                        </span>
+                        <span className="font-cyber text-xs sm:text-sm font-black text-white uppercase tracking-wider">
+                          {emote.label || emote.badgeText}
+                        </span>
+                      </div>
+                      <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-400 font-mono text-[9px] font-bold">
+                        KEY [{idx + 1}]
+                      </span>
+                    </div>
+
+                    <div
+                      className="px-2 py-1 rounded-lg border text-xs font-black uppercase tracking-wider text-center"
+                      style={{
+                        backgroundColor: `${emote.color}15`,
+                        borderColor: `${emote.color}50`,
+                        color: emote.color,
+                      }}
+                    >
+                      {emote.badgeText}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1.5 border-t border-slate-700/60 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTestTaunt(emote.id);
+                        }}
+                        className="flex items-center gap-1 text-[10px] font-bold text-slate-300 hover:text-cyan-300 py-1 px-2 rounded-lg bg-slate-900/80 border border-slate-700 transition-colors"
+                      >
+                        <Volume2 className="w-3 h-3 text-cyan-400" />
+                        <span>TEST AUDIO</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTestTaunt(emote.id);
+                          if (onSelectEmote) onSelectEmote(emote.id);
+                        }}
+                        className={`flex items-center gap-1 text-[10px] font-black uppercase py-1 px-2.5 rounded-lg border transition-all ${
+                          isEquipped
+                            ? 'bg-yellow-500/25 border-yellow-400 text-yellow-300'
+                            : 'bg-cyan-500/20 hover:bg-cyan-500/30 border-cyan-400 text-cyan-300'
+                        }`}
+                      >
+                        {isEquipped ? (
+                          <>
+                            <Check className="w-3 h-3 text-yellow-400" />
+                            <span>PRIMARY</span>
+                          </>
+                        ) : (
+                          <>
+                            <Radio className="w-3 h-3" />
+                            <span>EQUIP</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

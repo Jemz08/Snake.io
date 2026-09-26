@@ -545,6 +545,8 @@ export interface PlayerProfile {
   selectedTrailId?: TrailType;
   unlockedTrailIds?: TrailType[];
   unlockedTrails?: TrailType[]; // alias for compatibility
+  selectedEmoteId?: EmoteType;
+  unlockedEmoteIds?: EmoteType[];
   // Feature 4: Game Modes
   selectedGameMode?: GameMode;
   botDifficulty?: BotDifficulty;

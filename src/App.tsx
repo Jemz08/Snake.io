@@ -32,6 +32,8 @@ const DEFAULT_PROFILE: PlayerProfile = {
   unlockedDeathEffectIds: ['retro-pixel-kaboom'],
   selectedTrailId: 'matrix',
   unlockedTrailIds: ['none', 'matrix'],
+  selectedEmoteId: 'target',
+  unlockedEmoteIds: ['target', 'gg', 'overload', 'fire', 'shield', 'dust'],
   battlePassXp: 120,
   claimedBattlePassTiers: [1],
   claimedPassTiers: [1],
@@ -81,7 +83,7 @@ export default function App() {
 
   const [screen, setScreen] = useState<'lobby' | 'playing'>('lobby');
   const [isShopOpen, setIsShopOpen] = useState(false);
-  const [shopTab, setShopTab] = useState<'skins' | 'death-effects'>('skins');
+  const [shopTab, setShopTab] = useState<'skins' | 'death-effects' | 'taunts'>('skins');
   const [isCrateOpen, setIsCrateOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isMissionsOpen, setIsMissionsOpen] = useState(false);
@@ -222,7 +224,7 @@ export default function App() {
     startLobbyMusic();
   }, [engine]);
 
-  const handleOpenShop = useCallback((tab: 'skins' | 'death-effects' = 'skins') => {
+  const handleOpenShop = useCallback((tab: 'skins' | 'death-effects' | 'taunts' = 'skins') => {
     setShopTab(tab);
     setIsShopOpen(true);
   }, []);
@@ -330,10 +332,12 @@ export default function App() {
         unlockedSkinIds={profile.unlockedSkinIds}
         selectedDeathEffectId={profile.selectedDeathEffectId || 'cyber-matrix'}
         unlockedDeathEffectIds={profile.unlockedDeathEffectIds || ['cyber-matrix']}
+        selectedEmoteId={profile.selectedEmoteId || 'target'}
         onSelectSkin={handleSelectSkin}
         onBuySkin={handleBuySkin}
         onSelectDeathEffect={handleSelectDeathEffect}
         onBuyDeathEffect={handleBuyDeathEffect}
+        onSelectEmote={(id) => updateProfile({ selectedEmoteId: id })}
         onOpenCrate={() => {
           setIsShopOpen(false);
           setIsCrateOpen(true);

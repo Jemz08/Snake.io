@@ -717,10 +717,17 @@ export class GameRenderer {
     }
   }
 
-  // Draw projectiles (Bullets and Grenades)
+  // Draw projectiles (Bullets and Grenades with 144Hz Viewport Culling)
   public drawProjectiles(projectiles: Projectile[]) {
     const ctx = this.ctx;
+    const { minX, maxX, minY, maxY } = this.viewport;
+
     for (const p of projectiles) {
+      // Frustum culling: bypass offscreen bullets
+      if (p.x < minX - 40 || p.x > maxX + 40 || p.y < minY - 40 || p.y > maxY + 40) {
+        continue;
+      }
+
       ctx.save();
       ctx.translate(p.x, p.y);
 
@@ -781,12 +788,25 @@ export class GameRenderer {
     }
   }
 
-  // Draw explosion shockwaves & blast rings (with custom death effect styles)
+  // Draw explosion shockwaves & blast rings (with custom death effect styles & 144Hz Viewport Culling)
   public drawExplosions(explosions: ExplosionEffect[]) {
     const ctx = this.ctx;
+    const { minX, maxX, minY, maxY } = this.viewport;
+
     for (const exp of explosions) {
       const progress = exp.elapsed / exp.duration;
       const currentRadius = exp.radius + (exp.maxRadius - exp.radius) * progress;
+
+      // Viewport Frustum Culling
+      if (
+        exp.x < minX - currentRadius ||
+        exp.x > maxX + currentRadius ||
+        exp.y < minY - currentRadius ||
+        exp.y > maxY + currentRadius
+      ) {
+        continue;
+      }
+
       const alpha = Math.max(0, 1 - progress);
 
       ctx.save();
@@ -1084,7 +1104,14 @@ export class GameRenderer {
   // Draw floating particles with rich shapes (retro-coin, retro-ghost, retro-voxel, retro-slime, retro-vector, retro-comic, etc.)
   public drawParticles(particles: Particle[]) {
     const ctx = this.ctx;
+    const { minX, maxX, minY, maxY } = this.viewport;
+
     for (const p of particles) {
+      // Frustum culling: skip offscreen particles
+      if (p.x < minX - 40 || p.x > maxX + 40 || p.y < minY - 40 || p.y > maxY + 40) {
+        continue;
+      }
+
       const alpha = p.life / p.maxLife;
       ctx.save();
       ctx.globalAlpha = Math.max(0, alpha);
@@ -1346,10 +1373,16 @@ export class GameRenderer {
     }
   }
 
-  // Draw Damage & Cash Popups
+  // Draw Damage & Cash Popups (with Frustum Culling)
   public drawDamagePopups(popups: DamagePopup[]) {
     const ctx = this.ctx;
+    const { minX, maxX, minY, maxY } = this.viewport;
+
     for (const dp of popups) {
+      if (dp.x < minX - 80 || dp.x > maxX + 80 || dp.y < minY - 80 || dp.y > maxY + 80) {
+        continue;
+      }
+
       const alpha = dp.life / dp.maxLife;
       ctx.save();
       ctx.globalAlpha = Math.max(0, alpha);
@@ -3709,8 +3742,9 @@ export class GameRenderer {
       ctx.globalAlpha = Math.max(0, emoteAlpha);
       ctx.translate(0, floatY);
 
+      const emoteText = emote.text || (emote as any).label || (emote as any).badgeText || 'TAUNT!';
       ctx.font = 'bold 11px Chakra Petch, sans-serif';
-      const textWidth = ctx.measureText(emote.text).width;
+      const textWidth = ctx.measureText(emoteText).width;
       const badgeW = textWidth + 18;
       const badgeH = 22;
 
@@ -3738,7 +3772,7 @@ export class GameRenderer {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.shadowBlur = 0;
-      ctx.fillText(emote.text, 0, 0);
+      ctx.fillText(emoteText, 0, 0);
 
       ctx.restore();
     }

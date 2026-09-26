@@ -28,9 +28,17 @@ export const Minimap: React.FC<MinimapProps> = ({
 
   useEffect(() => {
     let animId: number;
+    let lastRenderTime = 0;
 
-    const render = () => {
-      sweepAngleRef.current = (sweepAngleRef.current + 0.035) % (Math.PI * 2);
+    const render = (time: number) => {
+      // Throttle minimap to ~30Hz to preserve frame budget for main arena canvas
+      if (time - lastRenderTime < 32) {
+        animId = requestAnimationFrame(render);
+        return;
+      }
+      lastRenderTime = time;
+
+      sweepAngleRef.current = (sweepAngleRef.current + 0.05) % (Math.PI * 2);
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
@@ -61,18 +69,24 @@ export const Minimap: React.FC<MinimapProps> = ({
       ctx.lineTo(size - 4, center);
       ctx.stroke();
 
-      // Rotating Radar Sweep Beam
+      // Rotating Radar Sweep Beam (Lightweight vector line + trailing arc, zero GPU texture stalls)
       const sweepAngle = sweepAngleRef.current;
-      const sweepGradient = ctx.createConicGradient(sweepAngle, center, center);
-      sweepGradient.addColorStop(0, 'rgba(6, 182, 212, 0.28)');
-      sweepGradient.addColorStop(0.12, 'rgba(6, 182, 212, 0.05)');
-      sweepGradient.addColorStop(0.2, 'rgba(6, 182, 212, 0)');
-      sweepGradient.addColorStop(1, 'rgba(6, 182, 212, 0)');
-
-      ctx.fillStyle = sweepGradient;
+      const sweepRadius = (size / 2) * 0.95;
+      ctx.save();
       ctx.beginPath();
-      ctx.arc(center, center, (size / 2) * 0.95, 0, Math.PI * 2);
+      ctx.moveTo(center, center);
+      ctx.lineTo(center + Math.cos(sweepAngle) * sweepRadius, center + Math.sin(sweepAngle) * sweepRadius);
+      ctx.strokeStyle = 'rgba(6, 182, 212, 0.8)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(center, center);
+      ctx.arc(center, center, sweepRadius, sweepAngle - 0.45, sweepAngle);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(6, 182, 212, 0.12)';
       ctx.fill();
+      ctx.restore();
 
       // Draw Defensive Map Obstacles (Bunkers & Barricades)
       for (const obs of obstacles) {
