@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import { GameEngine } from '../game/GameEngine';
 import { GameRenderer } from '../game/GameRenderer';
 import { GameHud } from './GameHud';
-import { Snake, LootItem, KillNotification, WeaponType, MapObstacle, ShieldPowerup } from '../types';
+import { Snake, LootItem, KillNotification, WeaponType, MapObstacle, ShieldPowerup, BossRaidInfo, BountyInfo } from '../types';
 import { recordRenderFrame } from '../utils/fpsDetector';
 
 interface GameCanvasProps {
@@ -32,6 +32,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [waveAnnouncement, setWaveAnnouncement] = React.useState<string | null>(engine.waveAnnouncement);
   const [pelletRushTimer, setPelletRushTimer] = React.useState(engine.pelletRushTimer);
   const [waveEnemiesRemaining, setWaveEnemiesRemaining] = React.useState(engine.waveEnemiesRemaining);
+  const [bossRaidInfo, setBossRaidInfo] = React.useState<BossRaidInfo | null>(engine.getBossRaidInfo());
+  const [bountyInfo, setBountyInfo] = React.useState<BountyInfo | null>(engine.getBountyInfo());
 
   // Main Render & Game Loop
   useEffect(() => {
@@ -156,6 +158,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         setWaveAnnouncement(engine.waveAnnouncement);
         setPelletRushTimer(engine.pelletRushTimer);
         setWaveEnemiesRemaining(engine.waveEnemiesRemaining);
+        setBossRaidInfo(engine.getBossRaidInfo());
+        setBountyInfo(engine.getBountyInfo());
       }
 
       animId = requestAnimationFrame(loop);
@@ -254,6 +258,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         waveAnnouncement={waveAnnouncement}
         pelletRushTimer={pelletRushTimer}
         enemiesRemaining={waveEnemiesRemaining}
+        bossRaidInfo={bossRaidInfo}
+        bountyInfo={bountyInfo}
         onTriggerEmote={(emoteId) => engine.triggerEmote('player', emoteId)}
         onSteer={handleSteer}
         onAim={handleAim}

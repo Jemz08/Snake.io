@@ -112,6 +112,25 @@ export class GameEngine {
   public onWaveCleared?: (wave: number) => void;
   public onEmoteTriggered?: (snakeId: string, emote: EmoteType) => void;
 
+  // Feature 3: MECHA-HYDRA 9000 Boss Raid
+  public bossSnake: Snake | null = null;
+  public bossAttackTimer: number = 0;
+  public bossLaserAngle: number = 0;
+  public bossLaserSweepAngle: number = 0;
+  public bossLaserActive: boolean = false;
+  public bossLaserCharging: boolean = false;
+  public bossLaserChargeTimer: number = 0;
+  public bossLaserDurationTimer: number = 0;
+  public bossVortexActive: boolean = false;
+  public onBossDefeated?: (bossName: string, rewardCash: number) => void;
+
+  // Feature 4: Cyber Bounty Hunter ("Most Wanted")
+  public mostWantedSnake: Snake | null = null;
+  public bountySurvivalCountdown: number = 20;
+  public bountyScanTimer: number = 0;
+  public onBountyClaimed?: (targetName: string, cash: number) => void;
+  public onBountySurvival?: (rewardCash: number) => void;
+
   private nextEntityId = 1;
   public playerSnake: Snake | null = null;
   public onPlayerDeath?: (stats: { score: number; kills: number; coins: number; length: number }) => void;
@@ -446,8 +465,19 @@ export class GameEngine {
     );
     this.snakes.push(this.playerSnake);
 
+    this.bossSnake = null;
+    this.mostWantedSnake = null;
+    this.bossLaserActive = false;
+    this.bossLaserCharging = false;
+    this.bossVortexActive = false;
+    this.bountySurvivalCountdown = 20;
+
     if (this.gameMode === 'horde') {
       this.initHordeWave(1);
+    } else if (this.gameMode === 'boss_raid') {
+      this.initBossRaid();
+    } else if (this.gameMode === 'bounty_hunt') {
+      this.initBountyHunt();
     } else {
       // Create Initial Bots based on botCount
       const count = Math.max(8, Math.min(40, botCount));
@@ -536,6 +566,357 @@ export class GameEngine {
       }
     }
     this.snakes.push(drone);
+  }
+
+  public initBossRaid() {
+    this.waveAnnouncement = '🚨 TITAN WORLD BOSS: MECHA-HYDRA 9000 INCOMING! 🚨';
+    this.waveAnnouncementTimer = 4.0;
+    playBossAlarmSound();
+
+    const C = WORLD_SIZE / 2;
+    const boss = this.createSnake(
+      'mecha_hydra_boss',
+      'MECHA-HYDRA 9000',
+      false,
+      'robot-titan',
+      C,
+      C,
+      0,
+      'retro-pixel-kaboom',
+      'lightning'
+    );
+
+    boss.isBoss = true;
+    boss.bossPhase = 1;
+    boss.maxHp = 3200;
+    boss.hp = 3200;
+    boss.shieldHp = 800;
+    boss.maxShieldHp = 800;
+    boss.shieldTimer = 9999;
+    boss.length = 75;
+    boss.targetLength = 75;
+    boss.baseSpeed = 3.6;
+    boss.speed = 3.6;
+    boss.boostSpeed = 5.8;
+    boss.weapon = 'ar';
+    boss.ammo = 999;
+    boss.bossCores = [
+      { id: 1, hp: 350, maxHp: 350, segIndex: 18, isDestroyed: false },
+      { id: 2, hp: 350, maxHp: 350, segIndex: 38, isDestroyed: false },
+      { id: 3, hp: 350, maxHp: 350, segIndex: 58, isDestroyed: false },
+    ];
+
+    this.bossSnake = boss;
+    this.snakes.push(boss);
+
+    // Spawn 10 arena bots (allies / rival bounty hunters) to join the raid battle
+    for (let i = 0; i < 10; i++) {
+      this.spawnBot(i);
+    }
+
+    // Drop defensive supply crates and shields near player
+    if (this.playerSnake) {
+      this.spawnLoot(this.playerSnake.x + 140, this.playerSnake.y + 140);
+      this.spawnShield(this.playerSnake.x - 120, this.playerSnake.y + 120);
+    }
+  }
+
+  public initBountyHunt() {
+    this.waveAnnouncement = '🎯 BOUNTY CONTRACTS ACTIVE! HUNT HIGH-VALUE TARGETS! 🎯';
+    this.waveAnnouncementTimer = 3.5;
+    playBountyTargetAlertSound();
+
+    // Spawn 20 bots
+    const count = Math.max(14, this.botCountSetting || 20);
+    for (let i = 0; i < count; i++) {
+      this.spawnBot(i);
+    }
+
+    // Designate first bounty target right away
+    setTimeout(() => {
+      this.updateBountyHunterSystem(1.0);
+    }, 500);
+  }
+
+  public updateBossAI(boss: Snake, dt: number) {
+    if (boss.isDead) return;
+
+    this.bossAttackTimer = (this.bossAttackTimer || 0) + dt;
+
+    // Check Boss Phase Transitions
+    if (boss.hp <= 2100 && boss.bossPhase === 1) {
+      boss.bossPhase = 2;
+      boss.shieldHp = 600;
+      boss.maxShieldHp = 600;
+      this.waveAnnouncement = '⚠️ MECHA-HYDRA OVERCLOCKED: PHASE 2 ENGAGED! ⚠️';
+      this.waveAnnouncementTimer = 3.5;
+      playBossAlarmSound();
+
+      // Spawn 2 Mini-Hydra Swarm Serpents
+      const head = boss.segments[0];
+      for (let s = 0; s < 2; s++) {
+        const mini = this.createSnake(
+          `mini_hydra_${s + 1}`,
+          s === 0 ? 'Hydra-Spawn-Alpha' : 'Hydra-Spawn-Beta',
+          false,
+          'cyber-viper',
+          head.x + (s === 0 ? -160 : 160),
+          head.y + (s === 0 ? 160 : -160),
+          boss.angle + (s === 0 ? 0.8 : -0.8),
+          'plasma-storm',
+          'lightning'
+        );
+        mini.maxHp = 220;
+        mini.hp = 220;
+        mini.length = 24;
+        mini.targetLength = 24;
+        mini.weapon = 'ar';
+        mini.ammo = 60;
+        this.snakes.push(mini);
+      }
+    } else if (boss.hp <= 1000 && boss.bossPhase === 2) {
+      boss.bossPhase = 3;
+      boss.baseSpeed = 4.6;
+      boss.boostSpeed = 6.8;
+      this.waveAnnouncement = '☢️ CRITICAL ALERT: CORE MELTDOWN ENRAGE! ☢️';
+      this.waveAnnouncementTimer = 4.0;
+      playBossAlarmSound();
+    }
+
+    const head = boss.segments[0];
+    const player = this.playerSnake;
+    const target = player && !player.isDead ? player : this.snakes.find((s) => !s.isDead && s.id !== boss.id);
+
+    // Aim towards target
+    if (target) {
+      const targetAngle = Math.atan2(target.y - head.y, target.x - head.x);
+      let diff = targetAngle - boss.angle;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      boss.targetAngle = targetAngle;
+      boss.angle += Math.max(-0.06, Math.min(0.06, diff));
+    }
+
+    // Laser Sweep Attack Logic (Phase 2 & 3)
+    if (boss.bossPhase && boss.bossPhase >= 2) {
+      if (this.bossLaserCharging) {
+        this.bossLaserChargeTimer -= dt;
+        boss.bossAttackTelegraph = '⚠️ WARNING: TRI-LASER SWEEP INCOMING! ⚠️';
+        if (this.bossLaserChargeTimer <= 0) {
+          this.bossLaserCharging = false;
+          this.bossLaserActive = true;
+          this.bossLaserDurationTimer = 1.4;
+          playBossLaserSweepSound();
+        }
+      } else if (this.bossLaserActive) {
+        this.bossLaserDurationTimer -= dt;
+        this.bossLaserSweepAngle = (this.bossLaserSweepAngle || boss.angle) + dt * 1.8;
+        boss.bossAttackTelegraph = '⚡ TRI-LASER SWEEP FIRING! ⚡';
+
+        // Laser damage line check
+        const sweepAngle = this.bossLaserSweepAngle;
+        const laserRange = 750;
+        for (const s of this.snakes) {
+          if (s.isDead || s.id === boss.id) continue;
+          const sHead = s.segments[0];
+          const d = Math.hypot(sHead.x - head.x, sHead.y - head.y);
+          if (d < laserRange) {
+            const angleToTarget = Math.atan2(sHead.y - head.y, sHead.x - head.x);
+            let aDiff = Math.abs(angleToTarget - sweepAngle);
+            while (aDiff > Math.PI) aDiff = Math.PI * 2 - aDiff;
+            if (aDiff < 0.28) {
+              this.applyDamageToSnake(s, 65 * dt * 60, boss.id, 'sniper', false);
+            }
+          }
+        }
+
+        if (this.bossLaserDurationTimer <= 0) {
+          this.bossLaserActive = false;
+          boss.bossAttackTelegraph = null;
+        }
+      } else if (this.bossAttackTimer >= 8.5) {
+        this.bossAttackTimer = 0;
+        this.bossLaserCharging = true;
+        this.bossLaserChargeTimer = 1.8;
+        this.bossLaserSweepAngle = boss.angle - 0.9;
+        playBossAlarmSound();
+      }
+    }
+
+    // Graviton Singularity Vortex (Phase 3)
+    if (boss.bossPhase === 3) {
+      this.bossVortexActive = true;
+      boss.bossVortexActive = true;
+      if (Math.random() < 0.08) {
+        playBossVortexSound();
+      }
+      const pullRadius = 450;
+      for (const s of this.snakes) {
+        if (s.isDead || s.id === boss.id) continue;
+        const sHead = s.segments[0];
+        const dist = Math.hypot(sHead.x - head.x, sHead.y - head.y);
+        if (dist < pullRadius && dist > 30) {
+          const force = (1 - dist / pullRadius) * 2.8;
+          const pullAngle = Math.atan2(head.y - sHead.y, head.x - sHead.x);
+          sHead.x += Math.cos(pullAngle) * force;
+          sHead.y += Math.sin(pullAngle) * force;
+        }
+      }
+    } else {
+      this.bossVortexActive = false;
+      boss.bossVortexActive = false;
+    }
+
+    // Cluster Missile Salvo (Every 4.5s)
+    if (!this.bossLaserCharging && !this.bossLaserActive && Math.random() < 0.04 && target) {
+      const baseAng = Math.atan2(target.y - head.y, target.x - head.x);
+      for (let m = -2; m <= 2; m++) {
+        const fireAngle = baseAng + m * 0.18;
+        this.projectiles.push({
+          id: this.nextEntityId++,
+          ownerId: boss.id,
+          isPlayer: false,
+          weaponType: 'grenade',
+          x: head.x + Math.cos(fireAngle) * 30,
+          y: head.y + Math.sin(fireAngle) * 30,
+          startX: head.x,
+          startY: head.y,
+          vx: Math.cos(fireAngle) * 11,
+          vy: Math.sin(fireAngle) * 11,
+          distanceTraveled: 0,
+          maxDistance: 700,
+          damage: 55,
+          isExplosive: true,
+          blastRadius: 130,
+          color: '#f97316',
+          radius: 6,
+        });
+      }
+      playShootSound('grenade');
+    }
+  }
+
+  public updateBountyHunterSystem(dt: number) {
+    this.bountyScanTimer = (this.bountyScanTimer || 0) + dt;
+
+    // Check if current Most Wanted target died or left
+    if (this.mostWantedSnake && (this.mostWantedSnake.isDead || !this.snakes.includes(this.mostWantedSnake))) {
+      this.mostWantedSnake = null;
+    }
+
+    // Periodic Scan every 1.5s to maintain / re-assign Most Wanted target
+    if (!this.mostWantedSnake || this.bountyScanTimer >= 2.0) {
+      this.bountyScanTimer = 0;
+
+      // Find living snake with highest kills or score
+      const livingSnakes = this.snakes.filter((s) => !s.isDead && !s.isBoss);
+      if (livingSnakes.length > 0) {
+        livingSnakes.sort((a, b) => (b.kills * 300 + b.score) - (a.kills * 300 + a.score));
+        const topSnake = livingSnakes[0];
+
+        // Only switch if no current target or top snake has higher threshold
+        if (!this.mostWantedSnake || this.mostWantedSnake.id !== topSnake.id) {
+          if (this.mostWantedSnake) {
+            this.mostWantedSnake.isBountyTarget = false;
+          }
+          this.mostWantedSnake = topSnake;
+          topSnake.isBountyTarget = true;
+
+          // Compute stars & cash bounty
+          const killCount = topSnake.kills;
+          const stars = Math.min(5, Math.max(1, Math.floor(killCount / 2) + 1));
+          topSnake.bountyStars = stars;
+          topSnake.bountyValue = 300 + stars * 180 + killCount * 80;
+
+          if (topSnake.isPlayer) {
+            this.waveAnnouncement = '⚠️ YOU ARE THE MOST WANTED TARGET! SURVIVE THE HUNT! ⚠️';
+            this.waveAnnouncementTimer = 3.5;
+            this.bountySurvivalCountdown = 20;
+            playBountyTargetAlertSound();
+          } else if (this.gameMode === 'bounty_hunt') {
+            playBountyTargetAlertSound();
+          }
+        }
+      }
+    }
+
+    // If player is the Most Wanted, update survival countdown
+    if (this.playerSnake && !this.playerSnake.isDead && this.playerSnake.isBountyTarget) {
+      this.bountySurvivalCountdown -= dt;
+      if (this.bountySurvivalCountdown <= 0) {
+        this.bountySurvivalCountdown = 20;
+        const rewardCash = 350 + (this.playerSnake.bountyStars || 1) * 100;
+        playBountySurvivalSound();
+        this.playerSnake.score += 500;
+        updateMissionProgress('earn_cash', rewardCash);
+        if (this.onCashEarned) {
+          this.onCashEarned(rewardCash, 'Survived Most Wanted Hunt!');
+        }
+        if (this.onBountySurvival) {
+          this.onBountySurvival(rewardCash);
+        }
+        this.damagePopups.push({
+          id: this.nextEntityId++,
+          x: this.playerSnake.segments[0].x,
+          y: this.playerSnake.segments[0].y - 50,
+          text: `🏆 SURVIVED THE HUNT! +$${rewardCash} BONUS!`,
+          color: '#fbbf24',
+          life: 80,
+          maxLife: 80,
+        });
+      }
+    }
+  }
+
+  public getBossRaidInfo(): BossRaidInfo | null {
+    if (!this.bossSnake || this.bossSnake.isDead) return null;
+    const boss = this.bossSnake;
+    const remainingCores = boss.bossCores ? boss.bossCores.filter((c) => !c.isDestroyed).length : 0;
+    const totalCores = boss.bossCores ? boss.bossCores.length : 3;
+
+    return {
+      bossId: boss.id,
+      name: boss.name,
+      phase: boss.bossPhase || 1,
+      hp: Math.max(0, boss.hp),
+      maxHp: boss.maxHp,
+      shieldHp: Math.max(0, boss.shieldHp || 0),
+      maxShieldHp: boss.maxShieldHp || 800,
+      telegraph: boss.bossAttackTelegraph || null,
+      coresRemaining: remainingCores,
+      totalCores,
+      isEnraged: (boss.bossPhase || 1) >= 3,
+      laserSweepAngle: this.bossLaserSweepAngle,
+      laserSweepActive: this.bossLaserActive,
+      laserSweepCharging: this.bossLaserCharging,
+      vortexActive: this.bossVortexActive,
+    };
+  }
+
+  public getBountyInfo(): BountyInfo | null {
+    if (!this.mostWantedSnake || this.mostWantedSnake.isDead) return null;
+    const target = this.mostWantedSnake;
+    const player = this.playerSnake;
+
+    let dist = 0;
+    let angle = 0;
+    if (player && !player.isDead) {
+      const dx = target.x - player.x;
+      const dy = target.y - player.y;
+      dist = Math.round(Math.hypot(dx, dy));
+      angle = Math.atan2(dy, dx);
+    }
+
+    return {
+      targetId: target.id,
+      targetName: target.name,
+      isPlayer: target.isPlayer,
+      bountyValue: target.bountyValue || 350,
+      stars: target.bountyStars || 1,
+      distance: dist,
+      angleToTarget: angle,
+      survivalTimer: target.isPlayer ? Math.ceil(this.bountySurvivalCountdown) : undefined,
+    };
   }
 
   public triggerEmote(snakeId: string, emoteId: EmoteType) {
@@ -1726,6 +2107,14 @@ export class GameEngine {
     // 3. Update Snakes (Movement, Segment tracking, Bot AI, Boosting)
     this.updateSnakes();
 
+    // 3b. Update Boss AI (Boss Raid Mode)
+    if (this.bossSnake && !this.bossSnake.isDead) {
+      this.updateBossAI(this.bossSnake, deltaTime || 1 / 60);
+    }
+
+    // 3c. Update Bounty Hunter System (Most Wanted HVT tracking)
+    this.updateBountyHunterSystem(deltaTime || 1 / 60);
+
     // 4. Check Food & Loot collection
     this.checkPickups();
 
@@ -2122,6 +2511,43 @@ export class GameEngine {
       damage = 999;
     }
 
+    // Boss Armor & Mechanics: Boss cannot be 1-hit eliminated
+    if (snake.isBoss) {
+      if (damage >= 900) {
+        damage = isExplosive ? 280 : 160;
+      }
+      if (snake.bossPhase === 3) {
+        damage *= 1.35; // Core Meltdown vulnerability
+      }
+      // Check Power Core Damage
+      if (snake.bossCores) {
+        for (const core of snake.bossCores) {
+          if (!core.isDestroyed && Math.random() < 0.3) {
+            core.hp -= damage;
+            if (core.hp <= 0) {
+              core.hp = 0;
+              core.isDestroyed = true;
+              this.damagePopups.push({
+                id: this.nextEntityId++,
+                x: head.x,
+                y: head.y - 40,
+                text: `💥 POWER CORE DESTROYED! (-250 HP)`,
+                color: '#facc15',
+                life: 60,
+                maxLife: 60,
+              });
+              damage += 250;
+              if (snake.segments[core.segIndex]) {
+                const seg = snake.segments[core.segIndex];
+                this.spawnShield(seg.x, seg.y);
+                this.spawnLoot(seg.x + 40, seg.y);
+              }
+            }
+          }
+        }
+      }
+    }
+
     // Phantom Archetype: Intangible while Phase Shift is active
     if (snake.archetype === 'phantom' && (snake.abilityActiveTimer || 0) > 0) {
       this.damagePopups.push({
@@ -2414,6 +2840,38 @@ export class GameEngine {
 
       if (killer.isPlayer) {
         killCash = 50;
+
+        // Bounty Target Claim Check
+        if (victim.isBountyTarget) {
+          const bounty = victim.bountyValue || 350;
+          killCash += bounty;
+          playBountyClaimedSound();
+          this.damagePopups.push({
+            id: this.nextEntityId++,
+            x: victim.segments[0].x,
+            y: victim.segments[0].y - 65,
+            text: `🎯 BOUNTY CLAIMED! +$${bounty} CASH!`,
+            color: '#fbbf24',
+            life: 80,
+            maxLife: 80,
+          });
+          if (this.onBountyClaimed) {
+            this.onBountyClaimed(victim.name, bounty);
+          }
+        }
+
+        // Boss Defeat Reward Check
+        if (victim.isBoss) {
+          const bossReward = 1500;
+          killCash += bossReward;
+          playBossDefeatedSound();
+          this.waveAnnouncement = '🏆 MECHA-HYDRA 9000 DESTROYED! RAID CLEARED! 🏆';
+          this.waveAnnouncementTimer = 5.0;
+          if (this.onBossDefeated) {
+            this.onBossDefeated(victim.name, bossReward);
+          }
+        }
+
         playKillSound();
         updateMissionProgress('kills', 1);
         if (weapon) {
@@ -2506,6 +2964,31 @@ export class GameEngine {
         victim.segments[0].y + (Math.random() * 80 - 40),
         10
       );
+    }
+
+    // Extra reward drops for Bounty Target
+    if (victim.isBountyTarget) {
+      for (let c = 0; c < 8; c++) {
+        this.spawnCashCoin(
+          victim.segments[0].x + (Math.random() * 120 - 60),
+          victim.segments[0].y + (Math.random() * 120 - 60),
+          20
+        );
+      }
+    }
+
+    // Massive reward cache for Boss Defeat!
+    if (victim.isBoss) {
+      for (let c = 0; c < 24; c++) {
+        this.spawnCashCoin(
+          victim.segments[0].x + (Math.random() * 260 - 130),
+          victim.segments[0].y + (Math.random() * 260 - 130),
+          25
+        );
+      }
+      this.spawnLoot(victim.segments[0].x - 60, victim.segments[0].y);
+      this.spawnLoot(victim.segments[0].x + 60, victim.segments[0].y);
+      this.spawnShield(victim.segments[0].x, victim.segments[0].y - 60);
     }
 
     // If victim had a weapon with remaining ammo, drop a loot crate!
@@ -2995,8 +3478,8 @@ export class GameEngine {
         snake.invincibleTimer--;
       }
 
-      // 1. Bot AI Decision
-      if (!snake.isPlayer) {
+      // 1. Bot AI Decision (Boss is guided by updateBossAI)
+      if (!snake.isPlayer && !snake.isBoss) {
         this.updateBotAI(snake);
       }
 

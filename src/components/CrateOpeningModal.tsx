@@ -225,8 +225,13 @@ export const CrateOpeningModal: React.FC<CrateOpeningModalProps> = ({
         <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-2.5 sm:py-3.5 border-b border-slate-800 bg-slate-950/90 shrink-0">
           {/* Left: Crate Branding */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/20 border border-amber-400 flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.3)] shrink-0">
-              <Package className="w-4 h-4 sm:w-5 sm:h-5 animate-pulse" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/20 border border-amber-400 overflow-hidden shadow-[0_0_15px_rgba(245,158,11,0.3)] shrink-0">
+              <img
+                src="/src/assets/images/scifi_weapon_crate_asset_1790341466198.jpg"
+                alt="Supply Crate"
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2">
@@ -473,7 +478,12 @@ export const CrateOpeningModal: React.FC<CrateOpeningModalProps> = ({
                   : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
               }`}
             >
-              <Package className="w-5 h-5 fill-current shrink-0" />
+              <img
+                src="/src/assets/images/scifi_weapon_crate_asset_1790341466198.jpg"
+                alt="Crate"
+                className="w-5 h-5 sm:w-6 sm:h-6 rounded object-cover shadow shrink-0"
+                referrerPolicy="no-referrer"
+              />
               <span>
                 {coins >= CRATE_PRICE ? 'OPEN CRATE (1,000 🪙)' : 'NEED 1,000 COINS TO ROLL'}
               </span>

@@ -18,8 +18,75 @@ export class GameRenderer {
   private ctx: CanvasRenderingContext2D;
   private viewport = { minX: 0, maxX: 6000, minY: 0, maxY: 6000 };
 
+  // Realistic 2D Game Assets (CraftPix Sci-Fi Asset Pack - Pre-cached Offscreen Canvases for 144Hz)
+  private crateImage: HTMLImageElement | null = null;
+  private batteryImage: HTMLImageElement | null = null;
+  private bossHeadImage: HTMLImageElement | null = null;
+  private bountyTargetImage: HTMLImageElement | null = null;
+
+  private cachedCrateCanvas: HTMLCanvasElement | null = null;
+  private cachedBatteryCanvas: HTMLCanvasElement | null = null;
+  private cachedBossCanvas: HTMLCanvasElement | null = null;
+  private cachedBountyCanvas: HTMLCanvasElement | null = null;
+
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx;
+
+    if (typeof window !== 'undefined') {
+      this.crateImage = new Image();
+      this.crateImage.src = '/src/assets/images/scifi_weapon_crate_asset_1790341466198.jpg';
+
+      this.batteryImage = new Image();
+      this.batteryImage.src = '/src/assets/images/scifi_energy_battery_pickup_1790341490783.jpg';
+
+      this.bossHeadImage = new Image();
+      this.bossHeadImage.src = '/src/assets/images/scifi_mecha_hydra_boss_1790341479724.jpg';
+
+      this.bountyTargetImage = new Image();
+      this.bountyTargetImage.src = '/src/assets/images/scifi_cyber_bounty_hvt_1790341500582.jpg';
+    }
+  }
+
+  // Pre-bakes high-res images into lightweight offscreen canvases ONCE (prevents per-frame downsampling and clip() GPU stalls)
+  private getCachedSprite(
+    img: HTMLImageElement | null,
+    cachedType: 'crate' | 'battery' | 'boss' | 'bounty',
+    size: number,
+    isCircle = false
+  ): HTMLCanvasElement | null {
+    if (!img || !img.complete || img.naturalWidth === 0) return null;
+    if (cachedType === 'crate' && this.cachedCrateCanvas) return this.cachedCrateCanvas;
+    if (cachedType === 'battery' && this.cachedBatteryCanvas) return this.cachedBatteryCanvas;
+    if (cachedType === 'boss' && this.cachedBossCanvas) return this.cachedBossCanvas;
+    if (cachedType === 'bounty' && this.cachedBountyCanvas) return this.cachedBountyCanvas;
+
+    try {
+      const offscreen = document.createElement('canvas');
+      offscreen.width = size;
+      offscreen.height = size;
+      const offCtx = offscreen.getContext('2d');
+      if (!offCtx) return null;
+
+      if (isCircle) {
+        offCtx.beginPath();
+        offCtx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        offCtx.clip();
+      } else {
+        offCtx.beginPath();
+        offCtx.roundRect(0, 0, size, size, Math.max(4, size * 0.16));
+        offCtx.clip();
+      }
+      offCtx.drawImage(img, 0, 0, size, size);
+
+      if (cachedType === 'crate') this.cachedCrateCanvas = offscreen;
+      else if (cachedType === 'battery') this.cachedBatteryCanvas = offscreen;
+      else if (cachedType === 'boss') this.cachedBossCanvas = offscreen;
+      else if (cachedType === 'bounty') this.cachedBountyCanvas = offscreen;
+
+      return offscreen;
+    } catch {
+      return null;
+    }
   }
 
   public setViewport(cameraX: number, cameraY: number, viewWidth: number, viewHeight: number) {
@@ -104,7 +171,7 @@ export class GameRenderer {
     }
   }
 
-  // Draw cybernetic arena grid
+  // Draw cybernetic arena grid (Ultra High Performance 144Hz Vector Pipeline)
   public drawGrid(
     cameraX: number,
     cameraY: number,
@@ -294,20 +361,34 @@ export class GameRenderer {
       ctx.stroke();
       ctx.restore();
 
-      // Supply pod base (squared sci-fi pod)
-      ctx.fillStyle = '#1e293b';
-      ctx.strokeStyle = config.color;
-      ctx.lineWidth = 3;
-      ctx.shadowColor = config.color;
-      ctx.shadowBlur = 10;
-      ctx.beginPath();
-      ctx.roundRect(-loot.radius, -loot.radius, loot.radius * 2, loot.radius * 2, 6);
-      ctx.fill();
-      ctx.stroke();
+      // Supply pod base (squared sci-fi pod with CraftPix weapon crate sprite)
+      const cachedCrate = this.getCachedSprite(this.crateImage, 'crate', 48, false);
+      if (cachedCrate) {
+        ctx.drawImage(cachedCrate, -loot.radius, -loot.radius, loot.radius * 2, loot.radius * 2);
 
-      // Pod inner panel
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(-loot.radius + 5, -loot.radius + 5, (loot.radius - 5) * 2, (loot.radius - 5) * 2);
+        // High-tech weapon glow border
+        ctx.strokeStyle = config.color;
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = config.glowColor;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.roundRect(-loot.radius, -loot.radius, loot.radius * 2, loot.radius * 2, 7);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = '#1e293b';
+        ctx.strokeStyle = config.color;
+        ctx.lineWidth = 3;
+        ctx.shadowColor = config.color;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.roundRect(-loot.radius, -loot.radius, loot.radius * 2, loot.radius * 2, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        // Pod inner panel
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-loot.radius + 5, -loot.radius + 5, (loot.radius - 5) * 2, (loot.radius - 5) * 2);
+      }
 
       // Draw weapon emblem inside pod
       ctx.fillStyle = config.color;
@@ -596,29 +677,34 @@ export class GameRenderer {
       ctx.fill();
       ctx.stroke();
 
-      // Shield Hexagon / Emblem
-      ctx.fillStyle = '#0284c7';
-      ctx.beginPath();
-      ctx.moveTo(0, -11);
-      ctx.lineTo(9, -6);
-      ctx.lineTo(9, 3);
-      ctx.lineTo(0, 10);
-      ctx.lineTo(-9, 3);
-      ctx.lineTo(-9, -6);
-      ctx.closePath();
-      ctx.fill();
+      // Shield Hexagon / Emblem or CraftPix Sci-Fi Power Cell Sprite
+      const cachedBattery = this.getCachedSprite(this.batteryImage, 'battery', 40, true);
+      if (cachedBattery) {
+        ctx.drawImage(cachedBattery, -s.radius * 0.75, -s.radius * 0.75, s.radius * 1.5, s.radius * 1.5);
+      } else {
+        ctx.fillStyle = '#0284c7';
+        ctx.beginPath();
+        ctx.moveTo(0, -11);
+        ctx.lineTo(9, -6);
+        ctx.lineTo(9, 3);
+        ctx.lineTo(0, 10);
+        ctx.lineTo(-9, 3);
+        ctx.lineTo(-9, -6);
+        ctx.closePath();
+        ctx.fill();
 
-      // Bright inner crest
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.moveTo(0, -8);
-      ctx.lineTo(6, -4);
-      ctx.lineTo(6, 2);
-      ctx.lineTo(0, 7);
-      ctx.lineTo(-6, 2);
-      ctx.lineTo(-6, -4);
-      ctx.closePath();
-      ctx.fill();
+        // Bright inner crest
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(0, -8);
+        ctx.lineTo(6, -4);
+        ctx.lineTo(6, 2);
+        ctx.lineTo(0, 7);
+        ctx.lineTo(-6, 2);
+        ctx.lineTo(-6, -4);
+        ctx.closePath();
+        ctx.fill();
+      }
 
       // Shield label
       ctx.shadowBlur = 4;
@@ -2590,7 +2676,9 @@ export class GameRenderer {
     }
 
     // Base segment radius (scales gracefully with score/length)
-    const baseRadius = 13 + Math.min(snake.length * 0.12, 10);
+    const baseRadius = snake.isBoss
+      ? 25 + Math.min(snake.length * 0.14, 16)
+      : 13 + Math.min(snake.length * 0.12, 10);
     const totalSegs = snake.segments.length;
     if (totalSegs < 2) {
       ctx.restore();
@@ -3199,6 +3287,26 @@ export class GameRenderer {
       }
     }
 
+    // Realistic CraftPix Mecha-Hydra Boss Mech Overlay
+    if (snake.isBoss) {
+      const cachedBoss = this.getCachedSprite(this.bossHeadImage, 'boss', 96, true);
+      if (cachedBoss) {
+        ctx.save();
+        const bossSize = headR * 2.3;
+        ctx.shadowColor = (snake.bossPhase || 1) >= 3 ? '#ef4444' : '#f59e0b';
+        ctx.shadowBlur = 14;
+        ctx.drawImage(cachedBoss, -bossSize * 0.46, -bossSize * 0.5, bossSize, bossSize);
+        ctx.restore();
+
+        // Reinforced outer titanium rim
+        ctx.strokeStyle = (snake.bossPhase || 1) >= 3 ? '#ef4444' : '#f59e0b';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, headR * 1.15, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
     ctx.restore();
 
     // 3.2. Active Energy Shield Forcefield Bubble
@@ -3633,6 +3741,172 @@ export class GameRenderer {
       ctx.fillText(emote.text, 0, 0);
 
       ctx.restore();
+    }
+
+    // 5. Bounty Target Overhead Hologram & Crown
+    if (snake.isBountyTarget) {
+      ctx.save();
+      const stars = '★'.repeat(snake.bountyStars || 1);
+      const bountyCash = snake.bountyValue || 350;
+      const floatY = (snake.weapon ? -52 : -40) - Math.sin(Date.now() * 0.008) * 3;
+      ctx.translate(0, floatY);
+
+      // Holographic Bounty Banner
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#eab308';
+      ctx.shadowBlur = 12;
+
+      const bountyText = `🎯 MOST WANTED • $${bountyCash}`;
+      ctx.font = 'bold 10px Chakra Petch, sans-serif';
+      const textWidth = ctx.measureText(bountyText).width;
+      const bW = Math.max(textWidth + (this.bountyTargetImage?.complete ? 40 : 18), 120);
+      const bH = 24;
+
+      ctx.beginPath();
+      ctx.roundRect(-bW / 2, -bH / 2, bW, bH, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      // Realistic CraftPix bounty target avatar medallion
+      const cachedBounty = this.getCachedSprite(this.bountyTargetImage, 'bounty', 32, true);
+      if (cachedBounty) {
+        const iconSize = 18;
+        const iconX = -bW / 2 + 12;
+        ctx.drawImage(cachedBounty, iconX - iconSize / 2, -iconSize / 2, iconSize, iconSize);
+
+        // Icon border
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(iconX, 0, iconSize / 2, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Text offset
+        ctx.fillStyle = '#fde047';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${bountyText} [${stars}]`, iconX + iconSize / 2 + 6, 0);
+      } else {
+        // Golden Star Rating
+        ctx.fillStyle = '#fde047';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${bountyText} [${stars}]`, 0, 0);
+      }
+
+      ctx.restore();
+    }
+
+    // 6. Boss Attack Visuals: Tri-Laser Sweep & Graviton Singularity Vortex
+    if (snake.isBoss) {
+      // Tri-Laser Sweep
+      if (snake.bossLaserCharging || snake.bossLaserActive) {
+        ctx.save();
+        const laserAngle = snake.bossLaserAngle || head.angle;
+        const laserRange = 750;
+
+        if (snake.bossLaserCharging) {
+          // Warning telegraph arc
+          const pulse = Math.sin(Date.now() * 0.02) * 0.5 + 0.5;
+          ctx.strokeStyle = `rgba(239, 68, 68, ${0.4 + pulse * 0.4})`;
+          ctx.fillStyle = `rgba(239, 68, 68, ${0.1 + pulse * 0.1})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(head.x, head.y);
+          ctx.arc(head.x, head.y, laserRange * 0.75, laserAngle - 0.28, laserAngle + 0.28);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        } else if (snake.bossLaserActive) {
+          // Firing sweeping lethal tri-laser beams
+          for (let b = -1; b <= 1; b++) {
+            const bAngle = laserAngle + b * 0.12;
+            const endX = head.x + Math.cos(bAngle) * laserRange;
+            const endY = head.y + Math.sin(bAngle) * laserRange;
+
+            // Outer cyan plasma beam
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 14;
+            ctx.shadowColor = '#0284c7';
+            ctx.shadowBlur = 24;
+            ctx.beginPath();
+            ctx.moveTo(head.x, head.y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+
+            // Inner white-hot laser core
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(head.x, head.y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      // Graviton Singularity Vortex (Phase 3)
+      if (snake.bossVortexActive) {
+        ctx.save();
+        const rot = (Date.now() * 0.005) % (Math.PI * 2);
+        const vortexR = 120;
+        ctx.translate(head.x, head.y);
+        ctx.rotate(rot);
+
+        // Dark singularity event horizon
+        ctx.fillStyle = 'rgba(10, 5, 25, 0.45)';
+        ctx.strokeStyle = '#a855f7';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#c084fc';
+        ctx.shadowBlur = 25;
+        ctx.beginPath();
+        ctx.arc(0, 0, vortexR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Spiral suction arcs
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 2;
+        for (let a = 0; a < 4; a++) {
+          ctx.beginPath();
+          ctx.arc(0, 0, (vortexR * (a + 1)) / 4, a * Math.PI * 0.5, a * Math.PI * 0.5 + Math.PI);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // Render glowing Power Cores on body segments
+      if (snake.bossCores) {
+        for (const core of snake.bossCores) {
+          if (!core.isDestroyed && snake.segments[core.segIndex]) {
+            const seg = snake.segments[core.segIndex];
+            ctx.save();
+            ctx.translate(seg.x, seg.y);
+            const rot = (Date.now() * 0.004 + core.id) % (Math.PI * 2);
+            ctx.rotate(rot);
+
+            // Core energy crystal
+            ctx.fillStyle = '#facc15';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#eab308';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.moveTo(0, -14);
+            ctx.lineTo(12, 0);
+            ctx.lineTo(0, 14);
+            ctx.lineTo(-12, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+          }
+        }
+      }
     }
 
     ctx.restore();

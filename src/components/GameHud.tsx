@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Snake, LootItem, KillNotification, MapObstacle, ShieldPowerup, HudLayoutConfig, GameMode, EmoteType } from '../types';
+import { Snake, LootItem, KillNotification, MapObstacle, ShieldPowerup, HudLayoutConfig, GameMode, EmoteType, BossRaidInfo, BountyInfo } from '../types';
 import { VirtualJoystick } from './VirtualJoystick';
 import { FireControl } from './FireControl';
 import { AbilityButton } from './AbilityButton';
@@ -47,6 +47,8 @@ interface GameHudProps {
   waveAnnouncement?: string | null;
   pelletRushTimer?: number;
   enemiesRemaining?: number;
+  bossRaidInfo?: BossRaidInfo | null;
+  bountyInfo?: BountyInfo | null;
   onTriggerEmote?: (emoteId: EmoteType) => void;
   onSteer: (angle: number) => void;
   onAim?: (angle: number, isAiming: boolean) => void;
@@ -74,6 +76,8 @@ export const GameHud: React.FC<GameHudProps> = ({
   waveAnnouncement = null,
   pelletRushTimer = 90,
   enemiesRemaining = 0,
+  bossRaidInfo = null,
+  bountyInfo = null,
   onTriggerEmote,
   onSteer,
   onAim,
@@ -326,6 +330,23 @@ export const GameHud: React.FC<GameHudProps> = ({
               • {enemiesRemaining} DRONES LEFT
             </span>
           </div>
+        ) : gameMode === 'boss_raid' ? (
+          <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-950/85 border border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)] backdrop-blur-md">
+            <span className="text-xs">🤖</span>
+            <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-amber-200">
+              TITAN BOSS RAID
+            </span>
+            <span className="text-[10px] text-amber-400 font-mono font-bold">
+              • PHASE {bossRaidInfo?.phase || 1}/3
+            </span>
+          </div>
+        ) : gameMode === 'bounty_hunt' ? (
+          <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-950/85 border border-yellow-500/50 text-yellow-300 shadow-[0_0_15px_rgba(234,179,8,0.3)] backdrop-blur-md">
+            <span className="text-xs">🎯</span>
+            <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-yellow-200">
+              CYBER BOUNTY HUNT (3.5X CASH)
+            </span>
+          </div>
         ) : gameMode === 'pellet_rush' ? (
           <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-950/85 border border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)] backdrop-blur-md">
             <span className="text-xs">⚡</span>
@@ -344,6 +365,104 @@ export const GameHud: React.FC<GameHudProps> = ({
             </span>
           </div>
         ) : null}
+
+        {/* Colossal Boss Raid Health & Shield Bar */}
+        {bossRaidInfo && (
+          <div className="mt-1 w-[88vw] max-w-sm sm:max-w-md bg-slate-950/92 border-2 border-amber-500/60 rounded-2xl p-2 sm:p-2.5 shadow-2xl backdrop-blur-md flex flex-col gap-1 pointer-events-auto">
+            <div className="flex items-center justify-between text-[10px] sm:text-xs font-cyber">
+              <span className="font-black text-amber-300 flex items-center gap-2 truncate">
+                <img
+                  src="/src/assets/images/scifi_mecha_hydra_boss_1790341479724.jpg"
+                  alt="MECHA-HYDRA 9000 Boss"
+                  className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg border border-rose-500/80 object-cover shadow-[0_0_8px_rgba(244,63,94,0.6)] shrink-0"
+                  referrerPolicy="no-referrer"
+                />
+                <span className="truncate">{bossRaidInfo.name}</span>
+              </span>
+              <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-[9px] font-black border border-amber-500/40 shrink-0">
+                PHASE {bossRaidInfo.phase}/3 {bossRaidInfo.isEnraged ? '🔥 OVERDRIVE' : ''}
+              </span>
+            </div>
+
+            {/* Shield Bar if active */}
+            {bossRaidInfo.shieldHp > 0 && (
+              <div className="relative w-full h-1.5 sm:h-2 rounded-full bg-slate-900 border border-sky-500/40 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-sky-400 to-cyan-300 shadow-[0_0_8px_rgba(56,189,248,0.6)]"
+                  style={{ width: `${Math.min(100, (bossRaidInfo.shieldHp / bossRaidInfo.maxShieldHp) * 100)}%` }}
+                />
+              </div>
+            )}
+
+            {/* Colossal HP Bar */}
+            <div className="relative w-full h-2.5 sm:h-3 rounded-full bg-slate-900 border border-rose-500/40 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-rose-500 via-amber-400 to-yellow-300 shadow-[0_0_12px_rgba(244,63,94,0.6)] transition-all duration-150"
+                style={{ width: `${Math.min(100, Math.max(0, (bossRaidInfo.hp / bossRaidInfo.maxHp) * 100))}%` }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-[8px] sm:text-[9px] font-mono text-slate-400">
+              <span>HP: {Math.max(0, bossRaidInfo.hp)} / {bossRaidInfo.maxHp}</span>
+              <span>CORES: {bossRaidInfo.coresRemaining} / {bossRaidInfo.totalCores}</span>
+            </div>
+
+            {/* Boss Threat Telegraph Alert Banner */}
+            {bossRaidInfo.telegraph && (
+              <div className="mt-0.5 text-center text-[9px] sm:text-[10px] font-cyber font-black text-rose-300 bg-rose-950/60 py-0.5 px-2 rounded-lg border border-rose-500/50 animate-pulse">
+                {bossRaidInfo.telegraph}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 360° Compass Radar HUD Beacon for Most Wanted Target */}
+        {bountyInfo && (
+          <div className="mt-1 flex flex-col items-center pointer-events-auto">
+            {bountyInfo.isPlayer ? (
+              <div className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-yellow-500/20 via-amber-500/30 to-yellow-500/20 border-2 border-yellow-400 text-yellow-300 shadow-[0_0_20px_rgba(234,179,8,0.6)] backdrop-blur-md flex items-center gap-2 animate-pulse font-cyber">
+                <img
+                  src="/src/assets/images/scifi_cyber_bounty_hvt_1790341500582.jpg"
+                  alt="Wanted"
+                  className="w-5 h-5 rounded-full border border-yellow-400 object-cover shrink-0"
+                  referrerPolicy="no-referrer"
+                />
+                <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider">
+                  YOU ARE MOST WANTED! SURVIVE: {bountyInfo.survivalTimer || 20}s
+                </span>
+                <span className="text-[9px] sm:text-[10px] font-mono font-bold text-yellow-200 bg-yellow-950/60 px-1.5 py-0.5 rounded border border-yellow-400/40">
+                  +$350 BONUS
+                </span>
+              </div>
+            ) : (
+              <div className="px-2.5 sm:px-3 py-1 rounded-xl bg-slate-950/90 border border-yellow-500/60 text-yellow-300 shadow-[0_0_15px_rgba(234,179,8,0.3)] backdrop-blur-md flex items-center gap-1.5 sm:gap-2 font-cyber text-[9px] sm:text-xs">
+                <img
+                  src="/src/assets/images/scifi_cyber_bounty_hvt_1790341500582.jpg"
+                  alt="Target"
+                  className="w-5 h-5 rounded-full border border-yellow-400 object-cover shrink-0"
+                  referrerPolicy="no-referrer"
+                />
+                <div
+                  className="w-4 h-4 flex items-center justify-center transition-transform duration-100"
+                  style={{ transform: `rotate(${bountyInfo.angleToTarget + Math.PI / 2}rad)` }}
+                  title="Bearing towards Most Wanted target"
+                >
+                  <span className="text-yellow-400 text-xs">▲</span>
+                </div>
+                <span className="text-yellow-400/90 font-bold">MOST WANTED:</span>
+                <span className="font-black text-white truncate max-w-[80px] sm:max-w-[110px]">
+                  {bountyInfo.targetName}
+                </span>
+                <span className="text-amber-400 font-mono font-bold">
+                  {bountyInfo.distance}m
+                </span>
+                <span className="px-1.5 py-0.2 rounded bg-yellow-500/20 text-yellow-300 font-mono font-black border border-yellow-400/40">
+                  {'★'.repeat(bountyInfo.stars)} ${bountyInfo.bountyValue}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Large Central Holographic Wave Announcement Banner */}
         {waveAnnouncement && (

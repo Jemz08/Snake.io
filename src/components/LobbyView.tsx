@@ -7,6 +7,7 @@ import { SnakePreviewCanvas } from './SnakePreviewCanvas';
 import { DynamicCyberBackground } from './DynamicCyberBackground';
 import { TrailsModal } from './TrailsModal';
 import { BattlePassModal } from './BattlePassModal';
+import { BattlePassTracker } from './BattlePassTracker';
 import { MasteryModal } from './MasteryModal';
 import { getBattlePassLevel, evaluateMasteryBadges } from '../utils/progression';
 import { getTrailById } from '../utils/trails';
@@ -495,27 +496,18 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           </div>
         </div>
 
-        {/* Progression & Customization Hub Bar: Clean, well-spaced, clear UI */}
-        <div className="w-full grid grid-cols-3 gap-1.5 sm:gap-2 shrink-0 font-cyber">
-          {/* Cyber Pass */}
-          <button
-            type="button"
-            onClick={() => {
-              playRetroButtonClick();
-              setShowBattlePassModal(true);
-            }}
-            className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-950/40 to-slate-900/90 border border-amber-500/40 hover:border-amber-400 text-amber-300 transition-all shadow-sm active:scale-95"
-            title="Open Season 1: Cyber Protocol Pass"
-          >
-            <div className="flex items-center gap-1.5 min-w-0">
-              <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span className="text-[10px] sm:text-xs font-bold truncate">PASS</span>
-            </div>
-            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-[9px] sm:text-[10px] font-black border border-amber-500/40 shrink-0">
-              TIER {passLevel.currentTier}
-            </span>
-          </button>
+        {/* Battle Pass XP Progress Tracker with Level, Progress Bar & Next Tier Icon */}
+        <BattlePassTracker
+          profile={profile}
+          onUpdateProfile={onUpdateProfile}
+          onOpenPass={() => {
+            playRetroButtonClick();
+            setShowBattlePassModal(true);
+          }}
+        />
 
+        {/* Customization & Mastery Bar */}
+        <div className="w-full grid grid-cols-2 gap-1.5 sm:gap-2 shrink-0 font-cyber">
           {/* Tail Trails Locker */}
           <button
             type="button"
@@ -528,7 +520,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           >
             <div className="flex items-center gap-1.5 min-w-0">
               <Sparkles className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-              <span className="text-[10px] sm:text-xs font-bold truncate">TRAILS</span>
+              <span className="text-[10px] sm:text-xs font-bold truncate">TRAILS LOCKER</span>
             </div>
             <span className="text-xs shrink-0">{activeTrail.icon}</span>
           </button>
@@ -545,7 +537,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           >
             <div className="flex items-center gap-1.5 min-w-0">
               <Award className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-              <span className="text-[10px] sm:text-xs font-bold truncate">MASTERY</span>
+              <span className="text-[10px] sm:text-xs font-bold truncate">PILOT MASTERY</span>
             </div>
             <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono text-[9px] sm:text-[10px] font-black border border-purple-500/40 shrink-0">
               {masteredCount}/6
@@ -764,7 +756,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
               {GAME_MODES.map((mode) => {
                 const isSelected = selectedMode === mode.id;
                 return (
@@ -783,15 +775,15 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   >
                     <span className="text-sm shrink-0">{mode.icon}</span>
                     <div className="min-w-0 flex-1">
-                      <div className="text-[10px] sm:text-[11px] font-black truncate">{mode.name}</div>
+                      <div className="text-[10px] sm:text-[11px] font-black truncate">{mode.name.replace(': MECHA-HYDRA', '')}</div>
                     </div>
                   </button>
                 );
               })}
             </div>
 
-            {/* Bot Difficulty & Count Setting (only when not in Horde mode) */}
-            {selectedMode !== 'horde' && (
+            {/* Bot Difficulty & Count Setting (only when not in Horde or Boss Raid mode) */}
+            {selectedMode !== 'horde' && selectedMode !== 'boss_raid' && (
               <div className="mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[10px] sm:text-[11px] font-cyber text-slate-300">
                 <div className="flex items-center gap-1.5">
                   <span className="text-slate-400">BOT AI:</span>
@@ -840,6 +832,37 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Mode Realistic Asset Intel Banner */}
+            <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center gap-2.5 bg-slate-950/60 p-2 rounded-xl border border-slate-800">
+              <img
+                src={
+                  selectedMode === 'boss_raid'
+                    ? '/src/assets/images/scifi_mecha_hydra_boss_1790341479724.jpg'
+                    : selectedMode === 'bounty_hunt'
+                    ? '/src/assets/images/scifi_cyber_bounty_hvt_1790341500582.jpg'
+                    : selectedMode === 'horde'
+                    ? '/src/assets/images/scifi_energy_battery_pickup_1790341490783.jpg'
+                    : '/src/assets/images/scifi_weapon_crate_asset_1790341466198.jpg'
+                }
+                alt={activeModeDef.name}
+                className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg border border-cyan-500/40 object-cover shrink-0 shadow-[0_0_12px_rgba(6,182,212,0.25)]"
+                referrerPolicy="no-referrer"
+              />
+              <div className="flex-1 min-w-0 font-cyber">
+                <div className="flex items-center justify-between text-[10px] sm:text-[11px]">
+                  <span className="font-black text-cyan-300 uppercase truncate">
+                    {activeModeDef.tagline}
+                  </span>
+                  <span className="text-amber-400 font-mono font-bold shrink-0">
+                    {activeModeDef.multiplierText}
+                  </span>
+                </div>
+                <div className="text-[9px] sm:text-[10px] text-slate-400 line-clamp-1">
+                  {activeModeDef.description}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* DEPLOY TO WAR BUTTON (DIRECTLY BELOW THE SNAKE PREVIEW) */}
@@ -886,9 +909,14 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               id="btn-quick-crate"
               type="button"
               onClick={onOpenCrate}
-              className="py-2 px-1.5 rounded-xl bg-gradient-to-b from-amber-500/20 to-yellow-600/20 hover:from-amber-500/35 hover:to-yellow-600/35 border border-amber-400 text-amber-300 font-bold flex flex-col items-center justify-center gap-1 shadow-[0_0_12px_rgba(245,158,11,0.2)] transition-all active:scale-95"
+              className="py-1.5 px-1.5 rounded-xl bg-gradient-to-b from-amber-500/20 to-yellow-600/20 hover:from-amber-500/35 hover:to-yellow-600/35 border border-amber-400 text-amber-300 font-bold flex flex-col items-center justify-center gap-0.5 shadow-[0_0_12px_rgba(245,158,11,0.2)] transition-all active:scale-95"
             >
-              <Package className="w-4 h-4 text-amber-400" />
+              <img
+                src="/src/assets/images/scifi_weapon_crate_asset_1790341466198.jpg"
+                alt="Crate"
+                className="w-5 h-5 rounded object-cover shadow"
+                referrerPolicy="no-referrer"
+              />
               <span className="font-black text-[10px] sm:text-xs">CRATE (1k)</span>
             </button>
 
