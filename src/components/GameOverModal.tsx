@@ -1,6 +1,8 @@
 import React from 'react';
 import { Trophy, Swords, Coins, RotateCcw, Home, Sparkles, Award } from 'lucide-react';
 import { GameMode } from '../types';
+import { SnakeAvatar } from './SnakeAvatar';
+import { getSnakeAvatarById } from '../utils/snakeAvatars';
 
 interface GameOverModalProps {
   isOpen: boolean;
@@ -12,6 +14,7 @@ interface GameOverModalProps {
   xpEarned?: number;
   gameMode?: GameMode;
   waveReached?: number;
+  selectedAvatarId?: string;
   onPlayAgain: () => void;
   onReturnLobby: () => void;
   onOpenLeaderboard?: () => void;
@@ -27,11 +30,13 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   xpEarned,
   gameMode,
   waveReached,
+  selectedAvatarId = 'angel',
   onPlayAgain,
   onReturnLobby,
   onOpenLeaderboard,
 }) => {
   if (!isOpen) return null;
+  const avatarDef = getSnakeAvatarById(selectedAvatarId);
 
   return (
     <div
@@ -39,14 +44,28 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
       className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 overflow-y-auto"
     >
       <div className="relative w-full max-w-md bg-slate-900 border-2 border-rose-500/50 rounded-2xl p-4 sm:p-6 shadow-[0_0_50px_rgba(244,63,94,0.35)] flex flex-col items-center text-center my-auto max-h-[96vh] overflow-y-auto">
-        {/* Glowing Skull / Elimination Icon */}
-        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-rose-500/20 border-2 border-rose-400 flex items-center justify-center text-rose-400 shadow-[0_0_25px_rgba(244,63,94,0.5)] mb-2 sm:mb-3">
-          <Swords className="w-6 h-6 sm:w-9 sm:h-9" />
+        {/* Pilot Snake Avatar & Elimination Badge */}
+        <div className="relative mb-2 sm:mb-3">
+          <SnakeAvatar
+            avatarId={selectedAvatarId}
+            size={64}
+            showGlow
+            showBadge
+            rounded="2xl"
+            className="border-2 shadow-xl"
+          />
+          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-rose-500 border border-slate-900 flex items-center justify-center text-white shadow-md">
+            <Swords className="w-3.5 h-3.5" />
+          </div>
         </div>
 
         <h2 className="font-cyber text-lg sm:text-2xl font-black text-rose-500 tracking-widest uppercase">
           YOU GOT KILLED.
         </h2>
+
+        <div className="text-[11px] font-cyber text-slate-400 font-bold mb-2">
+          PILOT AVATAR: <span style={{ color: avatarDef.themeColor }}>{avatarDef.name}</span>
+        </div>
 
         {gameMode === 'horde' && waveReached && (
           <div className="text-xs font-cyber text-purple-400 font-bold mb-2">

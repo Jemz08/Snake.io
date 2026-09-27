@@ -10,6 +10,7 @@ interface GameCanvasProps {
   onExitToLobby: () => void;
   onOpenLeaderboard?: () => void;
   onOpenMissions?: () => void;
+  selectedAvatarId?: string;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -17,6 +18,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   onExitToLobby,
   onOpenLeaderboard,
   onOpenMissions,
+  selectedAvatarId,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -260,6 +262,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         enemiesRemaining={waveEnemiesRemaining}
         bossRaidInfo={bossRaidInfo}
         bountyInfo={bountyInfo}
+        selectedAvatarId={selectedAvatarId}
         onTriggerEmote={(emoteId) => engine.triggerEmote('player', emoteId)}
         onSteer={handleSteer}
         onAim={handleAim}

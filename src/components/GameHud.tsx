@@ -6,6 +6,7 @@ import { AbilityButton } from './AbilityButton';
 import { Minimap } from './Minimap';
 import { HudCustomizerModal } from './HudCustomizerModal';
 import { EmoteBar } from './EmoteBar';
+import { SnakeAvatar } from './SnakeAvatar';
 import { loadHudLayout } from '../utils/hudLayout';
 import { WEAPONS } from '../utils/weapons';
 import {
@@ -60,6 +61,7 @@ interface GameHudProps {
   onOpenLeaderboard?: () => void;
   onOpenMissions?: () => void;
   onOpenHudCustomizer?: () => void;
+  selectedAvatarId?: string;
 }
 
 export const GameHud: React.FC<GameHudProps> = ({
@@ -78,6 +80,7 @@ export const GameHud: React.FC<GameHudProps> = ({
   enemiesRemaining = 0,
   bossRaidInfo = null,
   bountyInfo = null,
+  selectedAvatarId,
   onTriggerEmote,
   onSteer,
   onAim,
@@ -172,8 +175,18 @@ export const GameHud: React.FC<GameHudProps> = ({
           left: 'max(8px, env(safe-area-inset-left, 8px))',
         }}
       >
-        {/* Row 1: Vital Combat Stats */}
+        {/* Row 1: Vital Combat Stats & Pilot Profile Pic */}
         <div className="flex items-center gap-1 sm:gap-1.5 bg-slate-950/90 border border-slate-700/80 rounded-xl p-1 sm:p-1.5 shadow-lg backdrop-blur-md pointer-events-auto">
+          {/* Pilot Snake Avatar */}
+          <div className="shrink-0" title={`Pilot: ${player?.name || 'Viper'}`}>
+            <SnakeAvatar
+              avatarId={selectedAvatarId || player?.archetype || 'angel'}
+              size={24}
+              showBadge={false}
+              rounded="xl"
+            />
+          </div>
+
           <div className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-cyan-500/20 border border-cyan-400 font-cyber font-black text-cyan-300 text-[10px] sm:text-xs flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
             <span>SCORE: {player?.score || 0}</span>

@@ -24,6 +24,10 @@ export class GameRenderer {
   private bossHeadImage: HTMLImageElement | null = null;
   private bountyTargetImage: HTMLImageElement | null = null;
 
+  // Authentic Snake Head Sprites from Snake.io Asset Pack (Robot, Dragon, Cyber, Devil, Angel, Void)
+  private snakeHeadImages: Record<string, HTMLImageElement> = {};
+  private cachedSnakeHeadCanvases: Record<string, HTMLCanvasElement> = {};
+
   private cachedCrateCanvas: HTMLCanvasElement | null = null;
   private cachedBatteryCanvas: HTMLCanvasElement | null = null;
   private cachedBossCanvas: HTMLCanvasElement | null = null;
@@ -44,6 +48,58 @@ export class GameRenderer {
 
       this.bountyTargetImage = new Image();
       this.bountyTargetImage.src = '/src/assets/images/scifi_cyber_bounty_hvt_1790341500582.jpg';
+
+      // Load authentic Snake.io snake head sprite assets for all 15 cyber snakes
+      const snakeArchetypes = [
+        'angel',
+        'devil',
+        'void',
+        'robot',
+        'dragon',
+        'cyber',
+        'phoenix',
+        'frost',
+        'venom',
+        'storm',
+        'vampire',
+        'chrono',
+        'ninja',
+        'crystal',
+        'alien',
+      ];
+      snakeArchetypes.forEach((arch) => {
+        const img = new Image();
+        img.src = `/assets/snakes/${arch}.png`;
+        this.snakeHeadImages[arch] = img;
+      });
+    }
+  }
+
+  // Pre-bakes snake head sprites into lightweight offscreen canvases
+  private getCachedSnakeHead(archetype: string, size: number): HTMLCanvasElement | null {
+    let norm = (archetype || 'angel').toLowerCase();
+    if (norm === 'blackhole') norm = 'void';
+    if (norm === 'assault') norm = 'storm';
+    if (norm === 'tactical') norm = 'cyber';
+    if (norm === 'heavy') norm = 'robot';
+    if (norm === 'recon') norm = 'ninja';
+    const key = `${norm}_${size}`;
+    if (this.cachedSnakeHeadCanvases[key]) return this.cachedSnakeHeadCanvases[key];
+    const img = this.snakeHeadImages[norm] || this.snakeHeadImages['angel'];
+    if (!img || !img.complete || img.naturalWidth === 0) return null;
+
+    try {
+      const offscreen = document.createElement('canvas');
+      offscreen.width = size;
+      offscreen.height = size;
+      const offCtx = offscreen.getContext('2d');
+      if (!offCtx) return null;
+
+      offCtx.drawImage(img, 0, 0, size, size);
+      this.cachedSnakeHeadCanvases[key] = offscreen;
+      return offscreen;
+    } catch {
+      return null;
     }
   }
 
@@ -3110,137 +3166,149 @@ export class GameRenderer {
       ctx.restore();
     }
 
-    // 5.2 Sculpted Viper Skull Silhouette (Wedge-shaped with broad venom cheek lobes and tapered snout)
-    ctx.beginPath();
-    // Snout rostral tip
-    ctx.moveTo(headR * 1.35, 0);
-    // Upper snout to supraocular eye brow
-    ctx.quadraticCurveTo(headR * 1.15, -headR * 0.38, headR * 0.55, -headR * 0.58);
-    // Supraocular flare above eye
-    ctx.quadraticCurveTo(headR * 0.2, -headR * 0.74, -headR * 0.15, -headR * 0.84);
-    // Broad posterior venom gland cheek lobe
-    ctx.quadraticCurveTo(-headR * 0.55, -headR * 0.8, -headR * 0.72, -headR * 0.42);
-    // Neck constriction base
-    ctx.quadraticCurveTo(-headR * 0.82, -headR * 0.15, -headR * 0.82, 0);
-    // Lower half (symmetrical)
-    ctx.quadraticCurveTo(-headR * 0.82, headR * 0.15, -headR * 0.72, headR * 0.42);
-    ctx.quadraticCurveTo(-headR * 0.55, headR * 0.8, -headR * 0.15, headR * 0.84);
-    ctx.quadraticCurveTo(headR * 0.2, headR * 0.74, headR * 0.55, headR * 0.58);
-    ctx.quadraticCurveTo(headR * 1.15, headR * 0.38, headR * 1.35, 0);
-    ctx.closePath();
+    // 5.2 Authentic Snake.io Head Sprite (Robot, Dragon, Cyber, Devil, Angel, Void) with Procedural Fallback
+    const normArch = archetype === 'blackhole' ? 'void' : archetype;
+    const spriteSize = Math.round(headR * 2.7);
+    const headSprite = this.getCachedSnakeHead(normArch, spriteSize);
 
-    // Fill authentic viper skull
-    ctx.fillStyle = skin.primaryColor;
-    ctx.fill();
-
-    // Viper jawline & skull rim outline
-    ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
-    ctx.lineWidth = 1.8;
-    ctx.stroke();
-
-    // 5.3 Crown Armor Shield Plates (Frontal and Parietal Scales)
-    ctx.save();
-    ctx.strokeStyle = skin.accentColor || skin.secondaryColor;
-    ctx.lineWidth = 1.3;
-    ctx.globalAlpha = 0.45;
-    // Frontal crown scale
-    ctx.beginPath();
-    ctx.moveTo(headR * 0.7, 0);
-    ctx.lineTo(headR * 0.2, -headR * 0.32);
-    ctx.lineTo(-headR * 0.3, -headR * 0.25);
-    ctx.lineTo(-headR * 0.45, 0);
-    ctx.lineTo(-headR * 0.3, headR * 0.25);
-    ctx.lineTo(headR * 0.2, headR * 0.32);
-    ctx.closePath();
-    ctx.stroke();
-
-    // Snout dorsal ridge
-    ctx.beginPath();
-    ctx.moveTo(headR * 0.7, 0);
-    ctx.lineTo(headR * 1.25, 0);
-    ctx.stroke();
-    ctx.restore();
-
-    // 5.4 Dual Nostrils / Loreal Pit Organs
-    ctx.fillStyle = '#090d16';
-    ctx.beginPath();
-    ctx.arc(headR * 1.05, -headR * 0.22, headR * 0.075, 0, Math.PI * 2);
-    ctx.arc(headR * 1.05, headR * 0.22, headR * 0.075, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Head 3D Specular Highlight
-    ctx.fillStyle = '#ffffff';
-    ctx.globalAlpha = 0.24;
-    ctx.beginPath();
-    ctx.ellipse(headR * 0.1, -headR * 0.22, headR * 0.65, headR * 0.32, -0.15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1.0;
-
-    // 5.5 Menacing Reptilian Predator Eyes (Slit pupils & hooded supraocular brow)
-    const aimAngle = snake.aimAngle !== undefined ? snake.aimAngle : head.angle;
-    const relGaze = aimAngle - head.angle;
-    const gazeDist = headR * 0.1;
-    const pupilOffX = Math.cos(relGaze) * gazeDist + headR * 0.04;
-    const pupilOffY = Math.sin(relGaze) * gazeDist;
-
-    const eyeOffsetX = headR * 0.34;
-    const eyeOffsetY = headR * 0.54;
-    const eyeRadiusX = headR * 0.34;
-    const eyeRadiusY = headR * 0.24;
-
-    [-eyeOffsetY, eyeOffsetY].forEach((eyeY, eyeIdx) => {
-      const isLeft = eyeIdx === 0;
-      const eyeSlant = isLeft ? -0.2 : 0.2;
-
+    if (headSprite) {
       ctx.save();
-      ctx.translate(eyeOffsetX, eyeY);
-      ctx.rotate(eyeSlant);
-
-      // Almond Reptilian Eye Socket Sclera
-      ctx.fillStyle = '#0b0f19';
+      ctx.rotate(-Math.PI / 2);
+      ctx.drawImage(headSprite, -spriteSize / 2, -spriteSize / 2, spriteSize, spriteSize);
+      ctx.restore();
+    } else {
+      // 5.2 Sculpted Viper Skull Silhouette (Wedge-shaped with broad venom cheek lobes and tapered snout)
       ctx.beginPath();
-      ctx.ellipse(0, 0, eyeRadiusX, eyeRadiusY, 0, 0, Math.PI * 2);
+      // Snout rostral tip
+      ctx.moveTo(headR * 1.35, 0);
+      // Upper snout to supraocular eye brow
+      ctx.quadraticCurveTo(headR * 1.15, -headR * 0.38, headR * 0.55, -headR * 0.58);
+      // Supraocular flare above eye
+      ctx.quadraticCurveTo(headR * 0.2, -headR * 0.74, -headR * 0.15, -headR * 0.84);
+      // Broad posterior venom gland cheek lobe
+      ctx.quadraticCurveTo(-headR * 0.55, -headR * 0.8, -headR * 0.72, -headR * 0.42);
+      // Neck constriction base
+      ctx.quadraticCurveTo(-headR * 0.82, -headR * 0.15, -headR * 0.82, 0);
+      // Lower half (symmetrical)
+      ctx.quadraticCurveTo(-headR * 0.82, headR * 0.15, -headR * 0.72, headR * 0.42);
+      ctx.quadraticCurveTo(-headR * 0.55, headR * 0.8, -headR * 0.15, headR * 0.84);
+      ctx.quadraticCurveTo(headR * 0.2, headR * 0.74, headR * 0.55, headR * 0.58);
+      ctx.quadraticCurveTo(headR * 1.15, headR * 0.38, headR * 1.35, 0);
+      ctx.closePath();
+
+      // Fill authentic viper skull
+      ctx.fillStyle = skin.primaryColor;
       ctx.fill();
 
-      // Vibrant Glowing Predator Iris
-      const irisGrad = ctx.createRadialGradient(pupilOffX * 0.5, pupilOffY * 0.5, 1, 0, 0, eyeRadiusX);
-      irisGrad.addColorStop(0, skin.eyeColor || skin.accentColor || '#facc15');
-      irisGrad.addColorStop(0.7, skin.accentColor || '#eab308');
-      irisGrad.addColorStop(1, '#0b0f19');
-      ctx.fillStyle = irisGrad;
+      // Viper jawline & skull rim outline
+      ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      // 5.3 Crown Armor Shield Plates (Frontal and Parietal Scales)
+      ctx.save();
+      ctx.strokeStyle = skin.accentColor || skin.secondaryColor;
+      ctx.lineWidth = 1.3;
+      ctx.globalAlpha = 0.45;
+      // Frontal crown scale
       ctx.beginPath();
-      ctx.ellipse(0, 0, eyeRadiusX * 0.88, eyeRadiusY * 0.88, 0, 0, Math.PI * 2);
+      ctx.moveTo(headR * 0.7, 0);
+      ctx.lineTo(headR * 0.2, -headR * 0.32);
+      ctx.lineTo(-headR * 0.3, -headR * 0.25);
+      ctx.lineTo(-headR * 0.45, 0);
+      ctx.lineTo(-headR * 0.3, headR * 0.25);
+      ctx.lineTo(headR * 0.2, headR * 0.32);
+      ctx.closePath();
+      ctx.stroke();
+
+      // Snout dorsal ridge
+      ctx.beginPath();
+      ctx.moveTo(headR * 0.7, 0);
+      ctx.lineTo(headR * 1.25, 0);
+      ctx.stroke();
+      ctx.restore();
+
+      // 5.4 Dual Nostrils / Loreal Pit Organs
+      ctx.fillStyle = '#090d16';
+      ctx.beginPath();
+      ctx.arc(headR * 1.05, -headR * 0.22, headR * 0.075, 0, Math.PI * 2);
+      ctx.arc(headR * 1.05, headR * 0.22, headR * 0.075, 0, Math.PI * 2);
       ctx.fill();
 
-      // Slit Reptilian Predator Pupil (oriented vertically like a true viper/cobra)
-      ctx.fillStyle = '#020617';
-      ctx.beginPath();
-      const pX = Math.max(-eyeRadiusX * 0.35, Math.min(eyeRadiusX * 0.35, pupilOffX));
-      const pY = Math.max(-eyeRadiusY * 0.35, Math.min(eyeRadiusY * 0.35, pupilOffY));
-      ctx.ellipse(pX, pY, eyeRadiusX * 0.22, eyeRadiusY * 0.82, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Glossy corneal specular reflection
+      // Head 3D Specular Highlight
       ctx.fillStyle = '#ffffff';
-      ctx.globalAlpha = 0.85;
+      ctx.globalAlpha = 0.24;
       ctx.beginPath();
-      ctx.arc(pX - eyeRadiusX * 0.22, pY - eyeRadiusY * 0.3, eyeRadiusX * 0.18, 0, Math.PI * 2);
+      ctx.ellipse(headR * 0.1, -headR * 0.22, headR * 0.65, headR * 0.32, -0.15, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1.0;
 
-      // Heavy Hooded Supraocular Brow Scale Ridge
-      ctx.strokeStyle = skin.accentColor || skin.secondaryColor;
-      ctx.lineWidth = 2.2;
-      ctx.beginPath();
-      const browDir = isLeft ? -1 : 1;
-      ctx.arc(0, browDir * eyeRadiusY * 0.25, eyeRadiusX * 1.12, browDir > 0 ? 0.3 : -1.85, browDir > 0 ? 1.85 : -0.3);
-      ctx.stroke();
+      // 5.5 Menacing Reptilian Predator Eyes (Slit pupils & hooded supraocular brow)
+      const aimAngle = snake.aimAngle !== undefined ? snake.aimAngle : head.angle;
+      const relGaze = aimAngle - head.angle;
+      const gazeDist = headR * 0.1;
+      const pupilOffX = Math.cos(relGaze) * gazeDist + headR * 0.04;
+      const pupilOffY = Math.sin(relGaze) * gazeDist;
 
-      ctx.restore();
-    });
+      const eyeOffsetX = headR * 0.34;
+      const eyeOffsetY = headR * 0.54;
+      const eyeRadiusX = headR * 0.34;
+      const eyeRadiusY = headR * 0.24;
 
-    // 2.4 Archetype Specific Sculpted Head Adornments (Horns, Crests, Cowls, Halos, Antennae)
-    this.drawArchetypeHeadCrest(ctx, snake, skin, archetype, headR);
+      [-eyeOffsetY, eyeOffsetY].forEach((eyeY, eyeIdx) => {
+        const isLeft = eyeIdx === 0;
+        const eyeSlant = isLeft ? -0.2 : 0.2;
+
+        ctx.save();
+        ctx.translate(eyeOffsetX, eyeY);
+        ctx.rotate(eyeSlant);
+
+        // Almond Reptilian Eye Socket Sclera
+        ctx.fillStyle = '#0b0f19';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, eyeRadiusX, eyeRadiusY, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Vibrant Glowing Predator Iris
+        const irisGrad = ctx.createRadialGradient(pupilOffX * 0.5, pupilOffY * 0.5, 1, 0, 0, eyeRadiusX);
+        irisGrad.addColorStop(0, skin.eyeColor || skin.accentColor || '#facc15');
+        irisGrad.addColorStop(0.7, skin.accentColor || '#eab308');
+        irisGrad.addColorStop(1, '#0b0f19');
+        ctx.fillStyle = irisGrad;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, eyeRadiusX * 0.88, eyeRadiusY * 0.88, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Slit Reptilian Predator Pupil (oriented vertically like a true viper/cobra)
+        ctx.fillStyle = '#020617';
+        ctx.beginPath();
+        const pX = Math.max(-eyeRadiusX * 0.35, Math.min(eyeRadiusX * 0.35, pupilOffX));
+        const pY = Math.max(-eyeRadiusY * 0.35, Math.min(eyeRadiusY * 0.35, pupilOffY));
+        ctx.ellipse(pX, pY, eyeRadiusX * 0.22, eyeRadiusY * 0.82, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Glossy corneal specular reflection
+        ctx.fillStyle = '#ffffff';
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.arc(pX - eyeRadiusX * 0.22, pY - eyeRadiusY * 0.3, eyeRadiusX * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+
+        // Heavy Hooded Supraocular Brow Scale Ridge
+        ctx.strokeStyle = skin.accentColor || skin.secondaryColor;
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        const browDir = isLeft ? -1 : 1;
+        ctx.arc(0, browDir * eyeRadiusY * 0.25, eyeRadiusX * 1.12, browDir > 0 ? 0.3 : -1.85, browDir > 0 ? 1.85 : -0.3);
+        ctx.stroke();
+
+        ctx.restore();
+      });
+
+      // 2.4 Archetype Specific Sculpted Head Adornments (Horns, Crests, Cowls, Halos, Antennae)
+      this.drawArchetypeHeadCrest(ctx, snake, skin, archetype, headR);
+    }
 
     // 3. Render Mounted Swivel Weapon Turret at the BACK of the Head!
     if (snake.weapon) {

@@ -6,6 +6,7 @@ import {
   getKillsLeaderboard,
 } from '../utils/leaderboard';
 import { getSkinById } from '../utils/skins';
+import { SnakeAvatar } from './SnakeAvatar';
 import { Trophy, Flame, Swords, X, Medal, Crown, Calendar, Sparkles } from 'lucide-react';
 import { playEatSound } from '../utils/audio';
 
@@ -177,12 +178,16 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       )}
                     </div>
 
-                    {/* Skin chassis badge */}
-                    <div
-                      className="w-6 h-6 rounded-md border border-white/20 shrink-0"
-                      style={{ backgroundColor: skin.primaryColor }}
-                      title={`Chassis: ${skin.name}`}
-                    />
+                    {/* Snake Profile Picture Avatar */}
+                    <div className="shrink-0" title={`Chassis: ${skin.name}`}>
+                      <SnakeAvatar
+                        avatarId={skin.archetype}
+                        size={28}
+                        showBadge={false}
+                        rounded="xl"
+                        showGlow={isUser}
+                      />
+                    </div>
 
                     {/* Pilot Call Sign */}
                     <div className="min-w-0">

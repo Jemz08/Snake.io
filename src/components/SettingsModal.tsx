@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Volume2,
@@ -17,6 +17,9 @@ import {
   Cpu,
   Music,
   Radio,
+  Image as ImageIcon,
+  RotateCw,
+  Layers,
 } from 'lucide-react';
 import { GameSettings, TargetFpsOption, saveGameSettings } from '../utils/settings';
 import {
@@ -28,8 +31,11 @@ import {
   playRetroLaserSound,
   playRetroPowerupSound,
   playRetroVictoryFanfare,
+  playRetroButtonClick,
 } from '../utils/audio';
 import { FpsInfo, useFpsDetector } from '../utils/fpsDetector';
+import { SNAKE_AVATARS, SnakeAvatarDef, getSnakeAvatarById } from '../utils/snakeAvatars';
+import { SnakeAvatar } from './SnakeAvatar';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -38,6 +44,10 @@ interface SettingsModalProps {
   onUpdateSettings: (newSettings: Partial<GameSettings>) => void;
   playerName: string;
   onUpdatePlayerName: (newName: string) => void;
+  selectedAvatarId?: string;
+  onUpdateAvatarId?: (newAvatarId: string) => void;
+  selectedSkinId?: string;
+  initialTab?: 'performance' | 'audio' | 'profile' | 'mechanics';
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -47,13 +57,62 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpdateSettings,
   playerName,
   onUpdatePlayerName,
+  selectedAvatarId = 'angel',
+  onUpdateAvatarId,
+  selectedSkinId,
+  initialTab,
 }) => {
-  const [activeTab, setActiveTab] = useState<'performance' | 'audio' | 'profile' | 'mechanics'>('performance');
+  const [activeTab, setActiveTab] = useState<'performance' | 'audio' | 'profile' | 'mechanics'>(
+    initialTab || 'performance'
+  );
   const [localName, setLocalName] = useState(playerName);
   const [nameSaved, setNameSaved] = useState(false);
+  const [currentAvatarId, setCurrentAvatarId] = useState<string>(selectedAvatarId);
+  const [avatarCategory, setAvatarCategory] = useState<'all' | 'celestial' | 'elemental' | 'tech' | 'shadow'>('all');
+  const [avatarView, setAvatarView] = useState<'portrait' | 'card'>('portrait');
+  const [avatarSavedFeedback, setAvatarSavedFeedback] = useState<string | null>(null);
   const fpsInfo = useFpsDetector();
 
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, isOpen]);
+
+  useEffect(() => {
+    setCurrentAvatarId(selectedAvatarId);
+  }, [selectedAvatarId]);
+
+  useEffect(() => {
+    setLocalName(playerName);
+  }, [playerName]);
+
   if (!isOpen) return null;
+
+  const handleSelectAvatar = (avatar: SnakeAvatarDef) => {
+    playRetroButtonClick();
+    setCurrentAvatarId(avatar.id);
+    if (onUpdateAvatarId) {
+      onUpdateAvatarId(avatar.id);
+    }
+    setAvatarSavedFeedback(avatar.name);
+    setTimeout(() => {
+      setAvatarSavedFeedback(null);
+    }, 2500);
+  };
+
+  const handleSyncWithEquippedSkin = () => {
+    if (!selectedSkinId) return;
+    const matched = getSnakeAvatarById(selectedSkinId);
+    handleSelectAvatar(matched);
+  };
+
+  const filteredAvatars = SNAKE_AVATARS.filter((av) => {
+    if (avatarCategory === 'all') return true;
+    return av.category === avatarCategory;
+  });
+
+  const activeAvatarDef = getSnakeAvatarById(currentAvatarId);
 
   const fpsOptions: TargetFpsOption[] = [60, 90, 120, 144, 'unlimited'];
 
@@ -448,48 +507,293 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           )}
 
-          {/* TAB 3: PILOT IDENTITY (CHANGE NAME) */}
+          {/* TAB 3: PILOT IDENTITY & CYBER SNAKE PROFILE PICS */}
           {activeTab === 'profile' && (
             <div className="space-y-4">
-              <form onSubmit={handleNameSubmit} className="space-y-3">
-                <label className="text-xs font-black uppercase text-slate-300 block">
-                  CHANGE PILOT CALLSIGN / NAME:
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={localName}
-                    onChange={(e) => setLocalName(e.target.value.slice(0, 16))}
-                    placeholder="Enter new pilot name..."
-                    className="flex-1 bg-slate-950 border-2 border-slate-700 focus:border-cyan-400 rounded-xl px-4 py-2.5 font-cyber text-base font-bold text-white outline-none"
-                  />
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shrink-0"
-                  >
-                    {nameSaved ? <Check className="w-4 h-4 text-green-950" /> : null}
-                    {nameSaved ? 'SAVED!' : 'SAVE NAME'}
-                  </button>
-                </div>
-                <span className="text-[11px] text-slate-400 block">
-                  Max 16 characters. This name appears on leaderboards, kill feeds, and bounty announcements.
-                </span>
-              </form>
+              {/* Active Pilot Profile Showcase Card */}
+              <div
+                className="bg-slate-950/90 border-2 rounded-2xl p-4 sm:p-5 relative overflow-hidden shadow-xl"
+                style={{
+                  borderColor: `${activeAvatarDef.borderColor}80`,
+                  boxShadow: `0 0 25px ${activeAvatarDef.glowColor}25`,
+                }}
+              >
+                {/* Subtle cyber background grid */}
+                <div
+                  className="absolute inset-0 opacity-10 pointer-events-none"
+                  style={{
+                    backgroundImage: `linear-gradient(${activeAvatarDef.borderColor} 1px, transparent 1px), linear-gradient(to right, ${activeAvatarDef.borderColor} 1px, transparent 1px)`,
+                    backgroundSize: '20px 20px',
+                  }}
+                />
 
-              {/* Callsign Preview Card */}
-              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-cyan-300 font-black text-lg">
-                    {localName.charAt(0).toUpperCase() || 'V'}
+                <div className="relative z-10 flex flex-col sm:flex-row items-center gap-4 sm:gap-5">
+                  {/* Active Snake Avatar Profile Pic */}
+                  <div className="relative group shrink-0">
+                    <SnakeAvatar
+                      avatarId={currentAvatarId}
+                      size="xl"
+                      showGlow
+                      showBadge
+                      rounded="2xl"
+                      className="border-2 shadow-2xl transition-transform duration-200 group-hover:scale-105"
+                    />
+                    <div
+                      className="absolute -bottom-2 inset-x-0 mx-auto w-max px-2 py-0.5 rounded-full text-[9px] font-cyber font-black tracking-wider uppercase border shadow-md flex items-center gap-1"
+                      style={{
+                        backgroundColor: '#090d16',
+                        borderColor: activeAvatarDef.borderColor,
+                        color: activeAvatarDef.themeColor,
+                      }}
+                    >
+                      <Check className="w-2.5 h-2.5" /> ACTIVE PFP
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 uppercase block font-bold">CURRENT BATTLE CALLSIGN</span>
-                    <span className="text-base font-black text-white">{localName || playerName}</span>
+
+                  {/* Callsign & Profile Info */}
+                  <div className="flex-1 min-w-0 w-full space-y-2.5 text-center sm:text-left">
+                    <div className="flex flex-wrap items-center justify-center sm:justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] font-cyber uppercase tracking-widest text-slate-400 block font-bold">
+                          PILOT PROFILE PICTURE
+                        </span>
+                        <h3 className="text-base sm:text-lg font-black text-white flex items-center justify-center sm:justify-start gap-1.5 truncate">
+                          <span>{activeAvatarDef.name}</span>
+                          <span
+                            className="text-xs px-2 py-0.5 rounded border font-mono font-bold"
+                            style={{
+                              borderColor: `${activeAvatarDef.borderColor}60`,
+                              backgroundColor: `${activeAvatarDef.borderColor}20`,
+                              color: activeAvatarDef.themeColor,
+                            }}
+                          >
+                            {activeAvatarDef.archetypeLabel}
+                          </span>
+                        </h3>
+                      </div>
+
+                      {/* Quick Sync Button */}
+                      {selectedSkinId && (
+                        <button
+                          type="button"
+                          onClick={handleSyncWithEquippedSkin}
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-cyan-300 text-[11px] font-cyber font-bold flex items-center gap-1.5 transition-all active:scale-95 shrink-0"
+                          title="Set profile pic to match currently equipped in-game snake"
+                        >
+                          <RotateCw className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>SYNC WITH SNAKE</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Change Callsign Form */}
+                    <form onSubmit={handleNameSubmit} className="flex gap-2">
+                      <div className="relative flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={localName}
+                          onChange={(e) => setLocalName(e.target.value.slice(0, 16))}
+                          placeholder="Enter pilot callsign..."
+                          className="w-full bg-slate-900/90 border border-slate-700 focus:border-cyan-400 rounded-xl px-3.5 py-2 font-cyber text-sm font-bold text-white outline-none transition-colors"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shrink-0 cursor-pointer active:scale-95"
+                      >
+                        {nameSaved ? <Check className="w-3.5 h-3.5 text-slate-950" /> : null}
+                        {nameSaved ? 'SAVED' : 'SAVE CALLSIGN'}
+                      </button>
+                    </form>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-lg bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 font-bold text-xs uppercase">
-                  ACTIVE PILOT
-                </span>
+              </div>
+
+              {/* Feedback toast when avatar is equipped */}
+              {avatarSavedFeedback && (
+                <div className="bg-cyan-500/20 border border-cyan-400/60 rounded-xl px-3.5 py-2 flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <span className="text-xs font-cyber font-bold text-cyan-200">
+                      EQUIPPED <strong>{avatarSavedFeedback}</strong> AS YOUR PROFILE PICTURE!
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-cyan-400 font-mono">SAVED INSTANTLY</span>
+                </div>
+              )}
+
+              {/* CYBER SNAKE PROFILE PICTURES SELECTOR */}
+              <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3 sm:p-4 space-y-3">
+                {/* Section Header & View Toggles */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-800 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                      <ImageIcon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-cyber font-black text-sm text-white uppercase tracking-wider flex items-center gap-1.5">
+                        <span>SELECT SNAKE PROFILE PICTURE</span>
+                        <span className="text-cyan-400 font-mono text-xs">({filteredAvatars.length}/15)</span>
+                      </h3>
+                      <p className="text-[11px] text-slate-400">
+                        Choose any cyber snake as your in-game battle avatar & callsign portrait
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* View Mode Toggle: Portrait Avatars vs Full Cards */}
+                  <div className="flex items-center gap-1 p-1 bg-slate-900 border border-slate-800 rounded-xl self-start sm:self-auto shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setAvatarView('portrait')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-cyber font-bold flex items-center gap-1 transition-all ${
+                        avatarView === 'portrait'
+                          ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <User className="w-3.5 h-3.5" />
+                      <span>PORTRAITS</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAvatarView('card')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-cyber font-bold flex items-center gap-1 transition-all ${
+                        avatarView === 'card'
+                          ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>FULL CARDS</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filter Categories (Zero-pill discipline, segmented button bar) */}
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
+                  {(
+                    [
+                      { id: 'all', label: 'ALL SNAKES (15)' },
+                      { id: 'celestial', label: 'CELESTIAL & VOID' },
+                      { id: 'elemental', label: 'FIRE & ICE' },
+                      { id: 'tech', label: 'CYBER TECH' },
+                      { id: 'shadow', label: 'SHADOW & BIO' },
+                    ] as const
+                  ).map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setAvatarCategory(cat.id)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-cyber font-bold tracking-wider uppercase transition-all shrink-0 cursor-pointer ${
+                        avatarCategory === cat.id
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
+                          : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Grid of Avatars: PORTRAIT MODE */}
+                {avatarView === 'portrait' ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-2.5 max-h-[360px] overflow-y-auto pr-1">
+                    {filteredAvatars.map((av) => {
+                      const isEquipped = currentAvatarId === av.id;
+                      return (
+                        <div
+                          key={av.id}
+                          onClick={() => handleSelectAvatar(av)}
+                          className={`group relative rounded-xl p-2.5 border-2 transition-all duration-200 cursor-pointer flex flex-col items-center text-center select-none ${
+                            isEquipped
+                              ? 'bg-slate-900 border-cyan-400 shadow-[0_0_18px_rgba(6,182,212,0.35)] scale-102'
+                              : 'bg-slate-900/60 border-slate-800 hover:border-slate-600 hover:bg-slate-900'
+                          }`}
+                          style={{
+                            borderColor: isEquipped ? av.borderColor : undefined,
+                          }}
+                        >
+                          {/* Top Tag */}
+                          <div className="w-full flex items-center justify-between text-[9px] font-cyber mb-1.5">
+                            <span className="font-bold truncate" style={{ color: av.themeColor }}>
+                              {av.archetypeLabel}
+                            </span>
+                            {isEquipped ? (
+                              <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-400 text-[8px] font-black">
+                                ACTIVE
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {/* Snake Avatar Head */}
+                          <div className="my-1">
+                            <SnakeAvatar
+                              avatarId={av.id}
+                              size="lg"
+                              showGlow={isEquipped}
+                              showBadge
+                              rounded="xl"
+                              className="group-hover:scale-105 transition-transform"
+                            />
+                          </div>
+
+                          {/* Snake Name & Elemental Title */}
+                          <span className="font-cyber font-bold text-xs text-white block truncate w-full mt-1">
+                            {av.name.replace('²', '')}
+                          </span>
+                          <span
+                            className="font-cyber text-[9px] font-semibold block truncate w-full"
+                            style={{ color: av.themeColor }}
+                          >
+                            {av.title}
+                          </span>
+
+                          {/* Action Button / Indicator */}
+                          <div className="w-full mt-2 pt-1 border-t border-slate-800/80">
+                            {isEquipped ? (
+                              <span className="w-full py-0.5 rounded bg-cyan-500 text-slate-950 font-cyber font-black text-[10px] uppercase flex items-center justify-center gap-1 shadow-sm">
+                                <Check className="w-3 h-3 text-slate-950" /> EQUIPPED
+                              </span>
+                            ) : (
+                              <span className="w-full py-0.5 rounded bg-slate-800/80 group-hover:bg-cyan-500/20 text-slate-400 group-hover:text-cyan-300 font-cyber font-bold text-[10px] uppercase flex items-center justify-center transition-colors">
+                                CHOOSE PFP
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* Grid of Avatars: FULL CARD SHOWCASE (Matching reference image) */
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[380px] overflow-y-auto pr-1">
+                    {filteredAvatars.map((av) => {
+                      const isEquipped = currentAvatarId === av.id;
+                      return (
+                        <div
+                          key={av.id}
+                          onClick={() => handleSelectAvatar(av)}
+                          className={`relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 ${
+                            isEquipped ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-slate-950 scale-102' : ''
+                          }`}
+                        >
+                          <SnakeAvatar
+                            avatarId={av.id}
+                            variant="card"
+                            showGlow={isEquipped}
+                            className="w-full"
+                          />
+                          {isEquipped && (
+                            <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-cyan-500 text-slate-950 font-cyber font-black text-[9px] shadow-lg flex items-center gap-1 z-30">
+                              <Check className="w-2.5 h-2.5" /> EQUIPPED
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}

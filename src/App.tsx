@@ -28,6 +28,8 @@ const DEFAULT_PROFILE: PlayerProfile = {
   maxKills: 0,
   selectedSkinId: 'angel-seraph',
   unlockedSkinIds: ['angel-seraph', 'devil-infernal', 'blackhole-void', 'robot-titan', 'cyber-viper'],
+  selectedAvatarId: 'angel',
+  unlockedAvatarIds: ['angel', 'devil', 'void', 'robot', 'dragon', 'cyber', 'phoenix', 'frost', 'venom', 'storm', 'vampire', 'chrono', 'ninja', 'crystal', 'alien'],
   selectedDeathEffectId: 'retro-pixel-kaboom',
   unlockedDeathEffectIds: ['retro-pixel-kaboom'],
   selectedTrailId: 'matrix',
@@ -73,6 +75,7 @@ export default function App() {
           unlockedSkinIds: mergedSkins,
           selectedDeathEffectId: normSelected,
           unlockedDeathEffectIds: normUnlocked,
+          selectedAvatarId: parsed.selectedAvatarId || 'angel',
         };
       }
     } catch {
@@ -91,8 +94,14 @@ export default function App() {
   const [isHudCustomizerOpen, setIsHudCustomizerOpen] = useState(false);
   const [hudLayout, setHudLayout] = useState<HudLayoutConfig>(loadHudLayout);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'performance' | 'audio' | 'profile' | 'mechanics'>('performance');
   const [settings, setSettings] = useState<GameSettings>(getSettings);
   const [isLandscape, setIsLandscape] = useState(true);
+
+  const handleOpenSettings = useCallback((tab: 'performance' | 'audio' | 'profile' | 'mechanics' = 'performance') => {
+    setSettingsTab(tab);
+    setIsSettingsOpen(true);
+  }, []);
   const [gameOverData, setGameOverData] = useState<{
     score: number;
     kills: number;
@@ -310,13 +319,14 @@ export default function App() {
           onOpenMissions={() => setIsMissionsOpen(true)}
           onOpenExport={() => setIsExportOpen(true)}
           onOpenHudCustomizer={() => setIsHudCustomizerOpen(true)}
-          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSettings={handleOpenSettings}
         />
       )}
 
       {screen === 'playing' && (
         <GameCanvas
           engine={engine}
+          selectedAvatarId={profile.selectedAvatarId || 'angel'}
           onExitToLobby={handleReturnLobby}
           onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
           onOpenMissions={() => setIsMissionsOpen(true)}
@@ -390,7 +400,7 @@ export default function App() {
         profile={profile}
       />
 
-      {/* Settings Modal (FPS, Audio Levels, Pilot Name, Mechanics) */}
+      {/* Settings Modal (FPS, Audio Levels, Pilot Name, Cyber Snake Avatars, Mechanics) */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -398,6 +408,10 @@ export default function App() {
         onUpdateSettings={handleUpdateSettings}
         playerName={profile.name}
         onUpdatePlayerName={handleUpdatePlayerName}
+        selectedAvatarId={profile.selectedAvatarId || 'angel'}
+        onUpdateAvatarId={(newAvatarId) => updateProfile({ selectedAvatarId: newAvatarId })}
+        selectedSkinId={profile.selectedSkinId}
+        initialTab={settingsTab}
       />
 
       {/* Game Over Modal */}
@@ -412,6 +426,7 @@ export default function App() {
           xpEarned={gameOverData.xpEarned}
           gameMode={gameOverData.gameMode}
           waveReached={gameOverData.waveReached}
+          selectedAvatarId={profile.selectedAvatarId || 'angel'}
           onPlayAgain={handlePlayAgain}
           onReturnLobby={handleReturnLobby}
           onOpenLeaderboard={() => setIsLeaderboardOpen(true)}

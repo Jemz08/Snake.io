@@ -4,6 +4,7 @@ import { SKINS, getSkinById } from '../utils/skins';
 import { WEAPONS } from '../utils/weapons';
 import { getArchetypeAbility } from '../utils/archetypeAbilities';
 import { SnakePreviewCanvas } from './SnakePreviewCanvas';
+import { SnakeAvatar } from './SnakeAvatar';
 import { DynamicCyberBackground } from './DynamicCyberBackground';
 import { TrailsModal } from './TrailsModal';
 import { BattlePassModal } from './BattlePassModal';
@@ -70,7 +71,7 @@ interface LobbyViewProps {
   onOpenMissions: () => void;
   onOpenExport?: () => void;
   onOpenHudCustomizer?: () => void;
-  onOpenSettings?: () => void;
+  onOpenSettings?: (tab?: 'performance' | 'audio' | 'profile' | 'mechanics') => void;
 }
 
 const ARCHETYPES: Array<{
@@ -343,19 +344,44 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
   // Render Subcomponents
   const renderCallsignBar = () => (
-    <div className="w-full bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 flex items-center justify-between gap-2.5 shadow-lg backdrop-blur-md shrink-0">
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        <span className="font-cyber text-[10px] sm:text-xs font-bold text-cyan-400 uppercase tracking-wider shrink-0">
-          PILOT:
-        </span>
-        <input
-          id="input-player-name"
-          type="text"
-          value={playerName}
-          onChange={handleNameChange}
-          placeholder="Enter callsign..."
-          className="w-full bg-transparent border-b border-slate-700 focus:border-cyan-400 px-1.5 py-0.5 font-cyber text-xs sm:text-sm font-black text-white tracking-wider outline-none transition-colors"
-        />
+    <div className="w-full bg-slate-900/90 border border-slate-800 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between gap-2.5 shadow-lg backdrop-blur-md shrink-0">
+      <div className="flex items-center gap-2 sm:gap-2.5 flex-1 min-w-0">
+        {/* Clickable Pilot Snake Profile Picture */}
+        <button
+          type="button"
+          onClick={() => {
+            playRetroButtonClick();
+            onOpenSettings?.('profile');
+          }}
+          className="relative group shrink-0 focus:outline-none rounded-xl transition-transform active:scale-95 cursor-pointer"
+          title="Change Cyber Snake Profile Pic in Settings"
+        >
+          <SnakeAvatar
+            avatarId={profile.selectedAvatarId || 'angel'}
+            size={36}
+            showGlow
+            showBadge
+            rounded="xl"
+            className="group-hover:scale-108 transition-transform duration-150 shadow-md"
+          />
+          <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-cyan-500 border border-slate-950 flex items-center justify-center text-[7px] text-slate-950 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+            ✎
+          </div>
+        </button>
+
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <span className="font-cyber text-[10px] sm:text-xs font-bold text-cyan-400 uppercase tracking-wider shrink-0">
+            PILOT:
+          </span>
+          <input
+            id="input-player-name"
+            type="text"
+            value={playerName}
+            onChange={handleNameChange}
+            placeholder="Enter callsign..."
+            className="w-full bg-transparent border-b border-slate-700 focus:border-cyan-400 px-1.5 py-0.5 font-cyber text-xs sm:text-sm font-black text-white tracking-wider outline-none transition-colors"
+          />
+        </div>
       </div>
       <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] font-cyber text-slate-400 shrink-0">
         <span className="bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800">
@@ -875,7 +901,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             <button
               id="btn-lobby-settings"
               type="button"
-              onClick={onOpenSettings}
+              onClick={() => onOpenSettings()}
               className="p-1.5 sm:p-2 rounded-xl bg-slate-900/90 border border-slate-700 hover:border-cyan-400 text-slate-300 hover:text-cyan-400 transition-all shadow-sm cursor-pointer"
               title="Settings (FPS, Sound, Name, Mechanics)"
             >

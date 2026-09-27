@@ -541,6 +541,9 @@ export interface PlayerProfile {
   unlockedSkinIds: string[];
   selectedDeathEffectId: DeathEffectType;
   unlockedDeathEffectIds: DeathEffectType[];
+  // Profile Picture (Cyber Snake Avatar)
+  selectedAvatarId?: string;
+  unlockedAvatarIds?: string[];
   // Feature 3: Customization & Visual Flair
   selectedTrailId?: TrailType;
   unlockedTrailIds?: TrailType[];
